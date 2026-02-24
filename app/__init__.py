@@ -1,0 +1,1 @@
+# Backend - Arquitectura Hexagonal
