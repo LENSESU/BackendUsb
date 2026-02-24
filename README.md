@@ -28,16 +28,54 @@ app/
 
 - Python 3.11+
 
-## Instalación
+## Clonar el repositorio y ejecutar el proyecto
+
+Clona el repositorio :
+
+```bash
+git clone https://github.com/Chologalactico/BackendUsb.git
+```
+Crea una una nueva rama
+```bash
+git checkout -b dev
+```
+Todo se sube a la rama que creaste, para ya luego hacer un PR a la rama DEV 
+
+-⚠️ Peligroso. Hacer algun push a la rama main o develop 
+
+Entra al directorio del proyecto:
+
+```bash
+cd BACKEND
+```
+
+Crea el entorno virtual:
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate   # Windows
-# source .venv/bin/activate   # Linux/macOS
+```
+
+Activa el entorno virtual.
+
+En Windows (PowerShell o CMD):
+
+```bash
+.venv\Scripts\activate
+```
+
+En Linux o macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Instala las dependencias:
+
+```bash
 pip install -r requirements.txt
 ```
 
-## Ejecución
+Ejecuta la aplicación:
 
 ```bash
 uvicorn app.main:app --reload
