@@ -83,6 +83,32 @@ uvicorn app.main:app --reload
 
 La API quedará disponible en `http://127.0.0.1:8000`.
 
+### Ejecución con Docker
+
+Requisitos: [Docker](https://docs.docker.com/get-docker/) y [Docker Compose](https://docs.docker.com/compose/install/).
+
+Construir y levantar los servicios (backend + PostgreSQL):
+
+```bash
+docker compose up --build
+```
+
+Para ejecutar en segundo plano:
+
+```bash
+docker compose up -d --build
+```
+
+Crea un archivo `.env` en la raíz para configurar Postgres:
+
+```bash
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=app_db
+```
+
+Con Docker, la API queda en `http://127.0.0.1:8000` y PostgreSQL en `localhost:5432` (usuario/contraseña/base según `.env` o valores por defecto anteriores).
+
 - Documentación interactiva: **http://127.0.0.1:8000/docs**
 - Health: **http://127.0.0.1:8000/health**
 - Items: **http://127.0.0.1:8000/api/v1/items**
