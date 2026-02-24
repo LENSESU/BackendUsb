@@ -89,6 +89,7 @@ La API quedará disponible en `http://127.0.0.1:8000`.
 
 ## Ejemplo de uso (Items)
 
+
 - `GET /api/v1/items/` — listar items
 - `GET /api/v1/items/{id}` — obtener un item
 - `POST /api/v1/items/` — crear item (body: `{"name": "Mi item", "description": "opcional"}`)
