@@ -46,7 +46,11 @@ Todo se sube a la rama que creaste, para ya luego hacer un PR a la rama DEV
 Entra al directorio del proyecto:
 
 ```bash
+<<<<<<< HEAD
+cd BackendUsb
+=======
 cd BACKEND
+>>>>>>> 405b93180bc284fa7bd67c044e1a84560b08d05f
 ```
 
 Crea el entorno virtual:
@@ -82,6 +86,24 @@ uvicorn app.main:app --reload
 ```
 
 La API quedará disponible en `http://127.0.0.1:8000`.
+
+### CI/CD (GitHub Actions)
+
+Este repositorio incluye un workflow de CI en `.github/workflows/ci.yml` que se ejecuta en:
+
+- Push a la rama `dev`.
+- Pull requests hacia `dev` y `main`.
+
+El pipeline realiza:
+
+- **Linting con Ruff** sobre la carpeta `app/`.
+- **Chequeo básico de sintaxis** con `python -m compileall app`.
+
+Para hacer obligatorio el pipeline antes de fusionar PRs, configura en GitHub:
+
+1. `Settings` → `Branches` → `Branch protection rules`.
+2. Protege `dev` y `main`.
+3. Añade el check de estado del workflow de CI como requerido.
 
 ### Ejecución con Docker
 

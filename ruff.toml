@@ -1,0 +1,18 @@
+line-length = 88
+target-version = "py311"
+
+# EXCLUSIONES GLOBALES (solo aquí)
+exclude = [
+    "__pycache__",
+    "migrations",
+    ".venv",
+    "venv",
+    "env",
+]
+
+[lint]
+select = ["E", "F", "I", "UP"]
+ignore = []
+
+[lint.isort]
+known-first-party = ["app"]
