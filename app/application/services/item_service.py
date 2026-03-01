@@ -2,8 +2,8 @@
 
 from uuid import UUID
 
-from app.domain.entities import Item
 from app.application.ports import ItemRepositoryPort
+from app.domain.entities import Item
 
 
 class ItemService:

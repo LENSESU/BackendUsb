@@ -1,9 +1,10 @@
-"""Adaptador en memoria que implementa ItemRepositoryPort. Sustituible por SQL, NoSQL, etc."""
+"""Adaptador en memoria que implementa ItemRepositoryPort.
+Se puede sustituir por SQL, NoSQL, etc."""
 
 from uuid import UUID
 
-from app.domain.entities import Item
 from app.application.ports import ItemRepositoryPort
+from app.domain.entities import Item
 
 
 class InMemoryItemRepository(ItemRepositoryPort):
