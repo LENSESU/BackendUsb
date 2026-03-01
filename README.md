@@ -46,7 +46,11 @@ Todo se sube a la rama que creaste, para ya luego hacer un PR a la rama DEV
 Entra al directorio del proyecto:
 
 ```bash
+<<<<<<< HEAD
 cd BackendUsb
+=======
+cd BACKEND
+>>>>>>> 405b93180bc284fa7bd67c044e1a84560b08d05f
 ```
 
 Crea el entorno virtual:
