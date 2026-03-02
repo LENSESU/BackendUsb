@@ -46,11 +46,7 @@ Todo se sube a la rama que creaste, para ya luego hacer un PR a la rama DEV
 Entra al directorio del proyecto:
 
 ```bash
-<<<<<<< HEAD
 cd BackendUsb
-=======
-cd BACKEND
->>>>>>> 405b93180bc284fa7bd67c044e1a84560b08d05f
 ```
 
 Crea el entorno virtual:
@@ -87,6 +83,14 @@ uvicorn app.main:app --reload
 
 La API quedará disponible en `http://127.0.0.1:8000`.
 
+### Ejecutar tests
+
+Los tests están en `tests/` (por ejemplo `tests/test_health.py`, que prueba el endpoint `/health`). Desde la raíz del proyecto (donde están `app/` y `tests/`):
+
+```bash
+python -m pytest
+```
+
 ### CI/CD (GitHub Actions)
 
 Este repositorio incluye un workflow de CI en `.github/workflows/ci.yml` que se ejecuta en:
@@ -94,10 +98,32 @@ Este repositorio incluye un workflow de CI en `.github/workflows/ci.yml` que se 
 - Push a la rama `dev`.
 - Pull requests hacia `dev` y `main`.
 
+**Es obligatorio que todos los checks de GitHub Actions pasen en verde** antes de fusionar un PR. Revisa la pestaña **Actions** en el repositorio y el estado de los checks en cada Pull Request; si algo falla, corrige el código y vuelve a subir.
+
 El pipeline realiza:
 
 - **Linting con Ruff** sobre la carpeta `app/`.
+- **Chequeo de formato** con `ruff format --check app`.
 - **Chequeo básico de sintaxis** con `python -m compileall app`.
+- **Tests** con `pytest` (incluye `tests/test_health.py`).
+
+#### Comandos locales (verificar antes de subir)
+
+Para reproducir en tu máquina lo que hace el CI y evitar fallos en Actions:
+
+```bash
+# Linter: solo revisar
+python -m ruff check app
+
+# Linter: revisar y aplicar correcciones automáticas
+python -m ruff check app --fix
+
+# Formato: comprobar que el código está formateado
+python -m ruff format --check app
+
+# Formato: aplicar formato automáticamente
+python -m ruff format app
+```
 
 Para hacer obligatorio el pipeline antes de fusionar PRs, configura en GitHub:
 
