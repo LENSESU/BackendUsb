@@ -2,12 +2,18 @@
 
 from uuid import uuid4
 
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 
 from app.application.ports import UserRepositoryPort
 from app.domain.entities import User
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Configuración de Argon2id con parámetros algo más ligeros para desarrollo.
+_ph = PasswordHasher(
+    time_cost=2,  # iteraciones (por defecto suele ser 3)
+    memory_cost=51200,  # KB (~50 MB)
+    parallelism=2,
+)
 
 
 class AuthService:
@@ -21,10 +27,15 @@ class AuthService:
         self._user_repository = user_repository
 
     def _hash_password(self, plain_password: str) -> str:
-        return _pwd_context.hash(plain_password)
+        """Genera un hash Argon2id del password en texto plano."""
+        return _ph.hash(plain_password)
 
     def _verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return _pwd_context.verify(plain_password, hashed_password)
+        """Verifica un password en texto plano contra un hash Argon2id almacenado."""
+        try:
+            return _ph.verify(hashed_password, plain_password)
+        except VerifyMismatchError:
+            return False
 
     async def register(self, email: str, password: str, name: str | None = None) -> User:
         """Registra un usuario nuevo.
