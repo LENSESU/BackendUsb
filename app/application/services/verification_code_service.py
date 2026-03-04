@@ -3,7 +3,7 @@
 import logging
 import random
 import string
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -19,9 +19,12 @@ def _generate_code() -> str:
 
 
 def generate_and_store(email: str) -> str:
-    """Genera un código, lo guarda asociado al email y lo devuelve (para enviar por email o log)."""
+    """Genera un código y lo guarda asociado al email.
+
+    Devuelve el código para enviarlo por email o registrarlo en logs.
+    """
     code = _generate_code()
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=EXPIRY_MINUTES)
+    expires_at = datetime.now(UTC) + timedelta(minutes=EXPIRY_MINUTES)
     _store[email.lower().strip()] = {"code": code, "expires_at": expires_at}
     return code
 
@@ -32,7 +35,7 @@ def get_stored_code(email: str) -> str | None:
     if key not in _store:
         return None
     data = _store[key]
-    if datetime.now(timezone.utc) >= data["expires_at"]:
+    if datetime.now(UTC) >= data["expires_at"]:
         del _store[key]
         return None
     return data["code"]

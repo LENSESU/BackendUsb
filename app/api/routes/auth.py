@@ -1,18 +1,18 @@
 """Rutas HTTP para autenticación por email/password."""
 
 import logging
-from datetime import datetime, timedelta, timezone
 import os
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from jose import jwt
 
 from app.api.schemas.auth import (
     LoginRequest,
-    RegisterRequest,
     LoginResponse,
     ResendCodeRequest,
     ResendCodeResponse,
+    RegisterRequest,
 )
 from app.application.services import AuthService
 from app.application.services.verification_code_service import generate_and_store
@@ -29,7 +29,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
 def _create_access_token(subject: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {"sub": str(subject), "exp": expire}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -71,6 +71,7 @@ async def register(
 @router.post("/resend-code", response_model=ResendCodeResponse)
 async def resend_code(payload: ResendCodeRequest) -> ResendCodeResponse:
     """Genera y almacena un nuevo código de verificación para el email.
+
     En desarrollo el código se registra en logs; en producción se enviaría por email.
     """
     code = generate_and_store(payload.email)

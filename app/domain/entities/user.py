@@ -1,10 +1,10 @@
 """Entidad de dominio: User."""
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     STUDENT = "STUDENT"
     TEACHER = "TEACHER"
     ADMIN = "ADMIN"
