@@ -1,8 +1,8 @@
 """Rutas HTTP para autenticación por email/password."""
 
+from datetime import UTC, datetime, timedelta
 import logging
 import os
-from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from jose import jwt
@@ -10,9 +10,9 @@ from jose import jwt
 from app.api.schemas.auth import (
     LoginRequest,
     LoginResponse,
+    RegisterRequest,
     ResendCodeRequest,
     ResendCodeResponse,
-    RegisterRequest,
 )
 from app.application.services import AuthService
 from app.application.services.verification_code_service import generate_and_store
