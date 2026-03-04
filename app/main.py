@@ -13,6 +13,17 @@ app = FastAPI(
 app.include_router(api_router, prefix="/api/v1")
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    """Raíz: enlaces útiles."""
+    return {
+        "message": "Backend API",
+        "docs": "/docs",
+        "health": "/health",
+        "login": "/api/v1/auth/login",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Comprobación de que el servicio está vivo."""
