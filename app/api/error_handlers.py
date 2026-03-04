@@ -42,7 +42,10 @@ async def validation_error_handler(
 
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Captura cualquier otra excepción y devuelve 500 (evitar filtrar datos sensibles)."""
+    """Captura cualquier otra excepción.
+
+    Devuelve 500 (evitar filtrar datos sensibles).
+    """
     logger.exception("Error no controlado: %s", exc)
     return _error_response(
         "Error interno del servidor",

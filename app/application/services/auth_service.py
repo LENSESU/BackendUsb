@@ -36,7 +36,12 @@ class AuthService:
         except VerifyMismatchError:
             return False
 
-    async def register(self, email: str, password: str, name: str | None = None) -> User:
+    async def register(
+        self,
+        email: str,
+        password: str,
+        name: str | None = None,
+    ) -> User:
         """Registra un usuario nuevo.
 
         Falla si el usuario ya existe.

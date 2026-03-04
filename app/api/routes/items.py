@@ -36,9 +36,9 @@ from app.api.dependencies.auth import (
     require_role,
 )
 from app.api.schemas import ItemCreate, ItemResponse
-from app.core.exceptions import NotFoundError
 from app.application.ports import ItemRepositoryPort
 from app.application.services import ItemService
+from app.core.exceptions import NotFoundError
 
 router = APIRouter()
 
