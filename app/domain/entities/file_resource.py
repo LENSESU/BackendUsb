@@ -15,4 +15,3 @@ class FileResource:
     def __post_init__(self) -> None:
         if not self.url or not self.url.strip():
             raise ValueError("La URL del archivo no puede estar vacía")
-

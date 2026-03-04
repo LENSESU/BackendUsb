@@ -12,4 +12,3 @@ class Role:
     def __post_init__(self) -> None:
         if not self.name or not self.name.strip():
             raise ValueError("El nombre del rol no puede estar vacío")
-

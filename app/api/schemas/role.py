@@ -18,4 +18,3 @@ class RoleResponse(BaseModel):
     description: str | None = None
 
     model_config = {"from_attributes": True}
-

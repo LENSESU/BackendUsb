@@ -16,4 +16,3 @@ class Notification:
     def __post_init__(self) -> None:
         if not self.message or not self.message.strip():
             raise ValueError("El mensaje de la notificación no puede estar vacío")
-

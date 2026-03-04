@@ -11,4 +11,3 @@ class Tag:
     def __post_init__(self) -> None:
         if not self.name or not self.name.strip():
             raise ValueError("El nombre de la etiqueta no puede estar vacío")
-

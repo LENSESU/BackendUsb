@@ -40,4 +40,3 @@ class Incident:
 
         if not self.before_photo_id:
             raise ValueError("El incidente debe tener una foto 'antes'")
-

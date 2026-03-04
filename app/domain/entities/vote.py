@@ -17,4 +17,3 @@ class Vote:
 
         if not self.suggestion_id:
             raise ValueError("El voto debe estar asociado a una sugerencia")
-

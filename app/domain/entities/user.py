@@ -27,4 +27,3 @@ class User:
 
         if not self.password_hash:
             raise ValueError("El hash de contraseña no puede estar vacío")
-

@@ -24,4 +24,3 @@ class Suggestion:
 
         if self.total_votes < 0:
             raise ValueError("El total de votos no puede ser negativo")
-

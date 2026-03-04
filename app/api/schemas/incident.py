@@ -51,4 +51,3 @@ class IncidentResponse(BaseModel):
     updated_at: datetime | None
 
     model_config = {"from_attributes": True}
-

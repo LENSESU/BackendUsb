@@ -7,4 +7,3 @@ class SuggestionTag:
 
     suggestion_id: int
     tag_id: int
-
