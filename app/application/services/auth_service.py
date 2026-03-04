@@ -1,12 +1,11 @@
 """Caso de uso: autenticación por email/password."""
 
-from uuid import uuid4
-
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
 from app.application.ports import UserRepositoryPort
-from app.domain.entities import User
+from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
+from app.domain.entities import User, UserRole
 
 # Configuración de Argon2id con parámetros algo más ligeros para desarrollo.
 _ph = PasswordHasher(
@@ -44,15 +43,14 @@ class AuthService:
         """
         existing = await self._user_repository.get_by_email(email=email)
         if existing is not None:
-            msg = "El usuario ya existe"
-            raise ValueError(msg)
+            raise UserAlreadyExistsError()
 
         password_hash = self._hash_password(password)
         user = User(
-            id=uuid4(),
             email=email.strip(),
             password_hash=password_hash,
             name=name,
+            role=UserRole.STUDENT,
         )
         return await self._user_repository.save(user)
 
@@ -62,11 +60,14 @@ class AuthService:
 
         if existing is not None:
             if not self._verify_password(password, existing.password_hash):
-                msg = "Credenciales inválidas"
-                raise ValueError(msg)
+                raise InvalidCredentialsError()
             return existing
 
         password_hash = self._hash_password(password)
-        user = User(id=uuid4(), email=email.strip(), password_hash=password_hash)
+        user = User(
+            email=email.strip(),
+            password_hash=password_hash,
+            role=UserRole.STUDENT,
+        )
         return await self._user_repository.save(user)
 

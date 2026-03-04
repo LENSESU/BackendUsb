@@ -36,6 +36,7 @@ from app.api.dependencies.auth import (
     require_role,
 )
 from app.api.schemas import ItemCreate, ItemResponse
+from app.core.exceptions import NotFoundError
 from app.application.ports import ItemRepositoryPort
 from app.application.services import ItemService
 
@@ -83,7 +84,7 @@ def get_item(item_id: UUID) -> ItemResponse:
     service = get_item_service()
     item = service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+        raise NotFoundError("Item no encontrado")
     return ItemResponse.model_validate(item)
 
 
