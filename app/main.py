@@ -1,14 +1,25 @@
 """Punto de entrada de la aplicación FastAPI."""
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 
+from app.api.error_handlers import (
+    app_error_handler,
+    generic_exception_handler,
+    validation_error_handler,
+)
 from app.api.routes import api_router
+from app.core.exceptions import AppError
 
 app = FastAPI(
     title="Backend API",
     description="API con arquitectura hexagonal",
     version="0.1.0",
 )
+
+app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
 
 app.include_router(api_router, prefix="/api/v1")
 

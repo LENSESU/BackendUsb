@@ -1,17 +1,24 @@
 """Entidad de dominio: User."""
 
 from dataclasses import dataclass
-from uuid import UUID
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    STUDENT = "STUDENT"
+    TEACHER = "TEACHER"
+    ADMIN = "ADMIN"
 
 
 @dataclass
 class User:
     """Entidad de negocio User. Sin dependencias de frameworks."""
 
-    id: UUID
-    email: str
-    password_hash: str
+    id: int | None = None  # se asigna en la BD (autoincremental)
+    email: str = ""
+    password_hash: str = ""
     name: str | None = None
+    role: UserRole = UserRole.STUDENT
 
     def __post_init__(self) -> None:
         if not self.email or not self.email.strip():

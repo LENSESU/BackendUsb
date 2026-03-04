@@ -24,3 +24,15 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+
+class ResendCodeRequest(BaseModel):
+    """Payload para solicitar reenvío de código de verificación."""
+
+    email: EmailStr
+
+
+class ResendCodeResponse(BaseModel):
+    """Respuesta tras solicitar reenvío de código."""
+
+    message: str = "Si el correo está registrado, se ha enviado un nuevo código."
+

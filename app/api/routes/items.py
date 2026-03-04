@@ -2,9 +2,10 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.api.schemas import ItemCreate, ItemResponse
+from app.core.exceptions import NotFoundError
 from app.application.ports import ItemRepositoryPort
 from app.application.services import ItemService
 
@@ -36,7 +37,7 @@ def get_item(item_id: UUID) -> ItemResponse:
     service = get_item_service()
     item = service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+        raise NotFoundError("Item no encontrado")
     return ItemResponse.model_validate(item)
 
 
@@ -51,4 +52,4 @@ def create_item(payload: ItemCreate) -> ItemResponse:
 def delete_item(item_id: UUID) -> None:
     service = get_item_service()
     if not service.delete_item(item_id):
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+        raise NotFoundError("Item no encontrado")
