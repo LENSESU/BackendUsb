@@ -522,6 +522,7 @@ async def resend_otp(
 
 """Rutas HTTP para autenticación por email/password."""
 
+from datetime import UTC, datetime, timedelta
 import logging
 from datetime import datetime, timedelta, timezone
 import os
@@ -533,6 +534,7 @@ from app.api.schemas.auth import (
     LoginRequest,
     RegisterRequest,
     LoginResponse,
+    RegisterRequest,
     ResendCodeRequest,
     ResendCodeResponse,
 )

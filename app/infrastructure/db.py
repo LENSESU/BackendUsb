@@ -1,8 +1,8 @@
 """Configuración de SQLAlchemy async para PostgreSQL."""
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-import os
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
