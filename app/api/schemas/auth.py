@@ -58,4 +58,3 @@ class UserAuthInfo(BaseModel):
     role_id: UUID
 
     model_config = {"from_attributes": True}
-

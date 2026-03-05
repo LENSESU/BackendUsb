@@ -33,15 +33,15 @@ router = APIRouter()
 def get_db_session() -> Session:
     """
     Obtiene una sesión de base de datos.
-    
+
     TODO: Implementar dependency injection con generador para manejo apropiado
     de sesiones (abrir/cerrar automáticamente).
     """
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    
+
     from app.core.config import settings
-    
+
     engine = create_engine(settings.database_url_sync)
     SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
@@ -55,31 +55,31 @@ def get_db_session() -> Session:
 def login(credentials: LoginRequest) -> TokenResponse:
     """
     Autentica un usuario y devuelve tokens JWT (access y opcionalmente refresh).
-    
+
     Args:
         credentials: Email y contraseña del usuario
-    
+
     Returns:
         Tokens de acceso y refresco JWT
-    
+
     Raises:
         HTTPException 401: Si las credenciales son incorrectas
         HTTPException 403: Si el usuario está inactivo
     """
     # TODO: Mover lógica a un servicio de autenticación
     db = get_db_session()
-    
+
     # Buscar usuario por email
     stmt = select(UserModel).where(UserModel.email == credentials.email)
     user = db.scalar(stmt)
-    
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Verificar contraseña
     if not verify_password(credentials.password, user.password_hash):
         raise HTTPException(
@@ -87,29 +87,29 @@ def login(credentials: LoginRequest) -> TokenResponse:
             detail="Email o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Verificar que el usuario esté activo
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Usuario inactivo",
         )
-    
+
     # Datos del usuario para el token
     token_data = {
         "sub": str(user.id),
         "email": user.email,
         "role_id": str(user.role_id),
     }
-    
+
     # Crear access token
     access_token = create_access_token(data=token_data)
-    
+
     # Crear refresh token si está habilitado
     refresh_token = None
     if settings.use_refresh_tokens:
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -121,18 +121,18 @@ def login(credentials: LoginRequest) -> TokenResponse:
 def logout(token: str = Depends(get_current_token)) -> LogoutResponse:
     """
     Cierra la sesión del usuario invalidando su token.
-    
+
     El token se agrega a la blacklist para evitar su reutilización.
-    
+
     Args:
         token: Token JWT del usuario autenticado
-    
+
     Returns:
         Mensaje de confirmación de cierre de sesión
     """
     # Agregar token a la blacklist
     add_token_to_blacklist(token)
-    
+
     return LogoutResponse(message="Sesión cerrada exitosamente")
 
 
@@ -140,13 +140,13 @@ def logout(token: str = Depends(get_current_token)) -> LogoutResponse:
 def get_current_user_info(token: str = Depends(get_current_token)) -> dict:
     """
     Obtiene información del usuario autenticado.
-    
+
     Endpoint de utilidad para verificar que el token es válido
     y obtener datos del usuario actual.
-    
+
     Args:
         token: Token JWT del usuario autenticado
-    
+
     Returns:
         Información del usuario extraída del token
     """
@@ -161,7 +161,7 @@ def get_current_user_info(token: str = Depends(get_current_token)) -> dict:
                 "redirect_to_login": True,
             },
         )
-    
+
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -171,7 +171,7 @@ def get_current_user_info(token: str = Depends(get_current_token)) -> dict:
                 "redirect_to_login": True,
             },
         )
-    
+
     return {
         "user_id": payload.get("sub"),
         "email": payload.get("email"),
@@ -183,16 +183,16 @@ def get_current_user_info(token: str = Depends(get_current_token)) -> dict:
 def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
     """
     Renueva un access token usando un refresh token válido.
-    
+
     Permite al cliente obtener un nuevo access token sin re-autenticarse,
     siempre que el refresh token sea válido y no haya expirado.
-    
+
     Args:
         request: Refresh token del usuario
-    
+
     Returns:
         Nuevo access token (y opcionalmente nuevo refresh token)
-    
+
     Raises:
         HTTPException 401: Si el refresh token es inválido o expirado
         HTTPException 404: Si el usuario no existe
@@ -207,7 +207,7 @@ def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
                 "redirect_to_login": True,
             },
         )
-    
+
     # Decodificar el refresh token
     try:
         payload = decode_refresh_token(request.refresh_token)
@@ -229,47 +229,47 @@ def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
                 "redirect_to_login": True,
             },
         )
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token no contiene ID de usuario",
         )
-    
+
     # Verificar que el usuario existe y está activo
     db = get_db_session()
     stmt = select(UserModel).where(UserModel.id == user_id)
     user = db.scalar(stmt)
-    
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado",
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Usuario inactivo",
         )
-    
+
     # Crear nuevo access token
     token_data = {
         "sub": str(user.id),
         "email": user.email,
         "role_id": str(user.role_id),
     }
-    
+
     new_access_token = create_access_token(data=token_data)
-    
+
     # Opcionalmente crear nuevo refresh token (rotación de tokens)
     new_refresh_token = None
     if settings.use_refresh_tokens:
         new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
         # Invalidar el refresh token anterior (rotación)
         add_token_to_blacklist(request.refresh_token)
-    
+
     return TokenResponse(
         access_token=new_access_token,
         refresh_token=new_refresh_token,
@@ -281,13 +281,13 @@ def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
 def validate_access_token(request: TokenValidationRequest) -> TokenValidationResponse:
     """
     Valida si un token es válido y no ha expirado.
-    
+
     Útil para que el frontend verifique el estado del token antes de hacer
     peticiones o para decidir si debe refrescar el token.
-    
+
     Args:
         request: Token a validar
-    
+
     Returns:
         Estado de validación del token
     """
@@ -299,23 +299,22 @@ def validate_access_token(request: TokenValidationRequest) -> TokenValidationRes
             error="TOKEN_REVOKED",
             message="Token ha sido revocado",
         )
-    
+
     # Validar token
     is_valid, error_message = validate_token(request.token)
-    
+
     if is_valid:
         return TokenValidationResponse(
             valid=True,
             message="Token es válido",
         )
-    
+
     # Determinar si está expirado o es inválido
     is_expired = "expirado" in error_message.lower() if error_message else False
-    
+
     return TokenValidationResponse(
         valid=False,
         expired=is_expired,
         error="TOKEN_EXPIRED" if is_expired else "TOKEN_INVALID",
         message=error_message,
     )
-

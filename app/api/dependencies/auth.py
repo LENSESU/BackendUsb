@@ -17,20 +17,20 @@ def get_current_token(
 ) -> str:
     """
     Extrae y valida el token JWT del header Authorization.
-    
+
     Verifica que:
     - El token esté presente
     - El token no esté en la blacklist
     - El token sea válido y no haya expirado
-    
+
     Returns:
         Token JWT válido
-    
+
     Raises:
         HTTPException 401: Si el token es inválido, expirado o blacklisted
     """
     token = credentials.credentials
-    
+
     # Verificar si el token está blacklisted (logout)
     if is_token_blacklisted(token):
         raise HTTPException(
@@ -42,7 +42,7 @@ def get_current_token(
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Decodificar y validar el token
     try:
         decode_access_token(token, validate_type=True)
@@ -72,13 +72,13 @@ def get_current_token(
 def get_current_user_id(token: str = Depends(get_current_token)) -> UUID:
     """
     Extrae el ID del usuario del token JWT.
-    
+
     Args:
         token: Token JWT válido
-    
+
     Returns:
         UUID del usuario autenticado
-    
+
     Raises:
         HTTPException: Si el token no contiene un user_id válido
     """
@@ -95,7 +95,7 @@ def get_current_user_id(token: str = Depends(get_current_token)) -> UUID:
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,9 +106,9 @@ def get_current_user_id(token: str = Depends(get_current_token)) -> UUID:
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user_id: str | None = payload.get("sub")
-    
+
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -119,7 +119,7 @@ def get_current_user_id(token: str = Depends(get_current_token)) -> UUID:
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         return UUID(user_id)
     except ValueError:
@@ -132,4 +132,3 @@ def get_current_user_id(token: str = Depends(get_current_token)) -> UUID:
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
-

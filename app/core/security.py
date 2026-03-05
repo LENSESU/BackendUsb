@@ -92,28 +92,28 @@ def create_access_token(
 def create_refresh_token(data: dict[str, Any]) -> str:
     """
     Crea un token JWT de refresco (refresh token) con mayor duración.
-    
+
     Los refresh tokens solo se usan para obtener nuevos access tokens,
     no para acceder a recursos protegidos.
-    
+
     Args:
         data: Diccionario con los claims a incluir (normalmente solo {"sub": user_id})
-    
+
     Returns:
         Refresh token JWT codificado como string
     """
     to_encode = data.copy()
-    
-    expire = datetime.now(UTC) + timedelta(
-        days=settings.refresh_token_expire_days
+
+    expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
+
+    to_encode.update(
+        {
+            "exp": expire,
+            "iat": datetime.now(UTC),
+            "type": TokenType.REFRESH.value,
+        }
     )
-    
-    to_encode.update({
-        "exp": expire,
-        "iat": datetime.now(UTC),
-        "type": TokenType.REFRESH.value,
-    })
-    
+
     encoded_jwt = jwt.encode(
         to_encode,
         settings.jwt_secret_key,
@@ -162,13 +162,13 @@ def decode_access_token(
 def decode_refresh_token(token: str) -> dict[str, Any]:
     """
     Decodifica y valida un refresh token.
-    
+
     Args:
         token: Refresh token JWT a decodificar
-    
+
     Returns:
         Diccionario con los claims del token
-        
+
     Raises:
         TokenExpiredError: Si el token ha expirado
         TokenInvalidError: Si el token es inválido o no es un refresh token
@@ -179,13 +179,13 @@ def decode_refresh_token(token: str) -> dict[str, Any]:
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
         )
-        
+
         # Validar que sea un refresh token
         if payload.get("type") != TokenType.REFRESH.value:
             raise TokenInvalidError("Token no es de tipo refresh")
-        
+
         return payload
-        
+
     except ExpiredSignatureError:
         raise TokenExpiredError("Refresh token ha expirado")
     except JWTError as e:
@@ -195,10 +195,10 @@ def decode_refresh_token(token: str) -> dict[str, Any]:
 def validate_token(token: str) -> tuple[bool, str | None]:
     """
     Valida un token y devuelve su estado.
-    
+
     Args:
         token: Token JWT a validar
-    
+
     Returns:
         Tupla (es_válido, mensaje_error)
         - (True, None) si el token es válido
@@ -213,4 +213,3 @@ def validate_token(token: str) -> tuple[bool, str | None]:
         return (False, str(e))
     except Exception as e:
         return (False, f"Error desconocido: {str(e)}")
-

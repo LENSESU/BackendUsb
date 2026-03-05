@@ -1,6 +1,5 @@
 """Blacklist de tokens para implementar logout (invalidación de tokens)."""
 
-
 # En producción, esto debería ser Redis o similar para persistencia
 # y compartir entre instancias de la aplicación
 _token_blacklist: set[str] = set()
@@ -9,7 +8,7 @@ _token_blacklist: set[str] = set()
 def add_token_to_blacklist(token: str) -> None:
     """
     Agrega un token a la blacklist para invalidarlo.
-    
+
     Args:
         token: Token JWT a invalidar
     """
@@ -19,10 +18,10 @@ def add_token_to_blacklist(token: str) -> None:
 def is_token_blacklisted(token: str) -> bool:
     """
     Verifica si un token está en la blacklist.
-    
+
     Args:
         token: Token JWT a verificar
-    
+
     Returns:
         True si el token está blacklisted, False en caso contrario
     """
@@ -40,7 +39,7 @@ def get_blacklist_size() -> int:
 
 
 # Nota para producción:
-# Esta implementación en memoria no es adecuada 
+# Esta implementación en memoria no es adecuada
 # para producción con múltiples instancias.
 # Considere usar:
 # 1. Redis con TTL igual al tiempo de expiración del token
