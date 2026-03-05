@@ -25,6 +25,8 @@ from app.api.schemas.auth import (
     TokenValidationRequest,
     TokenValidationResponse,
 )
+from app.api.schemas.otp import OtpSentResponse, RegisterRequest, VerifyOtpRequest
+from app.application.services.otp_service import OtpService
 from app.core.config import settings
 from app.core.security import (
     TokenExpiredError,
@@ -33,10 +35,12 @@ from app.core.security import (
     create_refresh_token,
     decode_access_token,
     decode_refresh_token,
+    hash_password,
     validate_token,
     verify_password,
 )
 from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
+from app.infrastructure.adapters.otp_repository import SqlOtpRepository
 from app.infrastructure.database.models import RoleModel, UserModel
 
 router = APIRouter()
@@ -342,4 +346,123 @@ def validate_access_token(request: TokenValidationRequest) -> TokenValidationRes
         expired=is_expired,
         error="TOKEN_EXPIRED" if is_expired else "TOKEN_INVALID",
         message=error_message,
+    )
+
+
+@router.post(
+    "/register",
+    response_model=OtpSentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register(data: RegisterRequest) -> OtpSentResponse:
+    """
+    Registra un nuevo usuario y envía un OTP al correo para verificar la cuenta.
+
+    El usuario se crea con is_active=False. Solo se activa tras verificar el OTP
+    en /verify-otp. Si el email ya existe, retorna 409.
+
+    Args:
+        data: Datos del nuevo usuario
+
+    Returns:
+        Mensaje de confirmación de envío de OTP
+
+    Raises:
+        HTTPException 409: Si el email ya está registrado
+    """
+    db = get_db_session()
+
+    # Verificar que el email no esté en uso
+    stmt = select(UserModel).where(UserModel.email == data.email)
+    existing_user = db.scalar(stmt)
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El email ya está registrado",
+        )
+
+    # Crear usuario inactivo
+    user = UserModel(
+        first_name=data.first_name.strip(),
+        last_name=data.last_name.strip(),
+        email=data.email,
+        password_hash=hash_password(data.password),
+        role_id=data.role_id,
+        is_active=False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # Generar y enviar OTP
+    otp_service = OtpService(repository=SqlOtpRepository())
+    otp_service.generate_and_send(user_id=user.id, email=user.email)
+
+    return OtpSentResponse()
+
+
+@router.post("/verify-otp", response_model=TokenResponse)
+def verify_otp(data: VerifyOtpRequest) -> TokenResponse:
+    """
+    Verifica el OTP recibido por email y activa la cuenta del usuario.
+
+    Si el OTP es válido, activa el usuario y retorna tokens JWT listos
+    para usar, igual que /login. Si el OTP expiró o es incorrecto, retorna 400.
+
+    Args:
+        data: Email del usuario y código OTP
+
+    Returns:
+        Tokens JWT (access + refresh)
+
+    Raises:
+        HTTPException 404: Si el email no existe
+        HTTPException 400: Si el OTP es inválido o expiró
+    """
+    db = get_db_session()
+
+    # Buscar usuario por email
+    stmt = select(UserModel).where(UserModel.email == data.email)
+    user = db.scalar(stmt)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+
+    # Verificar OTP
+    otp_service = OtpService(repository=SqlOtpRepository())
+    is_valid = otp_service.verify(user_id=user.id, code=data.code)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Código inválido o expirado",
+        )
+
+    # Activar usuario
+    user.is_active = True
+    db.commit()
+    db.refresh(user)
+
+    # Emitir tokens igual que /login
+    token_data = {
+        "sub": str(user.id),
+        "email": user.email,
+        "role_id": str(user.role_id),
+    }
+
+    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
+    role = db.scalar(stmt_role)
+    if role:
+        token_data["role_name"] = role.name
+
+    access_token = create_access_token(data=token_data)
+    refresh_token = None
+    if settings.use_refresh_tokens:
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.access_token_expire_minutes * 60,
     )
