@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
+
 class EmailSenderPort(ABC):
-    """Puerto: contrato para envío de correos. 
+    """Puerto: contrato para envío de correos.
     La capa de aplicación solo conoce esta interfaz."""
 
     @abstractmethod

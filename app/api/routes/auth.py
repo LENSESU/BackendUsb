@@ -41,7 +41,6 @@ from app.core.security import (
     verify_password,
 )
 from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
-from app.infrastructure.adapters.otp_repository import SqlOtpRepository
 from app.infrastructure.database.models import RoleModel, UserModel
 
 router = APIRouter()
@@ -355,7 +354,10 @@ def validate_access_token(request: TokenValidationRequest) -> TokenValidationRes
     response_model=OtpSentResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def register(data: RegisterRequest, otp_service: OtpService = Depends(get_otp_service)) -> OtpSentResponse:
+async def register(
+    data: RegisterRequest,
+    otp_service: OtpService = Depends(get_otp_service),
+) -> OtpSentResponse:
     """
     Registra un nuevo usuario y envía un OTP al correo para verificar la cuenta.
 
@@ -401,7 +403,10 @@ async def register(data: RegisterRequest, otp_service: OtpService = Depends(get_
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
-def verify_otp(data: VerifyOtpRequest,  otp_service: OtpService = Depends(get_otp_service),) -> TokenResponse:
+def verify_otp(
+    data: VerifyOtpRequest,
+    otp_service: OtpService = Depends(get_otp_service),
+) -> TokenResponse:
     """
     Verifica el OTP recibido por email y activa la cuenta del usuario.
 

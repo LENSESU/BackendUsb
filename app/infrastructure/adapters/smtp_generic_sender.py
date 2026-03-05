@@ -1,7 +1,10 @@
 from email.mime.text import MIMEText
+
 import aiosmtplib
+
 from app.application.ports.email_sender import EmailSenderPort
 from app.core.config import settings
+
 
 class SmtpEmailSender(EmailSenderPort):
     """Adaptador SMTP — funciona con Mailpit (local) y cualquier SMTP genérico."""

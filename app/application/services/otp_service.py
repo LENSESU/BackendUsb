@@ -1,4 +1,5 @@
 """Caso de uso: generación y verificación de OTPs para activación de cuenta."""
+
 import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -7,6 +8,7 @@ from app.application.ports.email_sender import EmailSenderPort
 from app.application.ports.otp_repository import OtpRepositoryPort
 from app.core.config import settings
 from app.domain.entities.otp import Otp
+
 
 class OtpService:
     def __init__(
