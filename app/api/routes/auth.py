@@ -1,4 +1,16 @@
-"""Rutas de autenticación: login, logout, refresh, validación."""
+"""Rutas de autenticación: login, logout, refresh, validación.
+
+Modificaciones para #61 (Proteger endpoints del backend):
+  - ``login()``:  el payload del JWT ahora incluye el claim ``role_name``
+    (ej. "Administrator", "Student", "Technician") resuelto desde la tabla
+    ``roles``.  Esto permite que ``require_role()`` valide permisos sin
+    consultas extra a la BD en cada petición.
+  - ``refresh_access_token()``: mismo cambio — el nuevo access token
+    también lleva ``role_name`` para mantener consistencia.
+  - Se añadió la importación de ``RoleModel``.
+
+Ningún endpoint de este módulo fue eliminado ni renombrado.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -29,7 +41,7 @@ from app.core.security import (
 from app.application.services.verification_code_service import generate_and_store
 from app.core.email import send_verification_code
 from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
-from app.infrastructure.database.models import UserModel
+from app.infrastructure.database.models import RoleModel, UserModel
 
 router = APIRouter()
 
@@ -105,6 +117,13 @@ def login(credentials: LoginRequest) -> TokenResponse:
         "email": user.email,
         "role_id": str(user.role_id),
     }
+
+    # [NUEVO – #61] Resolver nombre del rol para incluirlo en el JWT.
+    # Esto permite que require_role() valide RBAC sin queries extra por request.
+    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
+    role = db.scalar(stmt_role)
+    if role:
+        token_data["role_name"] = role.name
 
     # Crear access token
     access_token = create_access_token(data=token_data)
@@ -283,6 +302,12 @@ def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
         "email": user.email,
         "role_id": str(user.role_id),
     }
+
+    # [NUEVO – #61] Incluir role_name en el token renovado (igual que en login).
+    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
+    role_obj = db.scalar(stmt_role)
+    if role_obj:
+        token_data["role_name"] = role_obj.name
 
     new_access_token = create_access_token(data=token_data)
 
