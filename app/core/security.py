@@ -1,6 +1,6 @@
 """Utilidades de seguridad: JWT y hashing de contraseñas."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -62,15 +62,15 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     to_encode = data.copy()
     
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
+        expire = datetime.now(UTC) + timedelta(
             minutes=settings.access_token_expire_minutes
         )
     
     to_encode.update({
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": datetime.now(UTC),
         "type": TokenType.ACCESS.value,
     })
     
@@ -97,13 +97,13 @@ def create_refresh_token(data: dict[str, Any]) -> str:
     """
     to_encode = data.copy()
     
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         days=settings.refresh_token_expire_days
     )
     
     to_encode.update({
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": datetime.now(UTC),
         "type": TokenType.REFRESH.value,
     })
     

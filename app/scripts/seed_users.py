@@ -51,7 +51,7 @@ def seed_users() -> None:
             db.refresh(admin_role)
             db.refresh(student_role)
             db.refresh(technician_role)
-            print(f"✓ Roles creados")
+            print("✓ Roles creados")
         else:
             print("Roles ya existen")
             stmt = select(RoleModel).where(RoleModel.name == "Student")

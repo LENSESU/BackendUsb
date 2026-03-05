@@ -1,11 +1,9 @@
 """Blacklist de tokens para implementar logout (invalidación de tokens)."""
 
-from datetime import datetime, timezone
-from typing import Set
 
 # En producción, esto debería ser Redis o similar para persistencia
 # y compartir entre instancias de la aplicación
-_token_blacklist: Set[str] = set()
+_token_blacklist: set[str] = set()
 
 
 def add_token_to_blacklist(token: str) -> None:
