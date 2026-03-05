@@ -35,8 +35,6 @@ services:
     image: axllent/mailpit
     container_name: mailpit
     restart: unless-stopped
-    volumes:
-      - ./data/mailpit:/data
     ports:
       - "8025:8025"
       - "1025:1025"
