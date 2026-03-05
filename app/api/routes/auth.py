@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_token
+from app.api.dependencies.otp import get_otp_service
 from app.api.schemas.auth import (
     LoginRequest,
     LogoutResponse,
@@ -354,7 +355,7 @@ def validate_access_token(request: TokenValidationRequest) -> TokenValidationRes
     response_model=OtpSentResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def register(data: RegisterRequest) -> OtpSentResponse:
+async def register(data: RegisterRequest, otp_service: OtpService = Depends(get_otp_service)) -> OtpSentResponse:
     """
     Registra un nuevo usuario y envía un OTP al correo para verificar la cuenta.
 
@@ -394,15 +395,13 @@ def register(data: RegisterRequest) -> OtpSentResponse:
     db.commit()
     db.refresh(user)
 
-    # Generar y enviar OTP
-    otp_service = OtpService(repository=SqlOtpRepository())
-    otp_service.generate_and_send(user_id=user.id, email=user.email)
+    await otp_service.generate_and_send(user_id=user.id, email=user.email)
 
     return OtpSentResponse()
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
-def verify_otp(data: VerifyOtpRequest) -> TokenResponse:
+def verify_otp(data: VerifyOtpRequest,  otp_service: OtpService = Depends(get_otp_service),) -> TokenResponse:
     """
     Verifica el OTP recibido por email y activa la cuenta del usuario.
 
@@ -430,8 +429,6 @@ def verify_otp(data: VerifyOtpRequest) -> TokenResponse:
             detail="Usuario no encontrado",
         )
 
-    # Verificar OTP
-    otp_service = OtpService(repository=SqlOtpRepository())
     is_valid = otp_service.verify(user_id=user.id, code=data.code)
     if not is_valid:
         raise HTTPException(

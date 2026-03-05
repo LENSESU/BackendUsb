@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.otp import get_otp_service
 from app.main import app
 
 client = TestClient(app)
@@ -96,20 +97,20 @@ def test_verify_otp_returns_404_for_unknown_email() -> None:
 
 
 def test_verify_otp_returns_400_for_invalid_code() -> None:
-    """La verificación debe retornar 400 si el OTP es incorrecto o expirado."""
     mock_user = MagicMock()
     mock_user.id = uuid4()
 
-    with patch("app.api.routes.auth.get_db_session") as mock_session, \
-         patch("app.api.routes.auth.OtpService") as mock_otp_service_class:
+    # Mock del OtpService que devolverá verify=False
+    mock_otp_service = MagicMock()
+    mock_otp_service.verify.return_value = False
 
+    with patch("app.api.routes.auth.get_db_session") as mock_session:
         mock_db = MagicMock()
         mock_db.scalar.return_value = mock_user
         mock_session.return_value = mock_db
 
-        mock_otp_service = MagicMock()
-        mock_otp_service.verify.return_value = False
-        mock_otp_service_class.return_value = mock_otp_service
+        # ← Así se override una dependencia de FastAPI en tests
+        app.dependency_overrides[get_otp_service] = lambda: mock_otp_service
 
         response = client.post(
             "/api/v1/auth/verify-otp",
@@ -118,6 +119,8 @@ def test_verify_otp_returns_400_for_invalid_code() -> None:
                 "code": "000000",
             },
         )
+
+        app.dependency_overrides.clear()  # limpiar después del test
 
     assert response.status_code == 400
     assert "inválido" in response.json()["detail"].lower()
