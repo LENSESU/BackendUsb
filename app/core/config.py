@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     # Si es False, no se ejecutan migraciones al arranque (útil en tests sin BD)
     run_migrations_on_startup: bool = True
 
+    # Autenticación JWT
+    jwt_secret_key: str = "dev-secret-key-CHANGE-IN-PRODUCTION"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60  # 1 hora
+    refresh_token_expire_days: int = 7  # 7 días
+    # Si es True, el login devuelve también refresh_token
+    use_refresh_tokens: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:
