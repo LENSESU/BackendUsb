@@ -40,7 +40,8 @@ def get_blacklist_size() -> int:
 
 
 # Nota para producción:
-# Esta implementación en memoria no es adecuada para producción con múltiples instancias.
+# Esta implementación en memoria no es adecuada 
+# para producción con múltiples instancias.
 # Considere usar:
 # 1. Redis con TTL igual al tiempo de expiración del token
 # 2. Base de datos con limpieza periódica de tokens expirados

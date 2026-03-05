@@ -36,7 +36,7 @@ def get_current_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "message": "Token ha sido revocado. Por favor, inicie sesión nuevamente.",
+                "message": "Token ha sido revocado. Inicie sesión nuevamente.",
                 "error_code": "TOKEN_REVOKED",
                 "redirect_to_login": True,
             },
@@ -51,7 +51,7 @@ def get_current_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "message": "Token ha expirado. Por favor, inicie sesión nuevamente.",
+                "message": "Token ha expirado. Inicie sesión nuevamente.",
                 "error_code": "TOKEN_EXPIRED",
                 "redirect_to_login": True,
             },
@@ -86,6 +86,17 @@ def get_current_user_id(token: str = Depends(get_current_token)) -> UUID:
         payload = decode_access_token(token, validate_type=True)
     except (TokenExpiredError, TokenInvalidError):
         # Estos errores ya se manejan en get_current_token
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "No se pudo validar las credenciales",
+                "error_code": "INVALID_CREDENTIALS",
+                "redirect_to_login": True,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={

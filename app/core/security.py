@@ -1,7 +1,7 @@
 """Utilidades de seguridad: JWT y hashing de contraseñas."""
 
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from jose import ExpiredSignatureError, JWTError, jwt
@@ -13,7 +13,7 @@ from app.core.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-class TokenType(str, Enum):
+class TokenType(StrEnum):
     """Tipos de tokens JWT."""
 
     ACCESS = "access"
@@ -48,37 +48,44 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
+def create_access_token(
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None,
+) -> str:
     """
     Crea un token JWT de acceso con los datos proporcionados.
-    
+
     Args:
-        data: Diccionario con los claims a incluir en el token (ej: {"sub": user_id})
+        data: Diccionario con los claims a incluir en el token
+            (ej: {"sub": user_id})
         expires_delta: Tiempo de expiración personalizado (opcional)
-    
+
     Returns:
         Token JWT codificado como string
     """
     to_encode = data.copy()
-    
+
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
         expire = datetime.now(UTC) + timedelta(
-            minutes=settings.access_token_expire_minutes
+            minutes=settings.access_token_expire_minutes,
         )
-    
-    to_encode.update({
-        "exp": expire,
-        "iat": datetime.now(UTC),
-        "type": TokenType.ACCESS.value,
-    })
-    
+
+    to_encode.update(
+        {
+            "exp": expire,
+            "iat": datetime.now(UTC),
+            "type": TokenType.ACCESS.value,
+        }
+    )
+
     encoded_jwt = jwt.encode(
         to_encode,
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
     )
+
     return encoded_jwt
 
 
@@ -115,17 +122,20 @@ def create_refresh_token(data: dict[str, Any]) -> str:
     return encoded_jwt
 
 
-def decode_access_token(token: str, validate_type: bool = True) -> dict[str, Any] | None:
+def decode_access_token(
+    token: str,
+    validate_type: bool = True,
+) -> dict[str, Any] | None:
     """
     Decodifica y valida un token JWT.
-    
+
     Args:
         token: Token JWT a decodificar
         validate_type: Si True, valida que sea un access token
-    
+
     Returns:
         Diccionario con los claims del token si es válido, None si no
-        
+
     Raises:
         TokenExpiredError: Si el token ha expirado
         TokenInvalidError: Si el token es inválido o del tipo incorrecto
@@ -136,13 +146,13 @@ def decode_access_token(token: str, validate_type: bool = True) -> dict[str, Any
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
         )
-        
+
         # Validar tipo de token si se requiere
         if validate_type and payload.get("type") != TokenType.ACCESS.value:
             raise TokenInvalidError("Token no es de tipo access")
-        
+
         return payload
-        
+
     except ExpiredSignatureError:
         raise TokenExpiredError("Token ha expirado")
     except JWTError as e:

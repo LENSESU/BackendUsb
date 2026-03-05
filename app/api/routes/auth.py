@@ -162,6 +162,16 @@ def get_current_user_info(token: str = Depends(get_current_token)) -> dict:
             },
         )
     
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Token inválido",
+                "error_code": "TOKEN_ERROR",
+                "redirect_to_login": True,
+            },
+        )
+    
     return {
         "user_id": payload.get("sub"),
         "email": payload.get("email"),
@@ -192,7 +202,7 @@ def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "message": "Refresh token ha sido revocado. Por favor, inicie sesión nuevamente.",
+                "message": "Refresh token ha sido revocado.Inicie sesión nuevamente.",
                 "error_code": "REFRESH_TOKEN_REVOKED",
                 "redirect_to_login": True,
             },
@@ -205,7 +215,7 @@ def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "message": "Refresh token ha expirado. Por favor, inicie sesión nuevamente.",
+                "message": "Refresh token ha expirado. Inicie sesión nuevamente.",
                 "error_code": "REFRESH_TOKEN_EXPIRED",
                 "redirect_to_login": True,
             },
@@ -214,7 +224,7 @@ def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "message": "Refresh token inválido. Por favor, inicie sesión nuevamente.",
+                "message": "Refresh token inválido. Inicie sesión nuevamente.",
                 "error_code": "REFRESH_TOKEN_INVALID",
                 "redirect_to_login": True,
             },
