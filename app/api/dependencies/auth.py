@@ -27,7 +27,7 @@ Dependencias NUEVAS añadidas para #61/#63:
     valida que el ``role_name`` del token esté en la lista de roles permitidos.
 """
 
-from typing import Callable
+from collections.abc import Callable
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status

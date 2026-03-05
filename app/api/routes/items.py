@@ -20,7 +20,8 @@ Archivos relacionados que también fueron modificados:
   - ``app/domain/entities/item.py``       → +campo ``owner_id``
   - ``app/api/schemas/item.py``           → +campo ``owner_id`` en respuesta
   - ``app/application/services/item_service.py`` → ``create_item`` acepta ``owner_id``
-  - ``app/api/dependencies/auth.py``      → +``get_current_role_name``, +``require_role``
+  - ``app/api/dependencies/auth.py``      → +``get_current_role_name``,
+                                              +``require_role``
   - ``app/api/routes/auth.py``            → login/refresh incluyen ``role_name`` en JWT
   - ``tests/api/test_items_protected.py`` → 18 tests para #61 y #63
 """
@@ -29,7 +30,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.dependencies.auth import get_current_role_name, get_current_user_id, require_role
+from app.api.dependencies.auth import (
+    get_current_role_name,
+    get_current_user_id,
+    require_role,
+)
 from app.api.schemas import ItemCreate, ItemResponse
 from app.application.ports import ItemRepositoryPort
 from app.application.services import ItemService
