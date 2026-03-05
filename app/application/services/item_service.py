@@ -1,4 +1,10 @@
-"""Caso de uso: operaciones sobre Items. Depende del puerto, no de implementaciones."""
+"""Caso de uso: operaciones sobre Items. Depende del puerto, no de implementaciones.
+
+Modificación para #63 (Validar accesos cruzados):
+  ``create_item()`` ahora acepta un parámetro opcional ``owner_id`` que se
+  propaga a la entidad ``Item``.  La ruta POST de items inyecta el user_id
+  del JWT como owner_id al llamar a este servicio.
+"""
 
 from uuid import UUID
 
@@ -18,10 +24,18 @@ class ItemService:
     def list_items(self) -> list[Item]:
         return self._repository.list_all()
 
-    def create_item(self, name: str, description: str | None = None) -> Item:
+    def create_item(
+        self,
+        name: str,
+        description: str | None = None,
+        # [NUEVO – #63] owner_id se inyecta desde el JWT del usuario autenticado
+        owner_id: UUID | None = None,
+    ) -> Item:
         from uuid import uuid4
 
-        item = Item(id=uuid4(), name=name.strip(), description=description)
+        item = Item(
+            id=uuid4(), name=name.strip(), description=description, owner_id=owner_id
+        )
         return self._repository.save(item)
 
     def delete_item(self, item_id: UUID) -> bool:
