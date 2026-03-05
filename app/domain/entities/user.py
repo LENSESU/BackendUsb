@@ -1,28 +1,30 @@
-"""Entidad de dominio: User."""
-
 from dataclasses import dataclass
-from enum import StrEnum
+from datetime import datetime
+from uuid import UUID
 
 
-class UserRole(StrEnum):
-    STUDENT = "STUDENT"
-    TEACHER = "TEACHER"
-    ADMIN = "ADMIN"
-
-
-@dataclass
+@dataclass(slots=True)
 class User:
-    """Entidad de negocio User. Sin dependencias de frameworks."""
+    """Entidad de dominio: usuario del sistema."""
 
-    id: int | None = None  # se asigna en la BD (autoincremental)
-    email: str = ""
-    password_hash: str = ""
-    name: str | None = None
-    role: UserRole = UserRole.STUDENT
+    id: UUID | None
+    first_name: str
+    last_name: str
+    email: str
+    password_hash: str
+    role_id: UUID
+    is_active: bool = True
+    created_at: datetime | None = None
 
     def __post_init__(self) -> None:
-        if not self.email or not self.email.strip():
-            raise ValueError("El email no puede estar vacío")
-        if not self.password_hash:
-            raise ValueError("El password_hash es obligatorio")
+        if not self.first_name or not self.first_name.strip():
+            raise ValueError("El nombre del usuario no puede estar vacío")
 
+        if not self.last_name or not self.last_name.strip():
+            raise ValueError("El apellido del usuario no puede estar vacío")
+
+        if "@" not in self.email:
+            raise ValueError("El email del usuario no es válido")
+
+        if not self.password_hash:
+            raise ValueError("El hash de contraseña no puede estar vacío")

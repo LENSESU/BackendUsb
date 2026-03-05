@@ -1,38 +1,60 @@
-"""Esquemas Pydantic para la API de autenticación."""
+"""Schemas de autenticación para login, logout y gestión de tokens."""
 
-from pydantic import BaseModel, EmailStr
+from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
-    """Payload para login / registro automático."""
+    """Petición de login con credenciales."""
 
     email: EmailStr
     password: str
 
 
-class RegisterRequest(BaseModel):
-    """Payload para registro explícito de usuario."""
-
-    email: EmailStr
-    password: str
-    name: str | None = None
-
-
-class LoginResponse(BaseModel):
-    """Respuesta tras autenticación / registro."""
+class TokenResponse(BaseModel):
+    """Respuesta con los tokens de acceso y refresco."""
 
     access_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
+    expires_in: int = Field(
+        ..., description="Segundos hasta que expire el access token"
+    )
 
 
-class ResendCodeRequest(BaseModel):
-    """Payload para solicitar reenvío de código de verificación."""
+class RefreshTokenRequest(BaseModel):
+    """Petición para refrescar un access token."""
 
-    email: EmailStr
+    refresh_token: str
 
 
-class ResendCodeResponse(BaseModel):
-    """Respuesta tras solicitar reenvío de código."""
+class TokenValidationRequest(BaseModel):
+    """Petición para validar un token."""
 
-    message: str = "Si el correo está registrado, se ha enviado un nuevo código."
+    token: str
 
+
+class TokenValidationResponse(BaseModel):
+    """Respuesta de validación de token."""
+
+    valid: bool
+    error: str | None = None
+    expired: bool = False
+    message: str | None = None
+
+
+class LogoutResponse(BaseModel):
+    """Respuesta de logout exitoso."""
+
+    message: str = "Sesión cerrada exitosamente"
+
+
+class UserAuthInfo(BaseModel):
+    """Información del usuario autenticado (extraída del token)."""
+
+    user_id: UUID
+    email: str
+    role_id: UUID
+
+    model_config = {"from_attributes": True}
