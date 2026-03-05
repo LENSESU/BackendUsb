@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     # Si es True, el login devuelve también refresh_token
     use_refresh_tokens: bool = True
 
+    # SMTP para envío de códigos de verificación por email
+    smtp_enabled: bool = False
+    smtp_host: str = "localhost"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@example.com"
+    smtp_use_tls: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

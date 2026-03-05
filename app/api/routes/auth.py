@@ -9,6 +9,8 @@ from app.api.schemas.auth import (
     LoginRequest,
     LogoutResponse,
     RefreshTokenRequest,
+    ResendCodeRequest,
+    ResendCodeResponse,
     TokenResponse,
     TokenValidationRequest,
     TokenValidationResponse,
@@ -24,6 +26,8 @@ from app.core.security import (
     validate_token,
     verify_password,
 )
+from app.application.services.verification_code_service import generate_and_store
+from app.core.email import send_verification_code
 from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
 from app.infrastructure.database.models import UserModel
 
@@ -115,6 +119,25 @@ def login(credentials: LoginRequest) -> TokenResponse:
         refresh_token=refresh_token,
         expires_in=settings.access_token_expire_minutes * 60,  # en segundos
     )
+
+
+@router.post("/resend-code", response_model=ResendCodeResponse)
+def resend_verification_code(request: ResendCodeRequest) -> ResendCodeResponse:
+    """
+    Reenvía un nuevo código de verificación al correo indicado.
+
+    Genera un código de 6 dígitos, lo almacena (válido 10 min) y lo envía por
+    email vía SMTP si está configurado (SMTP_ENABLED=true y credenciales).
+
+    Args:
+        request: Email al que reenviar el código
+
+    Returns:
+        Mensaje de confirmación (no se expone el código por seguridad)
+    """
+    code = generate_and_store(request.email)
+    send_verification_code(request.email, code)
+    return ResendCodeResponse()
 
 
 @router.post("/logout", response_model=LogoutResponse)
