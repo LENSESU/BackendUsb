@@ -5,15 +5,23 @@ pendientes a Postgres (crea/actualiza tablas). Equivale a ejecutar por terminal:
 """
 
 import os
+import sys
 from pathlib import Path
-
-from alembic.config import Config
-
-from alembic import command
 
 
 def run_migrations() -> None:
     """Aplica migraciones pendientes (upgrade head) usando la URL de la app."""
+    try:
+        from alembic.config import Config
+        from alembic import command
+    except ImportError:
+        print(
+            "Aviso: alembic no está instalado en este intérprete; se omiten migraciones. "
+            "Ejecuta la app con el Python del venv: .venv\\Scripts\\python.exe -m uvicorn app.main:app --reload",
+            file=sys.stderr,
+        )
+        return
+
     # Raíz del proyecto (alembic.ini). Subimos 4 niveles desde esta ruta.
     project_root = Path(__file__).resolve().parent.parent.parent.parent
     alembic_ini_path = project_root / "alembic.ini"

@@ -11,6 +11,7 @@ from app.api.error_handlers import (
     validation_error_handler,
 )
 from app.api.routes import api_router
+from app.core.exceptions import AppError
 from app.core.config import settings
 from app.infrastructure.database.migrations import run_migrations
 
