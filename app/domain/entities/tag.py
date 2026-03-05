@@ -1,11 +1,12 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 
 @dataclass(slots=True)
 class Tag:
     """Entidad de dominio: etiqueta asociable a sugerencias."""
 
-    id: int | None
+    id: UUID | None
     name: str
 
     def __post_init__(self) -> None:

@@ -1,16 +1,17 @@
 from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
 
 @dataclass(slots=True)
 class Suggestion:
     """Entidad de dominio: sugerencia de mejora enviada por un estudiante."""
 
-    id: int | None
-    student_id: int
+    id: UUID | None
+    student_id: UUID
     title: str
     content: str
-    photo_id: int | None = None
+    photo_id: UUID | None = None
     total_votes: int = 0
     institutional_comment: str | None = None
     created_at: datetime | None = None

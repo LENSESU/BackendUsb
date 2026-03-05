@@ -1,6 +1,7 @@
 """Esquemas Pydantic para sugerencias."""
 
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -8,10 +9,10 @@ from pydantic import BaseModel, Field
 class SuggestionCreate(BaseModel):
     """Payload para crear una sugerencia."""
 
-    student_id: int = Field(..., ge=1)
+    student_id: UUID = Field(...)
     title: str = Field(..., min_length=1, max_length=200)
     content: str = Field(..., min_length=1)
-    photo_id: int | None = Field(default=None, ge=1)
+    photo_id: UUID | None = None
 
 
 class SuggestionUpdate(BaseModel):
@@ -25,11 +26,11 @@ class SuggestionUpdate(BaseModel):
 class SuggestionResponse(BaseModel):
     """Respuesta con datos de una sugerencia."""
 
-    id: int
-    student_id: int
+    id: UUID
+    student_id: UUID
     title: str
     content: str
-    photo_id: int | None
+    photo_id: UUID | None
     total_votes: int
     institutional_comment: str | None
     created_at: datetime

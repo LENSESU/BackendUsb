@@ -1,17 +1,18 @@
 from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
 
 @dataclass(slots=True)
 class User:
     """Entidad de dominio: usuario del sistema."""
 
-    id: int | None
+    id: UUID | None
     first_name: str
     last_name: str
     email: str
     password_hash: str
-    role_id: int
+    role_id: UUID
     is_active: bool = True
     created_at: datetime | None = None
 

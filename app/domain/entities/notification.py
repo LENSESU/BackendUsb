@@ -1,14 +1,15 @@
 from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
 
 @dataclass(slots=True)
 class Notification:
     """Entidad de dominio: notificación enviada a un usuario sobre un incidente."""
 
-    id: int | None
-    user_id: int
-    incident_id: int
+    id: UUID | None
+    user_id: UUID
+    incident_id: UUID
     message: str
     is_read: bool = False
     created_at: datetime | None = None

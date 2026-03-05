@@ -1,5 +1,7 @@
 """Esquemas Pydantic para categorías de incidentes."""
 
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
@@ -13,7 +15,7 @@ class IncidentCategoryCreate(BaseModel):
 class IncidentCategoryResponse(BaseModel):
     """Respuesta con datos de una categoría de incidente."""
 
-    id: int
+    id: UUID
     name: str
     description: str | None = None
 

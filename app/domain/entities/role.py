@@ -1,11 +1,12 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 
 @dataclass(slots=True)
 class Role:
     """Entidad de dominio: rol de usuario en el sistema."""
 
-    id: int | None
+    id: UUID | None
     name: str
     description: str | None = None
 

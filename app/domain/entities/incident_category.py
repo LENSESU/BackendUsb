@@ -1,11 +1,12 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 
 @dataclass(slots=True)
 class IncidentCategory:
     """Entidad de dominio: categoría de incidente."""
 
-    id: int | None
+    id: UUID | None
     name: str
     description: str | None = None
 

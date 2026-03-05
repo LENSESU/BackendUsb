@@ -157,6 +157,10 @@ POSTGRES_DB=app_db
 
 Con Docker, la API queda en `http://127.0.0.1:8000` y PostgreSQL en `localhost:5432` (usuario/contraseña/base según `.env` o valores por defecto anteriores).
 
+### Migraciones (Alembic)
+
+**No tienes que hacer nada a mano.** Al arrancar la app (con Postgres corriendo), se aplican solas las migraciones: se crean o actualizan las tablas en la base de datos. Solo asegúrate de tener Postgres levantado y las variables de entorno (`POSTGRES_*` o `DATABASE_URL`) en `.env`. Si más adelante añades un nuevo modelo, creas una nueva migración con `alembic revision --autogenerate -m "descripción"` y al volver a arrancar la app se aplicará.
+
 - Documentación interactiva: **http://127.0.0.1:8000/docs**
 - Health: **http://127.0.0.1:8000/health**
 - Items: **http://127.0.0.1:8000/api/v1/items**

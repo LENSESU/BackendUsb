@@ -1,5 +1,7 @@
 """Esquemas Pydantic para la API de Roles."""
 
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
@@ -13,7 +15,7 @@ class RoleCreate(BaseModel):
 class RoleResponse(BaseModel):
     """Respuesta con datos de un rol."""
 
-    id: int
+    id: UUID
     name: str
     description: str | None = None
 

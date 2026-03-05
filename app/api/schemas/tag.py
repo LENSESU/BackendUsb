@@ -1,5 +1,7 @@
 """Esquemas Pydantic para etiquetas."""
 
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
@@ -12,7 +14,7 @@ class TagCreate(BaseModel):
 class TagResponse(BaseModel):
     """Respuesta con datos de una etiqueta."""
 
-    id: int
+    id: UUID
     name: str
 
     model_config = {"from_attributes": True}
