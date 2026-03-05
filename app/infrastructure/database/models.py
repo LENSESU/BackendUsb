@@ -5,6 +5,7 @@ Reflejan el esquema de la base de datos con claves UUID.
 
 import uuid
 from datetime import datetime
+
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -20,7 +21,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import text
 
 from app.infrastructure.database.base import Base
-
 
 # ---------------------------------------------------------------------------
 # Tablas independientes (sin FK a otras tablas del dominio)

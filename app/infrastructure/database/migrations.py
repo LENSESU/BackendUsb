@@ -7,13 +7,14 @@ pendientes a Postgres (crea/actualiza tablas). Equivale a ejecutar por terminal:
 import os
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
+
+from alembic import command
 
 
 def run_migrations() -> None:
     """Aplica migraciones pendientes (upgrade head) usando la URL de la app."""
-    # Raíz del proyecto (donde está alembic.ini). Desde app/infrastructure/database/ subimos 4 niveles.
+    # Raíz del proyecto (alembic.ini). Subimos 4 niveles desde esta ruta.
     project_root = Path(__file__).resolve().parent.parent.parent.parent
     alembic_ini_path = project_root / "alembic.ini"
 
