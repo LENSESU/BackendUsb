@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_token
+from app.api.dependencies.otp import get_otp_service
 from app.api.schemas.auth import (
     LoginRequest,
     LogoutResponse,
@@ -25,6 +26,13 @@ from app.api.schemas.auth import (
     TokenValidationRequest,
     TokenValidationResponse,
 )
+from app.api.schemas.otp import (
+    OtpSentResponse,
+    RegisterRequest,
+    ResendOtpRequest,
+    VerifyOtpRequest,
+)
+from app.application.services.otp_service import OtpService
 from app.core.config import settings
 from app.core.security import (
     TokenExpiredError,
@@ -33,6 +41,7 @@ from app.core.security import (
     create_refresh_token,
     decode_access_token,
     decode_refresh_token,
+    hash_password,
     validate_token,
     verify_password,
 )
@@ -343,3 +352,159 @@ def validate_access_token(request: TokenValidationRequest) -> TokenValidationRes
         error="TOKEN_EXPIRED" if is_expired else "TOKEN_INVALID",
         message=error_message,
     )
+
+
+@router.post(
+    "/register",
+    response_model=OtpSentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def register(
+    data: RegisterRequest,
+    otp_service: OtpService = Depends(get_otp_service),
+) -> OtpSentResponse:
+    db = get_db_session()
+
+    stmt = select(UserModel).where(UserModel.email == data.email)
+    existing_user = db.scalar(stmt)
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El email ya está registrado",
+        )
+
+    user = UserModel(
+        first_name=data.first_name.strip(),
+        last_name=data.last_name.strip(),
+        email=data.email,
+        password_hash=hash_password(data.password),
+        role_id=data.role_id,
+        is_active=False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    try:
+        await otp_service.generate_and_send(user_id=user.id, email=user.email)
+    except Exception:
+        db.delete(user)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="No se pudo enviar el correo de verificación. Intenta de nuevo.",
+        )
+
+    return OtpSentResponse()
+
+
+@router.post("/verify-otp", response_model=TokenResponse)
+def verify_otp(
+    data: VerifyOtpRequest,
+    otp_service: OtpService = Depends(get_otp_service),
+) -> TokenResponse:
+    """
+    Verifica el OTP recibido por email y activa la cuenta del usuario.
+
+    Si el OTP es válido, activa el usuario y retorna tokens JWT listos
+    para usar, igual que /login. Si el OTP expiró o es incorrecto, retorna 400.
+
+    Args:
+        data: Email del usuario y código OTP
+
+    Returns:
+        Tokens JWT (access + refresh)
+
+    Raises:
+        HTTPException 404: Si el email no existe
+        HTTPException 400: Si el OTP es inválido o expiró
+    """
+    db = get_db_session()
+
+    # Buscar usuario por email
+    stmt = select(UserModel).where(UserModel.email == data.email)
+    user = db.scalar(stmt)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+
+    is_valid = otp_service.verify(user_id=user.id, code=data.code)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Código inválido o expirado",
+        )
+
+    # Activar usuario
+    user.is_active = True
+    db.commit()
+    db.refresh(user)
+
+    # Emitir tokens igual que /login
+    token_data = {
+        "sub": str(user.id),
+        "email": user.email,
+        "role_id": str(user.role_id),
+    }
+
+    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
+    role = db.scalar(stmt_role)
+    if role:
+        token_data["role_name"] = role.name
+
+    access_token = create_access_token(data=token_data)
+    refresh_token = None
+    if settings.use_refresh_tokens:
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.access_token_expire_minutes * 60,
+    )
+
+
+@router.post("/resend-otp", response_model=OtpSentResponse)
+async def resend_otp(
+    data: ResendOtpRequest,
+    otp_service: OtpService = Depends(get_otp_service),
+) -> OtpSentResponse:
+    """
+    Reenvía el OTP al correo del usuario invalidando el anterior.
+
+    Solo es posible si han pasado al menos otp_resend_cooldown_seconds
+    desde el último envío. Si el cooldown no ha pasado, retorna 429
+    con los segundos restantes.
+
+    Raises:
+        HTTPException 404: Si el email no existe
+        HTTPException 400: Si no hay OTP activo para el usuario
+        HTTPException 429: Si el cooldown no ha pasado aún
+    """
+    db = get_db_session()
+
+    stmt = select(UserModel).where(UserModel.email == data.email)
+    user = db.scalar(stmt)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+
+    try:
+        await otp_service.resend(user_id=user.id, email=user.email)
+    except ValueError as e:
+        message = str(e)
+        if "esperar" in message:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=message,
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=message,
+        )
+
+    return OtpSentResponse()
