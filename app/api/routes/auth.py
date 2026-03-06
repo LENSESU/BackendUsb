@@ -26,7 +26,12 @@ from app.api.schemas.auth import (
     TokenValidationRequest,
     TokenValidationResponse,
 )
-from app.api.schemas.otp import OtpSentResponse, RegisterRequest, VerifyOtpRequest
+from app.api.schemas.otp import (
+    OtpSentResponse,
+    RegisterRequest,
+    ResendOtpRequest,
+    VerifyOtpRequest,
+)
 from app.application.services.otp_service import OtpService
 from app.core.config import settings
 from app.core.security import (
@@ -358,24 +363,8 @@ async def register(
     data: RegisterRequest,
     otp_service: OtpService = Depends(get_otp_service),
 ) -> OtpSentResponse:
-    """
-    Registra un nuevo usuario y envía un OTP al correo para verificar la cuenta.
-
-    El usuario se crea con is_active=False. Solo se activa tras verificar el OTP
-    en /verify-otp. Si el email ya existe, retorna 409.
-
-    Args:
-        data: Datos del nuevo usuario
-
-    Returns:
-        Mensaje de confirmación de envío de OTP
-
-    Raises:
-        HTTPException 409: Si el email ya está registrado
-    """
     db = get_db_session()
 
-    # Verificar que el email no esté en uso
     stmt = select(UserModel).where(UserModel.email == data.email)
     existing_user = db.scalar(stmt)
     if existing_user is not None:
@@ -384,7 +373,6 @@ async def register(
             detail="El email ya está registrado",
         )
 
-    # Crear usuario inactivo
     user = UserModel(
         first_name=data.first_name.strip(),
         last_name=data.last_name.strip(),
@@ -397,7 +385,15 @@ async def register(
     db.commit()
     db.refresh(user)
 
-    await otp_service.generate_and_send(user_id=user.id, email=user.email)
+    try:
+        await otp_service.generate_and_send(user_id=user.id, email=user.email)
+    except Exception:
+        db.delete(user)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="No se pudo enviar el correo de verificación. Intenta de nuevo.",
+        )
 
     return OtpSentResponse()
 
@@ -468,3 +464,47 @@ def verify_otp(
         refresh_token=refresh_token,
         expires_in=settings.access_token_expire_minutes * 60,
     )
+
+
+@router.post("/resend-otp", response_model=OtpSentResponse)
+async def resend_otp(
+    data: ResendOtpRequest,
+    otp_service: OtpService = Depends(get_otp_service),
+) -> OtpSentResponse:
+    """
+    Reenvía el OTP al correo del usuario invalidando el anterior.
+
+    Solo es posible si han pasado al menos otp_resend_cooldown_seconds
+    desde el último envío. Si el cooldown no ha pasado, retorna 429
+    con los segundos restantes.
+
+    Raises:
+        HTTPException 404: Si el email no existe
+        HTTPException 400: Si no hay OTP activo para el usuario
+        HTTPException 429: Si el cooldown no ha pasado aún
+    """
+    db = get_db_session()
+
+    stmt = select(UserModel).where(UserModel.email == data.email)
+    user = db.scalar(stmt)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+
+    try:
+        await otp_service.resend(user_id=user.id, email=user.email)
+    except ValueError as e:
+        message = str(e)
+        if "esperar" in message:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=message,
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=message,
+        )
+
+    return OtpSentResponse()

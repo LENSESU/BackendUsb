@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     mail_username: str = ""
     mail_password: str = ""
     otp_expire_minutes: int = 2
+    otp_resend_cooldown_seconds: int = 15
 
     # Whitelist domains
     allowed_email_domains: list[str] = ["correo.usbcali.edu.co", "usbcali.edu.co"]

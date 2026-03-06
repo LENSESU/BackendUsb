@@ -50,3 +50,34 @@ class OtpService:
             self._repository.soft_delete(otp.id)
 
         return True
+
+    async def resend(self, user_id: UUID, email: str) -> None:
+        """
+        Reenvía un OTP invalidando el activo actual.
+
+        Si no hay OTP activo, lanza error — el usuario debe registrarse primero.
+        Si el OTP activo tiene menos de otp_resend_cooldown_seconds, lanza error
+        con los segundos restantes para que el cliente pueda informar al usuario.
+
+        Raises:
+            ValueError: Si no hay OTP activo o el cooldown no ha pasado.
+        """
+        existing = self._repository.find_active_by_user_id(user_id)
+
+        if existing is None:
+            raise ValueError("No hay un OTP activo para este usuario")
+
+        if existing.created_at is None:
+            raise ValueError("OTP en estado inválido")
+
+        # Cooldown
+        elapsed = (
+            datetime.now(UTC) - existing.created_at.replace(tzinfo=UTC)
+        ).total_seconds()
+        remaining = settings.otp_resend_cooldown_seconds - elapsed
+        if remaining > 0:
+            raise ValueError(
+                f"Debes esperar {int(remaining) + 1} segundos antes de reenviar"
+            )
+
+        await self.generate_and_send(user_id=user_id, email=email)

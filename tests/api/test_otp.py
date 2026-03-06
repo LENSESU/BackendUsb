@@ -1,6 +1,6 @@
 """Tests para los endpoints de registro y verificación OTP."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -124,3 +124,70 @@ def test_verify_otp_returns_400_for_invalid_code() -> None:
 
     assert response.status_code == 400
     assert "inválido" in response.json()["detail"].lower()
+
+# ---------------------------------------------------------------------------
+# /resend-otp
+# ---------------------------------------------------------------------------
+
+def test_resend_otp_returns_404_for_unknown_email() -> None:
+    """El reenvío debe retornar 404 si el email no existe en BD."""
+    with patch("app.api.routes.auth.get_db_session") as mock_session:
+        mock_db = MagicMock()
+        mock_db.scalar.return_value = None
+        mock_session.return_value = mock_db
+
+        response = client.post(
+            "/api/v1/auth/resend-otp",
+            json={"email": "noexiste@correo.usbcali.edu.co"},
+        )
+
+    assert response.status_code == 404
+    assert "no encontrado" in response.json()["detail"].lower()
+
+
+def test_resend_otp_returns_429_during_cooldown() -> None:
+    """El reenvío debe retornar 429 si el cooldown no ha pasado."""
+    mock_user = MagicMock()
+    mock_user.id = uuid4()
+
+    mock_otp_service = MagicMock()
+    mock_otp_service.resend = AsyncMock(side_effect=ValueError("Debes esperar 12 segundos antes de reenviar"))
+
+    with patch("app.api.routes.auth.get_db_session") as mock_session:
+        mock_db = MagicMock()
+        mock_db.scalar.return_value = mock_user
+        mock_session.return_value = mock_db
+
+        app.dependency_overrides[get_otp_service] = lambda: mock_otp_service
+        response = client.post(
+            "/api/v1/auth/resend-otp",
+            json={"email": "juan@correo.usbcali.edu.co"},
+        )
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 429
+    assert "esperar" in response.json()["detail"].lower()
+
+
+def test_resend_otp_returns_400_when_no_active_otp() -> None:
+    """El reenvío debe retornar 400 si no hay OTP activo para el usuario."""
+    mock_user = MagicMock()
+    mock_user.id = uuid4()
+
+    mock_otp_service = MagicMock()
+    mock_otp_service.resend = AsyncMock(side_effect=ValueError("No hay un OTP activo para este usuario"))
+
+    with patch("app.api.routes.auth.get_db_session") as mock_session:
+        mock_db = MagicMock()
+        mock_db.scalar.return_value = mock_user
+        mock_session.return_value = mock_db
+
+        app.dependency_overrides[get_otp_service] = lambda: mock_otp_service
+        response = client.post(
+            "/api/v1/auth/resend-otp",
+            json={"email": "juan@correo.usbcali.edu.co"},
+        )
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert "otp activo" in response.json()["detail"].lower()

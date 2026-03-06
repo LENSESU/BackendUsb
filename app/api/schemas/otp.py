@@ -38,3 +38,9 @@ class VerifyOtpRequest(BaseModel):
 
     email: EmailStr
     code: str
+
+
+class ResendOtpRequest(BaseModel):
+    """Petición para reenviar el OTP."""
+
+    email: EmailStr
