@@ -95,6 +95,7 @@ def login(credentials: LoginRequest) -> TokenResponse:
         )
 
     import re
+
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
