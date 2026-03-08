@@ -74,24 +74,35 @@ def get_db_session() -> Session:
 
 @router.post("/login", response_model=TokenResponse)
 def login(credentials: LoginRequest) -> TokenResponse:
-    """
-    Autentica un usuario y devuelve tokens JWT (access y opcionalmente refresh).
+    # Validar campos obligatorios y formato
+    email = (credentials.email or "").strip()
+    password = (credentials.password or "").strip()
 
-    Args:
-        credentials: Email y contraseña del usuario
+    if not email and not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo y la contraseña son obligatorios",
+        )
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo es obligatorio",
+        )
+    if not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña es obligatoria",
+        )
 
-    Returns:
-        Tokens de acceso y refresco JWT
+    import re
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El formato del correo electrónico no es válido",
+        )
 
-    Raises:
-        HTTPException 401: Si las credenciales son incorrectas
-        HTTPException 403: Si el usuario está inactivo
-    """
-    # TODO: Mover lógica a un servicio de autenticación
     db = get_db_session()
-
-    # Buscar usuario por email
-    stmt = select(UserModel).where(UserModel.email == credentials.email)
+    stmt = select(UserModel).where(UserModel.email == email)
     user = db.scalar(stmt)
 
     if user is None:
@@ -101,8 +112,7 @@ def login(credentials: LoginRequest) -> TokenResponse:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Verificar contraseña
-    if not verify_password(credentials.password, user.password_hash):
+    if not verify_password(password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email o contraseña incorrectos",
