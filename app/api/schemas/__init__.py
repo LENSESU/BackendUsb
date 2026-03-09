@@ -7,12 +7,17 @@ from app.api.schemas.auth import (
     TokenValidationResponse,
     UserAuthInfo,
 )
-from app.api.schemas.incident import IncidentCreate, IncidentResponse
+from app.api.schemas.incident import (
+    IncidentCreate,
+    IncidentResponse,
+    IncidentUpdate,
+)
 from app.api.schemas.item import ItemCreate, ItemResponse
 
 __all__ = [
     "IncidentCreate",
     "IncidentResponse",
+    "IncidentUpdate",
     "ItemCreate",
     "ItemResponse",
     "LoginRequest",

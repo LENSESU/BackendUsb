@@ -46,19 +46,18 @@ class Incident:
 
     # --- Campos requeridos (sin default) ---
     id: UUID | None
-    student_id: UUID  # [#107] UUID del usuario que reporta (desde JWT)
-    technician_id: UUID | None  # Técnico asignado (None al crear)
-    category_id: UUID  # Categoría del incidente
-    description: str  # Descripción textual
-    before_photo_id: UUID  # Foto "antes" (requerida)
+    student_id: UUID
+    technician_id: UUID | None
+    category_id: UUID
+    description: str
+    before_photo_id: UUID   # ← mover aquí
 
-    # --- Campos con default ---
-    status: str = "Nuevo"  # [#107] Estado inicial por defecto
-    priority: str | None = None  # Prioridad opcional
-    after_photo_id: UUID | None = None  # Foto "después" (opcional)
-    created_at: datetime | None = None  # [#107] Lo asigna IncidentService
-    updated_at: datetime | None = None  # Se actualiza en futuras ediciones
-    location: IncidentLocation | None = None  # Ubicación opcional
+    status: str = "Nuevo"
+    priority: str | None = None
+    after_photo_id: UUID | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    location: IncidentLocation | None = None
 
     def __post_init__(self) -> None:
         if not self.description or not self.description.strip():
