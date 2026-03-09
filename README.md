@@ -27,27 +27,31 @@ app/
 ## Requisitos
 
 - Python 3.11+
+- [Docker](https://docs.docker.com/get-docker/) y [Docker Compose](https://docs.docker.com/compose/install/) (para ejecución con contenedores)
 
 ## Clonar el repositorio y ejecutar el proyecto
 
-Clona el repositorio :
+Clona el repositorio:
 
 ```bash
 git clone https://github.com/Chologalactico/BackendUsb.git
 ```
-Crea una una nueva rama
-```bash
-git checkout -b dev
-```
-Todo se sube a la rama que creaste, para ya luego hacer un PR a la rama DEV 
-
--⚠️ Peligroso. Hacer algun push a la rama main o develop 
 
 Entra al directorio del proyecto:
 
 ```bash
 cd BackendUsb
 ```
+
+Crea una nueva rama:
+
+```bash
+git checkout -b dev
+```
+
+Todo se sube a la rama que creaste, para luego hacer un PR a la rama DEV.
+
+⚠️ **Peligroso**: hacer algún push directo a las ramas `main` o `develop`.
 
 Crea el entorno virtual:
 
@@ -75,7 +79,33 @@ Instala las dependencias:
 pip install -r requirements.txt
 ```
 
-Ejecuta la aplicación:
+### Configuración del entorno (.env)
+
+Copia el archivo de ejemplo y renómbralo:
+
+```bash
+cp .env.example .env
+```
+
+Abre `.env` y ajusta los valores según tu entorno. Las variables más importantes para empezar son:
+
+```bash
+# Host de la base de datos
+# El docker-compose.yml sobreescribe esto internamente con el nombre del servicio.
+POSTGRES_HOST=localhost
+
+# Migraciones automáticas al arrancar:
+RUN_MIGRATIONS_ON_STARTUP=false
+
+# Dominios de correo permitidos para registrarse:
+ALLOWED_EMAIL_DOMAINS=["dominio.co", "domain.com"]
+```
+
+> Consulta `.env.example` para ver todas las variables disponibles con sus descripciones.
+
+### Ejecutar en local (uvicorn)
+
+Asegúrate de haber configurado `.env`.
 
 ```bash
 uvicorn app.main:app --reload
@@ -83,12 +113,72 @@ uvicorn app.main:app --reload
 
 La API quedará disponible en `http://127.0.0.1:8000`.
 
+### Ejecutar con Docker
+
+No necesitas cambiar nada en el `.env` para usar Docker. El `docker-compose.yml` sobreescribe `POSTGRES_HOST` automáticamente con el nombre interno del servicio (`postgres`). Solo asegúrate de tener Docker corriendo.
+
+Construir y levantar todos los servicios (backend + PostgreSQL + Mailpit):
+
+```bash
+docker compose up --build
+```
+
+Para ejecutar en segundo plano:
+
+```bash
+docker compose up -d --build
+```
+
+Con Docker, la API queda en `http://127.0.0.1:8000`, PostgreSQL en `localhost:5432` y Mailpit (cliente de correo local) en `http://localhost:8025`.
+
+> **Nota**: `--build` solo es necesario la primera vez o cuando cambies el `Dockerfile` o `requirements.txt`. Para el resto de casos basta con `docker compose up`.
+
+### Migraciones (Alembic)
+
+**No tienes que hacer nada a mano.** Al arrancar la app (con Postgres corriendo), se aplican solas las migraciones: se crean o actualizan las tablas en la base de datos. Solo asegúrate de tener Postgres levantado y las variables de entorno (`POSTGRES_*` o `DATABASE_URL`) en `.env`. Si más adelante añades un nuevo modelo, creas una nueva migración con `alembic revision --autogenerate -m "descripción"` y al volver a arrancar la app se aplicará.
+
+### Poblar Base de Datos con Usuarios de Prueba
+
+Una vez que la app esté corriendo y las migraciones aplicadas, puedes crear usuarios de prueba con:
+
+```bash
+python -m app.scripts.seed_users
+```
+
+Esto crea los siguientes usuarios con sus roles:
+
+| Rol | Email | Password |
+|---|---|---|
+| Administrador | admin@usb.ve | admin123 |
+| Estudiante | estudiante@usb.ve | estudiante123 |
+| Técnico | tecnico@usb.ve | tecnico123 |
+
+---
+
+## Para desarrolladores
+
 ### Ejecutar tests
 
-Los tests están en `tests/` (por ejemplo `tests/test_health.py`, que prueba el endpoint `/health`). Desde la raíz del proyecto (donde están `app/` y `tests/`):
+Los tests están en `tests/`. Desde la raíz del proyecto:
 
 ```bash
 python -m pytest
+```
+
+### Linting y formato (Ruff)
+
+```bash
+# Revisar errores de linting
+python -m ruff check app
+
+# Revisar y aplicar correcciones automáticas
+python -m ruff check app --fix
+
+# Comprobar formato
+python -m ruff format --check app
+
+# Aplicar formato automáticamente
+python -m ruff format app
 ```
 
 ### CI/CD (GitHub Actions)
@@ -105,25 +195,7 @@ El pipeline realiza:
 - **Linting con Ruff** sobre la carpeta `app/`.
 - **Chequeo de formato** con `ruff format --check app`.
 - **Chequeo básico de sintaxis** con `python -m compileall app`.
-- **Tests** con `pytest` (incluye `tests/test_health.py`).
-
-#### Comandos locales (verificar antes de subir)
-
-Para reproducir en tu máquina lo que hace el CI y evitar fallos en Actions:
-
-```bash
-# Linter: solo revisar
-python -m ruff check app
-
-# Linter: revisar y aplicar correcciones automáticas
-python -m ruff check app --fix
-
-# Formato: comprobar que el código está formateado
-python -m ruff format --check app
-
-# Formato: aplicar formato automáticamente
-python -m ruff format app
-```
+- **Tests** con `pytest`.
 
 Para hacer obligatorio el pipeline antes de fusionar PRs, configura en GitHub:
 
@@ -131,43 +203,15 @@ Para hacer obligatorio el pipeline antes de fusionar PRs, configura en GitHub:
 2. Protege `dev` y `main`.
 3. Añade el check de estado del workflow de CI como requerido.
 
-### Ejecución con Docker
+---
 
-Requisitos: [Docker](https://docs.docker.com/get-docker/) y [Docker Compose](https://docs.docker.com/compose/install/).
-
-Construir y levantar los servicios (backend + PostgreSQL):
-
-```bash
-docker compose up --build
-```
-
-Para ejecutar en segundo plano:
-
-```bash
-docker compose up -d --build
-```
-
-Crea un archivo `.env` en la raíz para configurar Postgres:
-
-```bash
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=app_db
-```
-
-Con Docker, la API queda en `http://127.0.0.1:8000` y PostgreSQL en `localhost:5432` (usuario/contraseña/base según `.env` o valores por defecto anteriores).
-
-### Migraciones (Alembic)
-
-**No tienes que hacer nada a mano.** Al arrancar la app (con Postgres corriendo), se aplican solas las migraciones: se crean o actualizan las tablas en la base de datos. Solo asegúrate de tener Postgres levantado y las variables de entorno (`POSTGRES_*` o `DATABASE_URL`) en `.env`. Si más adelante añades un nuevo modelo, creas una nueva migración con `alembic revision --autogenerate -m "descripción"` y al volver a arrancar la app se aplicará.
-
-### Autenticación y Sesiones (JWT)
+## Autenticación y Sesiones (JWT)
 
 El sistema implementa autenticación basada en **tokens JWT** con funcionalidad completa de login/logout y **manejo automático de expiración**.
 
-#### Configuración
+### Configuración
 
-Agrega las siguientes variables al archivo `.env`:
+Variables relevantes en `.env`:
 
 ```bash
 JWT_SECRET_KEY=dev-secret-key-CHANGE-IN-PRODUCTION
@@ -182,7 +226,7 @@ USE_REFRESH_TOKENS=true
 openssl rand -hex 32
 ```
 
-#### Endpoints de Autenticación
+### Endpoints de Autenticación
 
 **Login** - `POST /api/v1/auth/login`
 ```json
@@ -202,8 +246,8 @@ Respuesta exitosa (con refresh tokens habilitados):
 ```
 
 **Refresh** - `POST /api/v1/auth/refresh`
-- Renueva el access token sin re-autenticarse
-- Requiere un refresh token válido
+- Renueva el access token sin re-autenticarse.
+- Requiere un refresh token válido.
 ```json
 {
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -212,12 +256,11 @@ Respuesta exitosa (con refresh tokens habilitados):
 
 **Logout** - `POST /api/v1/auth/logout`
 - Requiere token JWT en header: `Authorization: Bearer <token>`
-- Invalida el token agregándolo a una blacklist
-- El token no podrá ser reutilizado después del logout
+- Invalida el token agregándolo a una blacklist.
+- El token no podrá ser reutilizado después del logout.
 
 **Validar Token** - `POST /api/v1/auth/validate`
-- Verifica si un token es válido y no ha expirado
-- Útil para decidir si refrescar el token
+- Verifica si un token es válido y no ha expirado.
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -225,10 +268,10 @@ Respuesta exitosa (con refresh tokens habilitados):
 ```
 
 **Información del Usuario** - `GET /api/v1/auth/me`
-- Requiere autenticación
-- Devuelve información del usuario extraída del token
+- Requiere autenticación.
+- Devuelve información del usuario extraída del token.
 
-#### Manejo de Expiración Automática
+### Manejo de Expiración Automática
 
 El backend devuelve respuestas estructuradas cuando un token expira:
 
@@ -243,19 +286,12 @@ El backend devuelve respuestas estructuradas cuando un token expira:
 ```
 
 **Códigos de error:**
-- `TOKEN_EXPIRED` - El access token ha expirado (refrescar con refresh token)
-- `TOKEN_INVALID` - Token malformado o inválido
-- `TOKEN_REVOKED` - Token invalidado por logout
-- `REFRESH_TOKEN_EXPIRED` - Refresh token expirado (re-autenticarse)
+- `TOKEN_EXPIRED` — El access token ha expirado (refrescar con refresh token).
+- `TOKEN_INVALID` — Token malformado o inválido.
+- `TOKEN_REVOKED` — Token invalidado por logout.
+- `REFRESH_TOKEN_EXPIRED` — Refresh token expirado (re-autenticarse).
 
-**Para Desarrolladores de Frontend:**
-Consulta [docs/FRONTEND_TOKEN_HANDLING.md](docs/FRONTEND_TOKEN_HANDLING.md) para:
-- Implementar refresh automático de tokens
-- Manejar errores de expiración
-- Ejemplos completos en JavaScript/React
-- Mejores prácticas de seguridad
-
-#### Proteger Endpoints
+### Proteger Endpoints
 
 Para proteger cualquier endpoint, usa la dependencia `get_current_user_id`:
 
@@ -271,25 +307,21 @@ def protected_endpoint(user_id: UUID = Depends(get_current_user_id)):
     return {"message": f"Hola usuario {user_id}"}
 ```
 
-#### Implementación del Logout y Blacklist
+### Implementación del Logout y Blacklist
 
 El sistema de logout funciona mediante una **blacklist de tokens**:
 
-1. Al hacer logout, el token se agrega a la blacklist en memoria
-2. Todas las peticiones subsecuentes con ese token son rechazadas
-3. Los tokens expiran automáticamente según su tiempo de vida
+1. Al hacer logout, el token se agrega a la blacklist en memoria.
+2. Todas las peticiones subsecuentes con ese token son rechazadas.
+3. Los tokens expiran automáticamente según su tiempo de vida.
 
-**Nota**: La blacklist actual es en memoria. Para producción con múltiples instancias, se recomienda usar Redis con TTL.
+> **Nota**: La blacklist actual es en memoria. Para producción con múltiples instancias, se recomienda usar Redis con TTL.
 
-- Documentación interactiva: **http://127.0.0.1:8000/docs**
-- Health: **http://127.0.0.1:8000/health**
-- Items: **http://127.0.0.1:8000/api/v1/items**
+---
+
+## URLs útiles
+
+- Documentación interactiva (Swagger): **http://127.0.0.1:8000/docs**
+- Health check: **http://127.0.0.1:8000/health**
 - Auth: **http://127.0.0.1:8000/api/v1/auth/login**
-
-## Ejemplo de uso (Items)
-
-
-- `GET /api/v1/items/` — listar items
-- `GET /api/v1/items/{id}` — obtener un item
-- `POST /api/v1/items/` — crear item (body: `{"name": "Mi item", "description": "opcional"}`)
-- `DELETE /api/v1/items/{id}` — eliminar item
+- Mailpit (correos locales): **http://localhost:8025**

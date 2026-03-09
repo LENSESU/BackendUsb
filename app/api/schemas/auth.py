@@ -2,14 +2,14 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
     """Petición de login con credenciales."""
 
-    email: EmailStr
-    password: str
+    email: str | None = None
+    password: str | None = None
 
 
 class TokenResponse(BaseModel):

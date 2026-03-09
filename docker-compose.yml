@@ -10,9 +10,17 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-app_db}
+      - ALLOWED_EMAIL_DOMAINS=${ALLOWED_EMAIL_DOMAINS:-["dominio.co", "domain.com"]}
+      - MAIL_HOST=mailpit
+      - MAIL_PORT=${MAIL_PORT:-1025}
+      - MAIL_FROM=${MAIL_FROM:-noreply@correo.com}
+      - OTP_EXPIRE_MINUTES=${OTP_EXPIRE_MINUTES:-2}
+      - OTP_RESEND_COOLDOWN_SECONDS=${OTP_RESEND_COOLDOWN_SECONDS:-15}
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   postgres:
     image: postgres:16-alpine
@@ -31,5 +39,21 @@ services:
       timeout: 5s
       retries: 5
 
+  mailpit:
+    image: axllent/mailpit
+    container_name: mailpit
+    restart: unless-stopped
+    volumes:
+      - mailpit_data:/mailpit_data
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /mailpit_data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
 volumes:
   postgres_data:
+  mailpit_data: 

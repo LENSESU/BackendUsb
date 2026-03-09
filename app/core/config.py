@@ -47,6 +47,18 @@ class Settings(BaseSettings):
     # Si es True, el login devuelve también refresh_token
     use_refresh_tokens: bool = True
 
+    # SMTP Server (Local) - OTP
+    mail_host: str = "localhost"
+    mail_port: int = 1025
+    mail_from: str = "noreply@app.local"
+    mail_username: str = ""
+    mail_password: str = ""
+    otp_expire_minutes: int = 2
+    otp_resend_cooldown_seconds: int = 15
+
+    # Whitelist domains
+    allowed_email_domains: list[str] = ["correo.usbcali.edu.co", "usbcali.edu.co"]
+
 
 @lru_cache
 def get_settings() -> Settings:

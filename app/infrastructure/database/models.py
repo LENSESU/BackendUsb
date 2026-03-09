@@ -301,3 +301,32 @@ class NotificationModel(Base):
         nullable=False,
         server_default=text("NOW()"),
     )
+
+
+# ---------------------------------------------------------------------------
+# otps (depende de users)
+# ---------------------------------------------------------------------------
+
+
+class OtpModel(Base):
+    """ORM: código OTP para verificación de cuenta."""
+
+    __tablename__ = "otps"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    code: Mapped[str] = mapped_column(String(6), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
