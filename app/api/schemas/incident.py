@@ -52,3 +52,12 @@ class IncidentResponse(BaseModel):
     updated_at: datetime | None
 
     model_config = {"from_attributes": True}
+
+
+class IncidentEvidenceUploadResponse(BaseModel):
+    """Respuesta para carga de evidencia fotográfica de incidente."""
+
+    incident_id: UUID
+    filename: str
+    content_type: str
+    message: str
