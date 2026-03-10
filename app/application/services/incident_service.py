@@ -1,4 +1,4 @@
-"""Caso de uso: operaciones sobre Incidentes. Depende del puerto, no de implementaciones."""
+"""Caso de uso: operaciones sobre Incidentes."""
 
 from uuid import UUID, uuid4
 
@@ -18,7 +18,7 @@ class IncidentService:
     def list_incidents(self) -> list[Incident]:
         return self._repository.list_all()
 
-    def     create_incident(
+    def create_incident(
         self,
         student_id: UUID,
         category_id: UUID,
@@ -73,22 +73,21 @@ class IncidentService:
         if existing is None:
             return None
         loc = existing.location
-        if (
-            campus_place is not None
-            or latitude is not None
-            or longitude is not None
-        ):
+        if campus_place is not None or latitude is not None or longitude is not None:
             location = IncidentLocation(
                 campus_place=(
-                    campus_place if campus_place is not None
+                    campus_place
+                    if campus_place is not None
                     else (loc.campus_place if loc else None)
                 ),
                 latitude=(
-                    latitude if latitude is not None
+                    latitude
+                    if latitude is not None
                     else (loc.latitude if loc else None)
                 ),
                 longitude=(
-                    longitude if longitude is not None
+                    longitude
+                    if longitude is not None
                     else (loc.longitude if loc else None)
                 ),
             )

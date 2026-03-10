@@ -7,7 +7,6 @@ from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-
 # Construimos la URL de la base de datos a partir de variables de entorno,
 # con valores por defecto compatibles con el docker-compose.yml.
 DB_USER = os.getenv("POSTGRES_USER", "postgres")
@@ -42,4 +41,3 @@ async def get_session() -> AsyncIterator[AsyncSession]:
     """Provee una sesión async de SQLAlchemy."""
     async with AsyncSessionLocal() as session:
         yield session
-

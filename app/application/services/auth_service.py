@@ -75,4 +75,3 @@ class AuthService:
             role=UserRole.STUDENT,
         )
         return await self._user_repository.save(user)
-

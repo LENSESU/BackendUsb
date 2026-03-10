@@ -147,6 +147,3 @@ def delete_item(
                     "error_code": "CROSS_ACCESS_DENIED",
                 },
             )
-
-    if not service.delete_item(item_id):
-        raise HTTPException(status_code=404, detail="Item no encontrado")

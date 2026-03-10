@@ -58,7 +58,9 @@ class IncidentCreate(BaseModel):
     estado: str | None = Field(
         default=None,
         max_length=20,
-        description="Estado inicial (ej: Nuevo, En progreso). Si no se envía, se usa Nuevo.",
+        description=(
+            "Estado inicial (ej: Nuevo, En progreso). Si no se envía, se usa Nuevo."
+        ),
     )
     foto_antes_id: UUID | None = Field(
         default=None,

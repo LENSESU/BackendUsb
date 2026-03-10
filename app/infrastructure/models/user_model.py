@@ -20,4 +20,3 @@ class UserModel(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, nullable=False, default="STUDENT")
-

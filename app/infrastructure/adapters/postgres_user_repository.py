@@ -50,4 +50,3 @@ class PostgresUserRepository(UserRepositoryPort):
 
             await session.commit()
             return user
-

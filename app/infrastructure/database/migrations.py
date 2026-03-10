@@ -13,11 +13,13 @@ def run_migrations() -> None:
     """Aplica migraciones pendientes (upgrade head) usando la URL de la app."""
     try:
         from alembic.config import Config
+
         from alembic import command
     except ImportError:
         print(
-            "Aviso: alembic no está instalado en este intérprete; se omiten migraciones. "
-            "Ejecuta la app con el Python del venv: .venv\\Scripts\\python.exe -m uvicorn app.main:app --reload",
+            "Aviso: alembic no está instalado en este intérprete; "
+            "se omiten migraciones. Ejecuta la app con el Python del venv: "
+            ".venv\\Scripts\\python.exe -m uvicorn app.main:app --reload",
             file=sys.stderr,
         )
         return

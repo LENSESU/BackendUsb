@@ -17,4 +17,3 @@ class UserRepositoryPort(ABC):
     async def save(self, user: User) -> User:
         """Guarda o actualiza un User."""
         ...
-

@@ -35,7 +35,9 @@ from app.api.schemas.otp import (
     VerifyOtpRequest,
 )
 from app.application.services.otp_service import OtpService
+from app.application.services.verification_code_service import generate_and_store
 from app.core.config import settings
+from app.core.email import send_verification_code
 from app.core.security import (
     TokenExpiredError,
     TokenInvalidError,
@@ -47,8 +49,6 @@ from app.core.security import (
     validate_token,
     verify_password,
 )
-from app.application.services.verification_code_service import generate_and_store
-from app.core.email import send_verification_code
 from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
 from app.infrastructure.database.models import RoleModel, UserModel
 
