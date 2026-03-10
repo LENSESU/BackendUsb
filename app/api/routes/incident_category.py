@@ -10,6 +10,7 @@ from app.api.dependencies.auth import require_role
 from app.api.dependencies.incident_category import get_incident_category_service
 from app.api.schemas.incident_category import (
     IncidentCategoryCreate,
+    IncidentCategoryListResponse,
     IncidentCategoryResponse,
 )
 from app.application.services.incident_category_service import IncidentCategoryService
@@ -19,14 +20,15 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=list[IncidentCategoryResponse],
+    response_model=IncidentCategoryListResponse,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 def list_categories(
     service: IncidentCategoryService = Depends(get_incident_category_service),
-) -> list[IncidentCategoryResponse]:
+) -> IncidentCategoryListResponse:
     """Lista todas las categorías registradas."""
-    return [IncidentCategoryResponse.model_validate(c) for c in service.list_all()]
+    categories = [IncidentCategoryResponse.model_validate(c) for c in service.list_all()]
+    return IncidentCategoryListResponse(count=len(categories), items=categories)
 
 
 @router.post(
