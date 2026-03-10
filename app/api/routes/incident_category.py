@@ -31,6 +31,25 @@ def list_categories(
     return IncidentCategoryListResponse(count=len(categories), items=categories)
 
 
+@router.get(
+    "/{category_id}",
+    response_model=IncidentCategoryResponse,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def get_category(
+    category_id: str,
+    service: IncidentCategoryService = Depends(get_incident_category_service),
+) -> IncidentCategoryResponse:
+    """Retorna una categoría por su ID."""
+    category = service.get_by_id(category_id)
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Categoría con id {category_id} no encontrada"
+        )
+    return IncidentCategoryResponse.model_validate(category)
+
+
 @router.post(
     "/",
     response_model=IncidentCategoryResponse,

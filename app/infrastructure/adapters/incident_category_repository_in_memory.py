@@ -29,3 +29,9 @@ class InMemoryIncidentCategoryRepository(IncidentCategoryRepositoryPort):
 
     def find_all(self) -> list[IncidentCategory]:
         return list(self._store.values())
+
+    def find_by_id(self, category_id: str) -> IncidentCategory | None:
+        for category in self._categories:
+            if category.id == category_id:
+                return category
+        return None
