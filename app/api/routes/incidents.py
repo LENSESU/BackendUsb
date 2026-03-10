@@ -1,7 +1,7 @@
 """Rutas HTTP para Incidentes (HU-E2-011).
 
 Creado para las tareas:
-- #107 — Registrar metadatos automáticos (student_id desde JWT, created_at del servidor).
+- #107 — Metadatos automáticos (student_id del JWT, created_at).
 - #108 — Responder HTTP 201 Created en creación exitosa.
 - #109 — (las pruebas validan este endpoint).
 

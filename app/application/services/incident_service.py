@@ -7,7 +7,7 @@ Sigue el mismo patrón que ``ItemService``.
 (``student_id``, ``created_at``) de forma que el cliente nunca los controle.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from app.application.ports.incident_repository import IncidentRepositoryPort
@@ -86,7 +86,7 @@ class IncidentService:
             description=description.strip(),
             before_photo_id=before_photo_id,
             priority=priority,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             location=location,
         )
         return self._repository.save(incident)
