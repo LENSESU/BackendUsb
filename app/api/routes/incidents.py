@@ -38,19 +38,19 @@ def _incident_to_response(incident: Incident) -> IncidentResponse:
     loc = incident.location
     return IncidentResponse(
         id=incident.id,
-        student_id=incident.student_id,
-        technician_id=incident.technician_id,
-        category_id=incident.category_id,
-        description=incident.description,
-        campus_place=loc.campus_place if loc else None,
-        latitude=loc.latitude if loc else None,
-        longitude=loc.longitude if loc else None,
-        status=incident.status,
-        priority=incident.priority,
-        before_photo_id=incident.before_photo_id,
-        after_photo_id=incident.after_photo_id,
-        created_at=incident.created_at,
-        updated_at=incident.updated_at,
+        estudiante_id=incident.student_id,
+        tecnico_id=incident.technician_id,
+        categoria_id=incident.category_id,
+        descripcion=incident.description,
+        lugar_campus=loc.campus_place if loc else None,
+        latitud=float(loc.latitude) if loc and loc.latitude is not None else None,
+        longitud=float(loc.longitude) if loc and loc.longitude is not None else None,
+        estado=incident.status,
+        prioridad=incident.priority,
+        foto_antes_id=incident.before_photo_id,
+        foto_despues_id=incident.after_photo_id,
+        creado_en=incident.created_at,
+        actualizado_en=incident.updated_at,
     )
 
 
@@ -64,17 +64,18 @@ def create_incident(
     payload: IncidentCreate,
     current_user_id: UUID = Depends(get_current_user_id),
 ) -> IncidentResponse:
-    """Crea un nuevo incidente. student_id se asigna desde el JWT."""
+    """Crea un nuevo incidente. El estudiante se asigna desde el JWT."""
     service = get_incident_service()
     incident = service.create_incident(
         student_id=current_user_id,
-        category_id=payload.category_id,
-        description=payload.description,
-        before_photo_id=payload.before_photo_id,
-        campus_place=payload.campus_place,
-        latitude=payload.latitude,
-        longitude=payload.longitude,
-        priority=payload.priority,
+        category_id=payload.categoria_id,
+        description=payload.descripcion,
+        before_photo_id=payload.foto_antes_id,
+        campus_place=payload.lugar_campus,
+        latitude=payload.latitud,
+        longitude=payload.longitud,
+        priority=payload.prioridad,
+        status=payload.estado,
     )
     return _incident_to_response(incident)
 
@@ -115,15 +116,16 @@ def update_incident(incident_id: UUID, payload: IncidentUpdate) -> IncidentRespo
     service = get_incident_service()
     incident = service.update_incident(
         incident_id,
-        technician_id=payload.technician_id,
-        category_id=payload.category_id,
-        description=payload.description,
-        campus_place=payload.campus_place,
-        latitude=payload.latitude,
-        longitude=payload.longitude,
-        status=payload.status,
-        priority=payload.priority,
-        after_photo_id=payload.after_photo_id,
+        technician_id=payload.tecnico_id,
+        category_id=payload.categoria_id,
+        description=payload.descripcion,
+        campus_place=payload.lugar_campus,
+        latitude=payload.latitud,
+        longitude=payload.longitud,
+        status=payload.estado,
+        priority=payload.prioridad,
+        before_photo_id=payload.foto_antes_id,
+        after_photo_id=payload.foto_despues_id,
     )
     if incident is None:
         raise NotFoundError("Incidente no encontrado")

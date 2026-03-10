@@ -5,7 +5,7 @@ Módulo modificado para issues #61 y #63:
 - **#61 – Proteger endpoints del backend:**
   Se agregaron las dependencias ``get_current_role_id``, ``get_current_role_name``
   y la factory ``require_role()`` que permite decorar cualquier endpoint con
-  ``dependencies=[Depends(require_role("Administrator", "Student"))]`` para
+  ``dependencies=[Depends(require_role("Administrador", "Estudiante"))]`` para
   restringir acceso por rol.  ``require_role`` lee el claim ``role_name``
   directamente del JWT (embebido en el login), por lo que **no hace consultas
   adicionales a la BD** en cada petición.
@@ -293,7 +293,7 @@ def require_role(*allowed_role_names: str) -> Callable:
 
     Args:
         allowed_role_names: Nombres de roles permitidos
-            (ej: "Administrator", "Student", "Technician")
+            (ej: "Administrador", "Estudiante", "Tecnico")
 
     Returns:
         Dependencia FastAPI (Callable) que valida el rol del token

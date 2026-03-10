@@ -18,17 +18,18 @@ class IncidentService:
     def list_incidents(self) -> list[Incident]:
         return self._repository.list_all()
 
-    def create_incident(
+    def     create_incident(
         self,
         student_id: UUID,
         category_id: UUID,
         description: str,
-        before_photo_id: UUID,
+        before_photo_id: UUID | None = None,
         technician_id: UUID | None = None,
         campus_place: str | None = None,
         latitude: float | None = None,
         longitude: float | None = None,
         priority: str | None = None,
+        status: str | None = None,
     ) -> Incident:
         location = None
         if campus_place is not None or latitude is not None or longitude is not None:
@@ -43,7 +44,7 @@ class IncidentService:
             technician_id=technician_id,
             category_id=category_id,
             description=description.strip(),
-            status="Nuevo",
+            status=status if status else "Nuevo",
             priority=priority,
             before_photo_id=before_photo_id,
             after_photo_id=None,
@@ -65,6 +66,7 @@ class IncidentService:
         longitude: float | None = None,
         status: str | None = None,
         priority: str | None = None,
+        before_photo_id: UUID | None = None,
         after_photo_id: UUID | None = None,
     ) -> Incident | None:
         existing = self._repository.get_by_id(incident_id)
@@ -94,6 +96,9 @@ class IncidentService:
             location = existing.location
         tech_id = technician_id if technician_id is not None else existing.technician_id
         cat_id = category_id if category_id is not None else existing.category_id
+        before_id = (
+            before_photo_id if before_photo_id is not None else existing.before_photo_id
+        )
         after_id = (
             after_photo_id if after_photo_id is not None else existing.after_photo_id
         )
@@ -105,7 +110,7 @@ class IncidentService:
             description=(description or existing.description).strip(),
             status=status if status is not None else existing.status,
             priority=priority if priority is not None else existing.priority,
-            before_photo_id=existing.before_photo_id,
+            before_photo_id=before_id,
             after_photo_id=after_id,
             created_at=existing.created_at,
             updated_at=None,

@@ -20,12 +20,6 @@ from uuid import UUID
 
 @dataclass(slots=True)
 class IncidentLocation:
-    """Valor de dominio (Value Object) para la ubicación de un incidente.
-
-    Todos los campos son opcionales; se crea solo si el cliente envía
-    al menos un dato de ubicación.
-    """
-
     campus_place: str | None = None
     latitude: float | None = None
     longitude: float | None = None
@@ -33,25 +27,12 @@ class IncidentLocation:
 
 @dataclass(slots=True)
 class Incident:
-    """Entidad de dominio: incidente reportado por un usuario.
-
-    Campos requeridos (sin default) van primero por restricción de
-    ``dataclass(slots=True)``.
-
-    Campos automáticos (#107):
-      - ``student_id``: se asigna desde el JWT del usuario autenticado.
-      - ``created_at``: se asigna con la hora UTC del servidor.
-      - ``status``: inicia en ``"Nuevo"`` (default de la entidad).
-    """
-
-    # --- Campos requeridos (sin default) ---
     id: UUID | None
     student_id: UUID
     technician_id: UUID | None
     category_id: UUID
     description: str
-    before_photo_id: UUID   # ← mover aquí
-
+    before_photo_id: UUID | None = None
     status: str = "Nuevo"
     priority: str | None = None
     after_photo_id: UUID | None = None
@@ -68,6 +49,3 @@ class Incident:
 
         if self.category_id is None:
             raise ValueError("El incidente debe tener una categoría asociada")
-
-        if self.before_photo_id is None:
-            raise ValueError("El incidente debe tener una foto 'antes'")
