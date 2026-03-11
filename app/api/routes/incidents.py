@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies.auth import get_current_user_id, require_role
 from app.api.schemas.incident import (
+    Campus,
     IncidentCreate,
     IncidentResponse,
     IncidentUpdate,
+    campus_options,
 )
 from app.application.ports import IncidentRepositoryPort
 from app.application.services import IncidentService
@@ -36,13 +38,19 @@ def _incident_to_response(incident: Incident) -> IncidentResponse:
     """Mapea entidad de dominio a schema de respuesta."""
     assert incident.id is not None and incident.created_at is not None
     loc = incident.location
+    selected: list[Campus] | None = None
+    if loc and loc.campus_place:
+        try:
+            selected = [Campus(loc.campus_place)]
+        except ValueError:
+            selected = [Campus.OTRO]
     return IncidentResponse(
         id=incident.id,
         estudiante_id=incident.student_id,
         tecnico_id=incident.technician_id,
         categoria_id=incident.category_id,
         descripcion=incident.description,
-        lugar_campus=loc.campus_place if loc else None,
+        lugar_campus=selected,
         latitud=float(loc.latitude) if loc and loc.latitude is not None else None,
         longitud=float(loc.longitude) if loc and loc.longitude is not None else None,
         estado=incident.status,
@@ -66,12 +74,17 @@ def create_incident(
 ) -> IncidentResponse:
     """Crea un nuevo incidente. El estudiante se asigna desde el JWT."""
     service = get_incident_service()
+    campus_name = (
+        payload.lugar_campus[0].value
+        if payload.lugar_campus and len(payload.lugar_campus) > 0
+        else None
+    )
     incident = service.create_incident(
         student_id=current_user_id,
         category_id=payload.categoria_id,
         description=payload.descripcion,
         before_photo_id=payload.foto_antes_id,
-        campus_place=payload.lugar_campus,
+        campus_place=campus_name,
         latitude=payload.latitud,
         longitude=payload.longitud,
         priority=payload.prioridad,
@@ -114,12 +127,17 @@ def get_incident(incident_id: UUID) -> IncidentResponse:
 def update_incident(incident_id: UUID, payload: IncidentUpdate) -> IncidentResponse:
     """Actualiza estado o prioridad (y otros campos) de un incidente."""
     service = get_incident_service()
+    campus_name = (
+        payload.lugar_campus[0].value
+        if payload.lugar_campus and len(payload.lugar_campus) > 0
+        else None
+    )
     incident = service.update_incident(
         incident_id,
         technician_id=payload.tecnico_id,
         category_id=payload.categoria_id,
         description=payload.descripcion,
-        campus_place=payload.lugar_campus,
+        campus_place=campus_name,
         latitude=payload.latitud,
         longitude=payload.longitud,
         status=payload.estado,
