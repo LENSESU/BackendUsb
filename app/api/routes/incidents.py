@@ -50,9 +50,7 @@ def get_incident_service() -> IncidentService:
     "/",
     response_model=IncidentResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[
-        Depends(require_role("Administrator", "Student", "Technician"))
-    ],
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 def create_incident(
     payload: IncidentCreate,
@@ -96,9 +94,7 @@ def create_incident(
 @router.get(
     "/",
     response_model=list[IncidentResponse],
-    dependencies=[
-        Depends(require_role("Administrator", "Student", "Technician"))
-    ],
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 def list_incidents(
     service: IncidentService = Depends(get_incident_service),
@@ -129,9 +125,7 @@ def list_incidents(
 @router.get(
     "/{incident_id}",
     response_model=IncidentResponse,
-    dependencies=[
-        Depends(require_role("Administrator", "Student", "Technician"))
-    ],
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 def get_incident(
     incident_id: UUID,

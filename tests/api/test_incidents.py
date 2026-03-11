@@ -15,7 +15,7 @@ Total: 11 tests.  No requieren base de datos (JWT en memoria,
 incidentes usan ``InMemoryIncidentRepository``).
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -134,17 +134,21 @@ class TestIncidentCreation:
     def test_create_incident_created_at_is_set(self):
         """#107 — created_at se registra automáticamente."""
         token = _make_token(STUDENT_USER_ID, "Student")
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         resp = client.post(
             "/api/v1/incidents/",
             json=_valid_payload(),
             headers=_auth(token),
         )
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
         body = resp.json()
         created = datetime.fromisoformat(body["created_at"])
-        # created_at debe estar entre before y after (tolerancia razonable)
-        assert before.replace(tzinfo=None) <= created.replace(tzinfo=None) <= after.replace(tzinfo=None)
+        # created_at debe estar entre before y after
+        assert (
+            before.replace(tzinfo=None)
+            <= created.replace(tzinfo=None)
+            <= after.replace(tzinfo=None)
+        )
 
     def test_create_incident_with_optional_fields(self):
         """Se pueden enviar campos opcionales (location, priority)."""
