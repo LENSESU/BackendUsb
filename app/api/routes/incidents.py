@@ -10,7 +10,6 @@ from app.api.schemas.incident import (
     IncidentCreate,
     IncidentResponse,
     IncidentUpdate,
-    campus_options,
 )
 from app.application.ports import IncidentRepositoryPort
 from app.application.services import IncidentService

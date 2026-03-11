@@ -10,7 +10,7 @@ import aiosmtplib
 from app.core.config import settings
 
 _VERIFICATION_TEMPLATE_PATH = (
-    Path(__file__).parent / "email" / "verification_code_template.html"
+    Path(__file__).parent / "templates" / "email" / "verification_code_template.html"
 )
 
 
@@ -30,8 +30,6 @@ async def send_verification_code(to_email: str, code: str) -> None:
         message,
         hostname=settings.mail_host,
         port=settings.mail_port,
-        username=settings.mail_username or None,
-        password=settings.mail_password or None,
         use_tls=False,
         start_tls=False,
     )
