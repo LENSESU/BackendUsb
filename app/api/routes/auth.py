@@ -37,7 +37,6 @@ from app.api.schemas.otp import (
 from app.application.services.otp_service import OtpService
 from app.application.services.verification_code_service import generate_and_store
 from app.core.config import settings
-from app.core.email import send_verification_code
 from app.core.security import (
     TokenExpiredError,
     TokenInvalidError,
@@ -51,6 +50,7 @@ from app.core.security import (
 )
 from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
 from app.infrastructure.database.models import RoleModel, UserModel
+from app.templates.email import send_verification_code
 
 router = APIRouter()
 
@@ -161,7 +161,7 @@ def login(credentials: LoginRequest) -> TokenResponse:
 
 
 @router.post("/resend-code", response_model=ResendCodeResponse)
-def resend_verification_code(request: ResendCodeRequest) -> ResendCodeResponse:
+async def resend_verification_code(request: ResendCodeRequest) -> ResendCodeResponse:
     """
     Reenvía un nuevo código de verificación al correo indicado.
 
@@ -175,7 +175,7 @@ def resend_verification_code(request: ResendCodeRequest) -> ResendCodeResponse:
         Mensaje de confirmación (no se expone el código por seguridad)
     """
     code = generate_and_store(request.email)
-    send_verification_code(request.email, code)
+    await send_verification_code(request.email, code)
     return ResendCodeResponse()
 
 
