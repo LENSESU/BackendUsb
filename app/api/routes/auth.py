@@ -1,41 +1,18 @@
-"""Rutas de autenticación: login, logout, refresh, validación.
-
-Modificaciones para #61 (Proteger endpoints del backend):
-  - ``login()``:  el payload del JWT ahora incluye el claim ``role_name``
-    (ej. "Administrator", "Student", "Technician") resuelto desde la tabla
-    ``roles``.  Esto permite que ``require_role()`` valide permisos sin
-    consultas extra a la BD en cada petición.
-  - ``refresh_access_token()``: mismo cambio — el nuevo access token
-    también lleva ``role_name`` para mantener consistencia.
-  - Se añadió la importación de ``RoleModel``.
-
-Ningún endpoint de este módulo fue eliminado ni renombrado.
-"""
+"""Rutas de autenticación: login, logout, refresh, validación."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_token
-from app.api.dependencies.otp import get_otp_service
 from app.api.schemas.auth import (
     LoginRequest,
     LogoutResponse,
     RefreshTokenRequest,
-    ResendCodeRequest,
-    ResendCodeResponse,
     TokenResponse,
     TokenValidationRequest,
     TokenValidationResponse,
 )
-from app.api.schemas.otp import (
-    OtpSentResponse,
-    RegisterRequest,
-    ResendOtpRequest,
-    VerifyOtpRequest,
-)
-from app.application.services.otp_service import OtpService
-from app.application.services.verification_code_service import generate_and_store
 from app.core.config import settings
 from app.core.security import (
     TokenExpiredError,
@@ -44,13 +21,11 @@ from app.core.security import (
     create_refresh_token,
     decode_access_token,
     decode_refresh_token,
-    hash_password,
     validate_token,
     verify_password,
 )
 from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
-from app.infrastructure.database.models import RoleModel, UserModel
-from app.templates.email import send_verification_code
+from app.infrastructure.database.models import UserModel
 
 router = APIRouter()
 
@@ -78,36 +53,24 @@ def get_db_session() -> Session:
 
 @router.post("/login", response_model=TokenResponse)
 def login(credentials: LoginRequest) -> TokenResponse:
-    # Validar campos obligatorios y formato
-    email = (credentials.email or "").strip()
-    password = (credentials.password or "").strip()
+    """
+    Autentica un usuario y devuelve tokens JWT (access y opcionalmente refresh).
 
-    if not email and not password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo y la contraseña son obligatorios",
-        )
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo es obligatorio",
-        )
-    if not password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La contraseña es obligatoria",
-        )
+    Args:
+        credentials: Email y contraseña del usuario
 
-    import re
+    Returns:
+        Tokens de acceso y refresco JWT
 
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El formato del correo electrónico no es válido",
-        )
-
+    Raises:
+        HTTPException 401: Si las credenciales son incorrectas
+        HTTPException 403: Si el usuario está inactivo
+    """
+    # TODO: Mover lógica a un servicio de autenticación
     db = get_db_session()
-    stmt = select(UserModel).where(UserModel.email == email)
+
+    # Buscar usuario por email
+    stmt = select(UserModel).where(UserModel.email == credentials.email)
     user = db.scalar(stmt)
 
     if user is None:
@@ -117,7 +80,8 @@ def login(credentials: LoginRequest) -> TokenResponse:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not verify_password(password, user.password_hash):
+    # Verificar contraseña
+    if not verify_password(credentials.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email o contraseña incorrectos",
@@ -138,13 +102,6 @@ def login(credentials: LoginRequest) -> TokenResponse:
         "role_id": str(user.role_id),
     }
 
-    # [NUEVO – #61] Resolver nombre del rol para incluirlo en el JWT.
-    # Esto permite que require_role() valide RBAC sin queries extra por request.
-    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
-    role = db.scalar(stmt_role)
-    if role:
-        token_data["role_name"] = role.name
-
     # Crear access token
     access_token = create_access_token(data=token_data)
 
@@ -158,25 +115,6 @@ def login(credentials: LoginRequest) -> TokenResponse:
         refresh_token=refresh_token,
         expires_in=settings.access_token_expire_minutes * 60,  # en segundos
     )
-
-
-@router.post("/resend-code", response_model=ResendCodeResponse)
-async def resend_verification_code(request: ResendCodeRequest) -> ResendCodeResponse:
-    """
-    Reenvía un nuevo código de verificación al correo indicado.
-
-    Genera un código de 6 dígitos, lo almacena (válido 10 min) y lo envía por
-    email vía SMTP si está configurado (SMTP_ENABLED=true y credenciales).
-
-    Args:
-        request: Email al que reenviar el código
-
-    Returns:
-        Mensaje de confirmación (no se expone el código por seguridad)
-    """
-    code = generate_and_store(request.email)
-    await send_verification_code(request.email, code)
-    return ResendCodeResponse()
 
 
 @router.post("/logout", response_model=LogoutResponse)
@@ -322,12 +260,6 @@ def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
         "email": user.email,
         "role_id": str(user.role_id),
     }
-
-    # [NUEVO – #61] Incluir role_name en el token renovado (igual que en login).
-    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
-    role_obj = db.scalar(stmt_role)
-    if role_obj:
-        token_data["role_name"] = role_obj.name
 
     new_access_token = create_access_token(data=token_data)
 
