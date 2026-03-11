@@ -58,7 +58,7 @@ class GoogleCloudStorageAdapter(FileStoragePort):
         blob = self._bucket.blob(object_name)
         blob.upload_from_string(data, content_type=content_type)
 
-        file_url: str | None = None
+        file_url = f"gs://{self._bucket_name}/{object_name}"
         if self._make_public:
             blob.make_public()
             file_url = blob.public_url
