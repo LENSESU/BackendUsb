@@ -3,16 +3,10 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.error_handlers import (
-    app_error_handler,
-    generic_exception_handler,
-    validation_error_handler,
-)
 from app.api.routes import api_router
 from app.core.config import settings
-from app.core.exceptions import AppError
 from app.infrastructure.database.migrations import run_migrations
 
 # --- Migraciones al arranque ---
@@ -36,22 +30,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_exception_handler(AppError, app_error_handler)
-app.add_exception_handler(RequestValidationError, validation_error_handler)
-app.add_exception_handler(Exception, generic_exception_handler)
+# CORS
+# En desarrollo permite localhost:3000 (frontend Next.js).
+# En producción agregar la URL real de Vercel en ALLOWED_ORIGINS del .env.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(api_router, prefix="/api/v1")
-
-
-@app.get("/")
-def root() -> dict[str, str]:
-    """Raíz: enlaces útiles."""
-    return {
-        "message": "Backend API",
-        "docs": "/docs",
-        "health": "/health",
-        "login": "/api/v1/auth/login",
-    }
 
 
 @app.get("/health")
