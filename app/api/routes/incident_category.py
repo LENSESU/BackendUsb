@@ -1,4 +1,5 @@
 """Rutas: endpoints para categorías de incidentes."""
+
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status

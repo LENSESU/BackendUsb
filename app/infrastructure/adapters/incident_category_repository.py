@@ -1,4 +1,5 @@
 """Adaptador: repositorio de categorias de incidentes con SQLAlchemy."""
+
 from uuid import UUID
 
 from sqlalchemy import create_engine, select
@@ -19,7 +20,6 @@ def _get_session() -> Session:
 
 
 class SqlIncidentCategoryRepository(IncidentCategoryRepository):
-
     def get_all(self) -> list[IncidentCategory]:
         db = _get_session()
         try:
@@ -37,13 +37,12 @@ class SqlIncidentCategoryRepository(IncidentCategoryRepository):
             row = db.scalar(
                 select(IncidentCategoryModel).where(
                     IncidentCategoryModel.id == category_id
-                    )
+                )
             )
             if row is None:
                 return None
-            return IncidentCategory(id=row.id, 
-                                    name=row.name,
-                                    description=row.description
-                                    )
+            return IncidentCategory(
+                id=row.id, name=row.name, description=row.description
+            )
         finally:
             db.close()

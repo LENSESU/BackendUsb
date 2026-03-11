@@ -1,4 +1,5 @@
 """Servicio: lógica de negocio para categorías de incidentes."""
+
 from uuid import UUID
 
 from app.application.ports.incident_category_repository import (
@@ -8,7 +9,6 @@ from app.domain.entities.incident_category import IncidentCategory
 
 
 class IncidentCategoryService:
-
     def __init__(self, repository: IncidentCategoryRepository) -> None:
         self._repository = repository
 
