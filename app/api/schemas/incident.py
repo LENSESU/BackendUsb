@@ -60,4 +60,6 @@ class IncidentEvidenceUploadResponse(BaseModel):
     incident_id: UUID
     filename: str
     content_type: str
+    storage_object_name: str | None = None
+    file_url: str | None = None
     message: str

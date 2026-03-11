@@ -103,6 +103,63 @@ ALLOWED_EMAIL_DOMAINS=["dominio.co", "domain.com"]
 
 > Consulta `.env.example` para ver todas las variables disponibles con sus descripciones.
 
+### Google Cloud Storage para evidencias
+
+La carga de evidencias de incidentes puede persistirse en **Google Cloud Storage**.
+
+#### Flujo recomendado para desarrolladores (ADC sin JSON)
+
+Precondicion: el administrador ya agrego tu correo en IAM con permisos sobre el bucket.
+
+1. Abre una terminal de [Google Cloud SDK CLI](https://docs.cloud.google.com/sdk/docs/install-sdk?hl=es-419#latest-version) o cualquier terminal donde `gcloud` este disponible.
+2. Inicia sesion con tu cuenta institucional/corporativa:
+
+```bash
+gcloud auth login
+```
+
+3. Selecciona el proyecto activo para trabajar en local:
+
+```bash
+gcloud config set project project-1dbf72c5-51f7-430c-932
+```
+
+4. Genera/actualiza credenciales ADC para que las use el SDK de Python:
+
+```bash
+gcloud auth application-default login
+```
+
+5. Asocia el quota project de ADC al mismo proyecto (evita errores de cuota/facturacion):
+
+```bash
+gcloud auth application-default set-quota-project project-1dbf72c5-51f7-430c-932
+```
+
+6. Verifica rapidamente que ADC quedo activo:
+
+```bash
+gcloud auth application-default print-access-token
+```
+
+7. Configura en `.env`:
+
+```bash
+GCS_ENABLED=true
+GCS_PROJECT_ID=tu-proyecto-gcp
+GCS_BUCKET_NAME=usb-incidentes-evidencias
+GCS_EVIDENCE_PREFIX=incidents/evidence
+GCS_MAKE_PUBLIC=false
+```
+
+Notas:
+
+- El backend usa **Application Default Credentials (ADC)**; no requiere ni lee rutas JSON.
+- Cada desarrollador usa su propia identidad; no se comparten llaves ni archivos sensibles.
+- En Cloud Run/GKE/GCE, ADC se resuelve con la identidad del workload (sin cambios de código).
+- Si `GCS_MAKE_PUBLIC=true`, cada archivo se marca público y se retorna `file_url`.
+- Si `GCS_ENABLED=false`, el sistema usa un adaptador in-memory (útil para tests y desarrollo sin GCP).
+
 ### Ejecutar en local (uvicorn)
 
 Asegúrate de haber configurado `.env`.
