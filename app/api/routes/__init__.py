@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from app.api.routes import auth, incident_category, incidents, items
 
 api_router = APIRouter()
