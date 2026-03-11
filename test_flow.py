@@ -1,8 +1,8 @@
 """Script de prueba end-to-end del flujo completo de RBAC y ownership."""
 
 import json
-import urllib.request
 import urllib.error
+import urllib.request
 
 BASE = "http://localhost:8000/api/v1"
 RESULTS = []
@@ -74,7 +74,7 @@ check("Listar items", s, 200, b, lambda b: (isinstance(b, list) and len(b) > 0, 
 # ── PASO 4: Obtener item por ID ──
 print("\n── PASO 4: Obtener item por ID ──")
 s, b = req("GET", f"/items/{item_id}", token=est_token)
-check("Get item", s, 200, b, lambda b: (b.get("id") == item_id, f"id correcto"))
+check("Get item", s, 200, b, lambda b: (b.get("id") == item_id, "id correcto"))
 
 # ── PASO 5: Login técnico e intentar DELETE ajeno → 403 ──
 print("\n── PASO 5: Login TECNICO + DELETE item ajeno ──")

@@ -1,9 +1,13 @@
 """Rutas: endpoints para categorías de incidentes."""
 from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, status
-from app.infrastructure.adapters.incident_category_repository import SqlIncidentCategoryRepository
-from app.application.services.incident_category_service import IncidentCategoryService
+
 from app.api.schemas.incident_category import IncidentCategoryResponse
+from app.application.services.incident_category_service import IncidentCategoryService
+from app.infrastructure.adapters.incident_category_repository import (
+    SqlIncidentCategoryRepository,
+)
 
 router = APIRouter(prefix="/incident-categories", tags=["Incident Categories"])
 

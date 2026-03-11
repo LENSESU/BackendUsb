@@ -1,11 +1,15 @@
 """Adaptador: repositorio de categorias de incidentes con SQLAlchemy."""
 from uuid import UUID
+
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
-from app.application.ports.incident_category_repository import IncidentCategoryRepository
+
+from app.application.ports.incident_category_repository import (
+    IncidentCategoryRepository,
+)
+from app.core.config import settings
 from app.domain.entities.incident_category import IncidentCategory
 from app.infrastructure.database.models import IncidentCategoryModel
-from app.core.config import settings
 
 
 def _get_session() -> Session:
@@ -31,10 +35,15 @@ class SqlIncidentCategoryRepository(IncidentCategoryRepository):
         db = _get_session()
         try:
             row = db.scalar(
-                select(IncidentCategoryModel).where(IncidentCategoryModel.id == category_id)
+                select(IncidentCategoryModel).where(
+                    IncidentCategoryModel.id == category_id
+                    )
             )
             if row is None:
                 return None
-            return IncidentCategory(id=row.id, name=row.name, description=row.description)
+            return IncidentCategory(id=row.id, 
+                                    name=row.name,
+                                    description=row.description
+                                    )
         finally:
             db.close()

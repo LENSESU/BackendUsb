@@ -1,6 +1,7 @@
 """Puerto: contrato para el repositorio de categorías de incidentes."""
 from abc import ABC, abstractmethod
 from uuid import UUID
+
 from app.domain.entities.incident_category import IncidentCategory
 
 

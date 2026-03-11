@@ -1,6 +1,9 @@
 """Servicio: lógica de negocio para categorías de incidentes."""
 from uuid import UUID
-from app.application.ports.incident_category_repository import IncidentCategoryRepository
+
+from app.application.ports.incident_category_repository import (
+    IncidentCategoryRepository,
+)
 from app.domain.entities.incident_category import IncidentCategory
 
 

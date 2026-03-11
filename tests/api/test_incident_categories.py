@@ -1,13 +1,13 @@
 """Tests para el endpoint de categorías de incidentes."""
-import pytest
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
+
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.api.routes.incident_category import get_service
 from app.application.services.incident_category_service import IncidentCategoryService
 from app.domain.entities.incident_category import IncidentCategory
+from app.main import app
 
 client = TestClient(app)
 
