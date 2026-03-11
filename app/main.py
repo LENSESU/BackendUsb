@@ -14,6 +14,7 @@ from app.infrastructure.database.migrations import run_migrations
 # Solo necesitas: Postgres corriendo + .env con POSTGRES_* (o DATABASE_URL).
 # En tests se desactiva con RUN_MIGRATIONS_ON_STARTUP=false (conftest).
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Arranque: aplica migraciones a la BD. Parada: nada."""
@@ -29,7 +30,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS 
+# CORS
 # En desarrollo permite localhost:3000 (frontend Next.js).
 # En producción agregar la URL real de Vercel en ALLOWED_ORIGINS del .env.
 app.add_middleware(
