@@ -7,9 +7,12 @@ from pydantic import BaseModel, Field
 
 
 class IncidentCreate(BaseModel):
-    """Payload para crear un incidente."""
+    """Payload para crear un incidente.
 
-    student_id: UUID = Field(...)
+    #107: ``student_id`` NO se incluye — se toma automáticamente del JWT
+    del usuario autenticado.  ``created_at`` tampoco: lo asigna el servidor.
+    """
+
     category_id: UUID = Field(...)
     description: str = Field(..., min_length=1)
     campus_place: str | None = Field(default=None, max_length=200)
