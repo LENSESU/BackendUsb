@@ -147,9 +147,9 @@ class IncidentModel(Base):
     longitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="New")
     priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    before_photo_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("files.id", ondelete="RESTRICT"),
-        nullable=False,
+    before_photo_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("files.id", ondelete="SET NULL"),
+        nullable=True,
     )
     after_photo_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("files.id", ondelete="SET NULL"),

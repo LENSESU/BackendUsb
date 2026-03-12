@@ -3,7 +3,6 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.security import hash_password
 from app.core.token_blacklist import clear_blacklist
 from app.main import app
 

@@ -7,7 +7,6 @@ Ejecuta este script después de clonar el repositorio para:
 """
 
 import subprocess
-import sys
 from pathlib import Path
 
 
