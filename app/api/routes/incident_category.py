@@ -27,7 +27,10 @@ def list_categories(
     service: IncidentCategoryService = Depends(get_incident_category_service),
 ) -> IncidentCategoryListResponse:
     """Lista todas las categorías registradas."""
-    categories = [IncidentCategoryResponse.model_validate(c) for c in service.list_all()]
+    categories = [
+        IncidentCategoryResponse.model_validate(c)
+        for c in service.list_all()
+    ]
     return IncidentCategoryListResponse(count=len(categories), items=categories)
 
 
