@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.domain.entities.incident import IncidentStatus
+
 
 class Campus(StrEnum):
     """Campus disponibles (enum para Swagger)."""
@@ -49,7 +51,7 @@ class IncidentCreate(BaseModel):
     )
     latitud: float | None = Field(default=None, ge=-90, le=90)
     longitud: float | None = Field(default=None, ge=-180, le=180)
-    estado: str | None = Field(default=None, max_length=20)
+    estado: IncidentStatus | None = Field(default=None)
     prioridad: str | None = Field(default=None, max_length=20)
     foto_antes_id: UUID | None = Field(default=None)
 
@@ -63,7 +65,7 @@ class IncidentUpdate(BaseModel):
     lugar_campus: list[Campus] | None = Field(default=None)
     latitud: float | None = Field(default=None, ge=-90, le=90)
     longitud: float | None = Field(default=None, ge=-180, le=180)
-    estado: str | None = Field(default=None, max_length=20)
+    estado: IncidentStatus | None = Field(default=None)
     prioridad: str | None = Field(default=None, max_length=20)
     foto_antes_id: UUID | None = None
     foto_despues_id: UUID | None = None
@@ -85,7 +87,7 @@ class IncidentResponse(BaseModel):
     lugar_campus: list[Campus] | None
     latitud: float | None
     longitud: float | None
-    estado: str
+    estado: IncidentStatus
     prioridad: str | None
     foto_antes_id: UUID | None
     foto_despues_id: UUID | None
