@@ -48,6 +48,52 @@ def test_register_rejects_invalid_email_format() -> None:
     assert response.status_code == 422
 
 
+def test_register_rejects_invalid_first_name() -> None:
+    """El registro debe rechazar nombres con caracteres inválidos."""
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "first_name": "Juan123",
+            "last_name": "Pérez",
+            "email": "juan@correo.usbcali.edu.co",
+            "password": "Password1!",
+        },
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any("letras" in str(e).lower() for e in detail)
+
+
+def test_register_rejects_invalid_last_name() -> None:
+    """El registro debe rechazar apellidos demasiado cortos o inválidos."""
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "first_name": "Juan",
+            "last_name": "1",
+            "email": "juan@correo.usbcali.edu.co",
+            "password": "Password1!",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_register_rejects_weak_password() -> None:
+    """El registro debe rechazar contraseñas que no cumplan la política."""
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "first_name": "Juan",
+            "last_name": "Pérez",
+            "email": "juan@correo.usbcali.edu.co",
+            "password": "password",
+        },
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert any("contraseña" in str(e).lower() for e in detail)
+
+
 def test_register_rejects_missing_fields() -> None:
     """El registro debe rechazar requests con campos obligatorios ausentes."""
     response = client.post(
@@ -58,6 +104,64 @@ def test_register_rejects_missing_fields() -> None:
         },
     )
     assert response.status_code == 422
+
+
+def test_register_defaults_to_student_role_when_role_id_is_missing() -> None:
+    """El registro de estudiante debe resolver el rol Student desde la BD."""
+    mock_role = MagicMock()
+    mock_role.id = uuid4()
+
+    mock_otp_service = MagicMock()
+    mock_otp_service.generate_and_send = AsyncMock()
+
+    with patch("app.api.routes.auth.get_db_session") as mock_session:
+        mock_db = MagicMock()
+        mock_db.scalar.side_effect = [None, mock_role]
+
+        def refresh_user(user):
+            user.id = uuid4()
+
+        mock_db.refresh.side_effect = refresh_user
+        mock_session.return_value = mock_db
+
+        app.dependency_overrides[get_otp_service] = lambda: mock_otp_service
+        response = client.post(
+            "/api/v1/auth/register",
+            json={
+                "first_name": "Juan",
+                "last_name": "Pérez",
+                "email": "juan@correo.usbcali.edu.co",
+                "password": "password123",
+            },
+        )
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    created_user = mock_db.add.call_args.args[0]
+    assert created_user.role_id == mock_role.id
+    mock_otp_service.generate_and_send.assert_awaited_once()
+
+
+def test_register_rejects_unknown_role_id() -> None:
+    """Si se envía un role_id inválido, el backend debe rechazarlo."""
+    with patch("app.api.routes.auth.get_db_session") as mock_session:
+        mock_db = MagicMock()
+        mock_db.scalar.side_effect = [None, None]
+        mock_session.return_value = mock_db
+
+        response = client.post(
+            "/api/v1/auth/register",
+            json={
+                "first_name": "Juan",
+                "last_name": "Pérez",
+                "email": "juan@correo.usbcali.edu.co",
+                "password": "password123",
+                "role_id": str(uuid4()),
+            },
+        )
+
+    assert response.status_code == 400
+    assert "rol" in response.json()["detail"].lower()
 
 
 # ---------------------------------------------------------------------------

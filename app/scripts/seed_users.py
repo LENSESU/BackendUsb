@@ -7,6 +7,7 @@ Uso:
     python -m app.scripts.seed_users
 """
 
+from collections.abc import Sequence
 from uuid import uuid4
 
 from sqlalchemy import create_engine, select
@@ -17,6 +18,58 @@ from app.core.security import hash_password
 from app.infrastructure.database.models import RoleModel, UserModel
 
 
+def ensure_role(
+    db,
+    *,
+    name: str,
+    description: str,
+) -> tuple[RoleModel, bool]:
+    """Crea el rol si no existe y devuelve si fue creado."""
+    stmt = select(RoleModel).where(RoleModel.name == name)
+    existing_role = db.scalar(stmt)
+
+    if existing_role:
+        return existing_role, False
+
+    role = RoleModel(
+        id=uuid4(),
+        name=name,
+        description=description,
+    )
+    db.add(role)
+    db.flush()
+    return role, True
+
+
+def ensure_user(
+    db,
+    *,
+    first_name: str,
+    last_name: str,
+    email: str,
+    password: str,
+    role_id,
+) -> tuple[UserModel, bool]:
+    """Crea el usuario si no existe y devuelve si fue creado."""
+    stmt = select(UserModel).where(UserModel.email == email)
+    existing_user = db.scalar(stmt)
+
+    if existing_user:
+        return existing_user, False
+
+    user = UserModel(
+        id=uuid4(),
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
+        password_hash=hash_password(password),
+        role_id=role_id,
+        is_active=True,
+    )
+    db.add(user)
+    return user, True
+
+
 def seed_users() -> None:
     """Crea usuarios y roles de prueba en la base de datos."""
     engine = create_engine(settings.database_url_sync)
@@ -24,105 +77,78 @@ def seed_users() -> None:
     db = SessionLocal()
 
     try:
-        # Verificar si ya existen roles
-        stmt = select(RoleModel).where(RoleModel.name == "Administrator")
-        admin_role = db.scalar(stmt)
+        print("Verificando roles...")
+        admin_role, admin_role_created = ensure_role(
+            db,
+            name="Administrator",
+            description="Administrador del sistema",
+        )
+        student_role, student_role_created = ensure_role(
+            db,
+            name="Student",
+            description="Estudiante",
+        )
+        technician_role, technician_role_created = ensure_role(
+            db,
+            name="Technician",
+            description="Técnico de mantenimiento",
+        )
 
-        # Crear roles si no existen
-        if not admin_role:
-            print("Creando roles...")
-            admin_role = RoleModel(
-                id=uuid4(),
-                name="Administrator",
-                description="Administrador del sistema",
-            )
-            student_role = RoleModel(
-                id=uuid4(),
-                name="Student",
-                description="Estudiante",
-            )
-            technician_role = RoleModel(
-                id=uuid4(),
-                name="Technician",
-                description="Técnico de mantenimiento",
-            )
-            db.add_all([admin_role, student_role, technician_role])
+        if admin_role_created or student_role_created or technician_role_created:
             db.commit()
-            db.refresh(admin_role)
-            db.refresh(student_role)
-            db.refresh(technician_role)
-            print("✓ Roles creados")
+            print("✓ Roles creados o completados")
         else:
             print("Roles ya existen")
-            stmt = select(RoleModel).where(RoleModel.name == "Student")
-            student_role = db.scalar(stmt)
-            stmt = select(RoleModel).where(RoleModel.name == "Technician")
-            technician_role = db.scalar(stmt)
 
-        # Verificar si ya existe el usuario de prueba
-        stmt = select(UserModel).where(UserModel.email == "admin@usb.ve")
-        existing_user = db.scalar(stmt)
+        print("\nVerificando usuarios de prueba...")
+        users_to_seed: Sequence[dict[str, str]] = (
+            {
+                "first_name": "Admin",
+                "last_name": "Sistema",
+                "email": "admin@usbcali.edu.co",
+                "password": "admin123",
+                "role_id": admin_role.id,
+            },
+            {
+                "first_name": "Juan",
+                "last_name": "Pérez",
+                "email": "estudiante@correo.usbcali.edu.co",
+                "password": "estudiante123",
+                "role_id": student_role.id,
+            },
+            {
+                "first_name": "María",
+                "last_name": "García",
+                "email": "tecnico@usbcali.edu.co",
+                "password": "tecnico123",
+                "role_id": technician_role.id,
+            },
+        )
+        created_users: list[tuple[str, str]] = []
 
-        if not existing_user:
-            print("\nCreando usuarios de prueba...")
+        for user_data in users_to_seed:
+            _, created = ensure_user(db, **user_data)
+            if created:
+                created_users.append((user_data["email"], user_data["password"]))
 
-            # Usuario administrador
-            admin_user = UserModel(
-                id=uuid4(),
-                first_name="Admin",
-                last_name="Sistema",
-                email="admin@usb.ve",
-                password_hash=hash_password("admin123"),
-                role_id=admin_role.id,
-                is_active=True,
-            )
-
-            # Usuario estudiante
-            student_user = UserModel(
-                id=uuid4(),
-                first_name="Juan",
-                last_name="Pérez",
-                email="estudiante@usb.ve",
-                password_hash=hash_password("estudiante123"),
-                role_id=student_role.id,
-                is_active=True,
-            )
-
-            # Usuario técnico
-            tech_user = UserModel(
-                id=uuid4(),
-                first_name="María",
-                last_name="García",
-                email="tecnico@usb.ve",
-                password_hash=hash_password("tecnico123"),
-                role_id=technician_role.id,
-                is_active=True,
-            )
-
-            db.add_all([admin_user, student_user, tech_user])
+        if created_users:
             db.commit()
-
-            print("✓ Usuarios creados exitosamente\n")
-            print("Credenciales de prueba:")
-            print("-" * 50)
-            print("Administrador:")
-            print("  Email: admin@usb.ve")
-            print("  Password: admin123")
-            print("\nEstudiante:")
-            print("  Email: estudiante@usb.ve")
-            print("  Password: estudiante123")
-            print("\nTécnico:")
-            print("  Email: tecnico@usb.ve")
-            print("  Password: tecnico123")
-            print("-" * 50)
+            print("✓ Usuarios creados exitosamente")
         else:
-            print("\nUsuarios de prueba ya existen en la BD")
-            print("\nCredenciales de prueba:")
-            print("-" * 50)
-            print("Email: admin@usb.ve | Password: admin123")
-            print("Email: estudiante@usb.ve | Password: estudiante123")
-            print("Email: tecnico@usb.ve | Password: tecnico123")
-            print("-" * 50)
+            print("Usuarios de prueba ya existen en la BD")
+
+        print("\nCredenciales de prueba:")
+        print("-" * 50)
+        print("Administrador:")
+        print("  Email: admin@usbcali.edu.co")
+        print("  Password: admin123")
+        print("\nEstudiante:")
+        print("  Email: estudiante@correo.usbcali.edu.co")
+        print("  Password: estudiante123")
+        print("\nTécnico:")
+        print("  Email: tecnico@usbcali.edu.co")
+        print("  Password: tecnico123")
+        print("-" * 50)
 
     except Exception as e:
         print(f"\n❌ Error: {e}")

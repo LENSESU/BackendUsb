@@ -29,6 +29,11 @@ app/
 - Python 3.11+
 - [Docker](https://docs.docker.com/get-docker/) y [Docker Compose](https://docs.docker.com/compose/install/) (para ejecución con contenedores)
 
+## Documentación
+
+- Este archivo es la fuente principal para instalación, configuración, migraciones y operación del backend.
+- La documentación complementaria y notas históricas están indexadas en [docs/README.md](docs/README.md).
+
 ## Clonar el repositorio y ejecutar el proyecto
 
 Clona el repositorio:
@@ -98,7 +103,7 @@ POSTGRES_HOST=localhost
 RUN_MIGRATIONS_ON_STARTUP=false
 
 # Dominios de correo permitidos para registrarse:
-ALLOWED_EMAIL_DOMAINS=["dominio.co", "domain.com"]
+ALLOWED_EMAIL_DOMAINS=["correo.usbcali.edu.co"]
 ```
 
 > Consulta `.env.example` para ver todas las variables disponibles con sus descripciones.
@@ -116,6 +121,12 @@ La API quedará disponible en `http://127.0.0.1:8000`.
 ### Ejecutar con Docker
 
 No necesitas cambiar nada en el `.env` para usar Docker. El `docker-compose.yml` sobreescribe `POSTGRES_HOST` automáticamente con el nombre interno del servicio (`postgres`). Solo asegúrate de tener Docker corriendo.
+
+Al levantar Docker, el backend queda configurado para:
+
+- ejecutar migraciones automáticamente al arrancar
+- ejecutar el seed de usuarios automáticamente al arrancar
+- dejar disponibles las credenciales de desarrollo si no existen todavía
 
 Construir y levantar todos los servicios (backend + PostgreSQL + Mailpit):
 
@@ -139,7 +150,7 @@ Con Docker, la API queda en `http://127.0.0.1:8000`, PostgreSQL en `localhost:54
 
 ### Poblar Base de Datos con Usuarios de Prueba
 
-Una vez que la app esté corriendo y las migraciones aplicadas, puedes crear usuarios de prueba con:
+Con `docker compose up`, este seed corre automáticamente al arrancar el backend. Si quieres ejecutarlo manualmente otra vez, usa:
 
 ```bash
 python -m app.scripts.seed_users
@@ -149,9 +160,9 @@ Esto crea los siguientes usuarios con sus roles:
 
 | Rol | Email | Password |
 |---|---|---|
-| Administrador | admin@usb.ve | admin123 |
-| Estudiante | estudiante@usb.ve | estudiante123 |
-| Técnico | tecnico@usb.ve | tecnico123 |
+| Administrador | admin@usbcali.edu.co | admin123 |
+| Estudiante | estudiante@correo.usbcali.edu.co | estudiante123 |
+| Técnico | tecnico@usbcali.edu.co | tecnico123 |
 
 ---
 
