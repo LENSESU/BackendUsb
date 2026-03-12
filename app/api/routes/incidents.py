@@ -38,6 +38,7 @@ def get_incident_service() -> IncidentService:
         category_repository=SqlAlchemyIncidentCategoryRepository(),
     )
 
+
 def _incident_to_response(incident: Incident) -> IncidentResponse:
     """Mapea entidad de dominio a schema de respuesta."""
     assert incident.id is not None and incident.created_at is not None

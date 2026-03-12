@@ -22,13 +22,14 @@ class SqlAlchemyIncidentCategoryRepository(IncidentCategoryRepositoryPort):
         db = _get_session()
         try:
             row = IncidentCategoryModel(
-                name=category.name, description=
-                category.description)
+                name=category.name, description=category.description
+            )
             db.add(row)
             db.commit()
             db.refresh(row)
             return IncidentCategory(
-                id=row.id, name=row.name, description=row.description)
+                id=row.id, name=row.name, description=row.description
+            )
         finally:
             db.close()
 
@@ -36,12 +37,14 @@ class SqlAlchemyIncidentCategoryRepository(IncidentCategoryRepositoryPort):
         db = _get_session()
         try:
             stmt = select(IncidentCategoryModel).where(
-                IncidentCategoryModel.name == name)
+                IncidentCategoryModel.name == name
+            )
             row = db.scalar(stmt)
             if row is None:
                 return None
             return IncidentCategory(
-                id=row.id, name=row.name, description=row.description)
+                id=row.id, name=row.name, description=row.description
+            )
         finally:
             db.close()
 
@@ -67,7 +70,8 @@ class SqlAlchemyIncidentCategoryRepository(IncidentCategoryRepositoryPort):
             if row is None:
                 return None
             return IncidentCategory(
-                id=row.id, name=row.name, description=row.description)
+                id=row.id, name=row.name, description=row.description
+            )
         finally:
             db.close()
 

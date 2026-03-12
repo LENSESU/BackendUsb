@@ -41,7 +41,7 @@ class IncidentService:
         priority: str | None = None,
         status: str | None = None,
     ) -> Incident:
-      
+
         if self._category_repository is not None:
             category = self._category_repository.find_by_id(str(category_id))
             if category is None:
@@ -57,7 +57,7 @@ class IncidentService:
                 latitude=latitude,
                 longitude=longitude,
             )
-       
+
         incident = Incident(
             id=uuid4(),
             student_id=student_id,
