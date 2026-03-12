@@ -8,7 +8,7 @@ from app.application.ports import IncidentRepositoryPort
 from app.application.ports.incident_category_repository import (
     IncidentCategoryRepositoryPort,
 )
-from app.domain.entities.incident import Incident, IncidentLocation
+from app.domain.entities.incident import Incident, IncidentLocation, IncidentStatus
 
 
 class IncidentService:
@@ -64,7 +64,7 @@ class IncidentService:
             technician_id=technician_id,
             category_id=category_id,
             description=description.strip(),
-            status=status if status else "Nuevo",
+            status=status if status else IncidentStatus.NUEVO.value,
             priority=priority,
             before_photo_id=before_photo_id,
             after_photo_id=None,

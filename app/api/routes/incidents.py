@@ -93,7 +93,7 @@ def create_incident(
         latitude=payload.latitud,
         longitude=payload.longitud,
         priority=payload.prioridad,
-        status=payload.estado,
+        status=payload.estado.value if payload.estado is not None else None,
     )
     return _incident_to_response(incident)
 
@@ -145,7 +145,7 @@ def update_incident(incident_id: UUID, payload: IncidentUpdate) -> IncidentRespo
         campus_place=campus_name,
         latitude=payload.latitud,
         longitude=payload.longitud,
-        status=payload.estado,
+        status=payload.estado.value if payload.estado is not None else None,
         priority=payload.prioridad,
         before_photo_id=payload.foto_antes_id,
         after_photo_id=payload.foto_despues_id,
