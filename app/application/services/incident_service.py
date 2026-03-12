@@ -1,100 +1,121 @@
-"""Caso de uso: creación de Incidentes.
+"""Caso de uso: operaciones sobre Incidentes."""
 
-Creado para #107/#108/#109 (HU-E2-011 Crear Incidente).
-Sigue el mismo patrón que ``ItemService``.
-
-#107 — El servicio se encarga de inyectar los metadatos automáticos
-(``student_id``, ``created_at``) de forma que el cliente nunca los controle.
-"""
-
-from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from app.application.ports.incident_repository import IncidentRepositoryPort
+from app.application.ports import IncidentRepositoryPort
 from app.domain.entities.incident import Incident, IncidentLocation
 
 
 class IncidentService:
-    """Servicio de aplicación para Incidentes.
-
-    Orquesta la creación de incidentes aplicando las reglas de negocio
-    definidas en la HU-E2-011.  Delega la persistencia al puerto
-    ``IncidentRepositoryPort`` (inyección de dependencias).
-    """
+    """Servicio de aplicación para Incidentes. Orquesta dominio y puertos."""
 
     def __init__(self, repository: IncidentRepositoryPort) -> None:
-        """Inicializa el servicio con un repositorio concreto.
-
-        Args:
-            repository: Implementación del puerto de persistencia
-                        (in-memory para tests, SQL para producción).
-        """
         self._repository = repository
+
+    def get_incident(self, incident_id: UUID) -> Incident | None:
+        return self._repository.get_by_id(incident_id)
+
+    def list_incidents(self) -> list[Incident]:
+        return self._repository.list_all()
 
     def create_incident(
         self,
-        *,
         student_id: UUID,
         category_id: UUID,
         description: str,
-        before_photo_id: UUID,
-        priority: str | None = None,
+        before_photo_id: UUID | None = None,
+        technician_id: UUID | None = None,
         campus_place: str | None = None,
         latitude: float | None = None,
         longitude: float | None = None,
+        priority: str | None = None,
+        status: str | None = None,
     ) -> Incident:
-        """Crea un incidente con metadatos automáticos.
-
-        Metadatos controlados por el servidor (#107):
-          - ``student_id``: proviene del JWT del usuario autenticado,
-            **nunca** del payload del cliente.
-          - ``created_at``: se fija a ``datetime.now(UTC)`` en el momento
-            de la creación; el cliente no puede sobrescribirlo.
-          - ``status``: se deja en el valor por defecto de la entidad
-            de dominio (``"Nuevo"``); no se acepta del payload.
-
-        Args:
-            student_id:      UUID del usuario autenticado (desde JWT).
-            category_id:     UUID de la categoría del incidente.
-            description:     Texto descriptivo del incidente.
-            before_photo_id: UUID de la foto "antes" ya subida.
-            priority:        Prioridad opcional ("Alta", "Media", etc.).
-            campus_place:    Lugar textual dentro del campus (opcional).
-            latitude:        Coordenada latitud (opcional).
-            longitude:       Coordenada longitud (opcional).
-
-        Returns:
-            Incidente creado con ID, metadatos automáticos y datos de negocio.
-        """
-        # [#107] Construir ubicación solo si se proporcionó algún dato
         location = None
-        if campus_place or latitude is not None or longitude is not None:
+        if campus_place is not None or latitude is not None or longitude is not None:
             location = IncidentLocation(
                 campus_place=campus_place,
                 latitude=latitude,
                 longitude=longitude,
             )
-
-        # [#107] created_at se asigna aquí (hora del servidor UTC)
-        # [#107] student_id viene del JWT — el servicio lo recibe ya validado
-        # [#107] status="Nuevo" es el default de la entidad de dominio
         incident = Incident(
             id=uuid4(),
             student_id=student_id,
-            technician_id=None,
+            technician_id=technician_id,
             category_id=category_id,
             description=description.strip(),
-            before_photo_id=before_photo_id,
+            status=status if status else "Nuevo",
             priority=priority,
-            created_at=datetime.now(UTC),
+            before_photo_id=before_photo_id,
+            after_photo_id=None,
+            created_at=None,
+            updated_at=None,
             location=location,
         )
         return self._repository.save(incident)
 
-    def get_incident(self, incident_id: UUID) -> Incident | None:
-        """Obtiene un incidente por su ID.  Retorna None si no existe."""
-        return self._repository.get_by_id(incident_id)
+    def update_incident(
+        self,
+        incident_id: UUID,
+        *,
+        technician_id: UUID | None = None,
+        category_id: UUID | None = None,
+        description: str | None = None,
+        campus_place: str | None = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        before_photo_id: UUID | None = None,
+        after_photo_id: UUID | None = None,
+    ) -> Incident | None:
+        existing = self._repository.get_by_id(incident_id)
+        if existing is None:
+            return None
+        loc = existing.location
+        if campus_place is not None or latitude is not None or longitude is not None:
+            location = IncidentLocation(
+                campus_place=(
+                    campus_place
+                    if campus_place is not None
+                    else (loc.campus_place if loc else None)
+                ),
+                latitude=(
+                    latitude
+                    if latitude is not None
+                    else (loc.latitude if loc else None)
+                ),
+                longitude=(
+                    longitude
+                    if longitude is not None
+                    else (loc.longitude if loc else None)
+                ),
+            )
+        else:
+            location = existing.location
+        tech_id = technician_id if technician_id is not None else existing.technician_id
+        cat_id = category_id if category_id is not None else existing.category_id
+        before_id = (
+            before_photo_id if before_photo_id is not None else existing.before_photo_id
+        )
+        after_id = (
+            after_photo_id if after_photo_id is not None else existing.after_photo_id
+        )
+        updated = Incident(
+            id=existing.id,
+            student_id=existing.student_id,
+            technician_id=tech_id,
+            category_id=cat_id,
+            description=(description or existing.description).strip(),
+            status=status if status is not None else existing.status,
+            priority=priority if priority is not None else existing.priority,
+            before_photo_id=before_id,
+            after_photo_id=after_id,
+            created_at=existing.created_at,
+            updated_at=None,
+            location=location,
+        )
+        return self._repository.save(updated)
 
-    def list_incidents(self) -> list[Incident]:
-        """Lista todos los incidentes registrados."""
-        return self._repository.list_all()
+    def delete_incident(self, incident_id: UUID) -> bool:
+        return self._repository.delete(incident_id)

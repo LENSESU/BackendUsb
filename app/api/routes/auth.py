@@ -403,7 +403,7 @@ async def register(
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="No se pudo enviar el correo de verificación. Intenta de nuevo.",
+            detail="No se pudo enviar el correo de verificación.Intenta de nuevo.",
         )
 
     return OtpSentResponse()

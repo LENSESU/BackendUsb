@@ -38,6 +38,7 @@ from app.api.dependencies.auth import (
 from app.api.schemas import ItemCreate, ItemResponse
 from app.application.ports import ItemRepositoryPort
 from app.application.services import ItemService
+from app.core.exceptions import NotFoundError
 
 router = APIRouter()
 
@@ -83,7 +84,7 @@ def get_item(item_id: UUID) -> ItemResponse:
     service = get_item_service()
     item = service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+        raise NotFoundError("Item no encontrado")
     return ItemResponse.model_validate(item)
 
 
@@ -146,6 +147,3 @@ def delete_item(
                     "error_code": "CROSS_ACCESS_DENIED",
                 },
             )
-
-    if not service.delete_item(item_id):
-        raise HTTPException(status_code=404, detail="Item no encontrado")
