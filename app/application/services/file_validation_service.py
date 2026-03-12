@@ -22,13 +22,18 @@ class FileValidationService:
         if content_type not in cls._allowed_content_types:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Formato de archivo no permitido. Solo se aceptan JPG, JPEG o PNG.",
+                detail=(
+                    "Formato de archivo no permitido. Solo se aceptan JPG, JPEG o PNG."
+                ),
             )
 
         if extension not in cls._allowed_extensions:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Extensión de archivo no permitida. Solo se aceptan .jpg, .jpeg o .png.",
+                detail=(
+                    "Extensión de archivo no permitida. "
+                    "Solo se aceptan .jpg, .jpeg o .png."
+                ),
             )
 
         # Validar tamaño del archivo
@@ -40,5 +45,8 @@ class FileValidationService:
             size_mb = file_size / (1024 * 1024)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"El archivo supera el tamaño máximo permitido de 5MB. Tamaño recibido: {size_mb:.2f}MB.",
+                detail=(
+                    "El archivo supera el tamaño máximo permitido de 5MB. "
+                    f"Tamaño recibido: {size_mb:.2f}MB."
+                ),
             )

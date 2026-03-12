@@ -58,7 +58,7 @@ class Settings(BaseSettings):
 
     # Whitelist domains
     allowed_email_domains: list[str] = ["correo.usbcali.edu.co", "usbcali.edu.co"]
-    
+
     # Google Cloud Storage
     gcs_enabled: bool = False
     gcs_project_id: str | None = None

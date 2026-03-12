@@ -22,7 +22,10 @@ async def upload_incident_evidence(
     evidence_service: IncidentEvidenceService = Depends(get_incident_evidence_service),
 ) -> IncidentEvidenceUploadResponse:
     """Valida y carga una evidencia fotográfica para un incidente."""
-    stored_file = await evidence_service.upload_evidence(incident_id=incident_id, file=photo)
+    stored_file = await evidence_service.upload_evidence(
+        incident_id=incident_id,
+        file=photo,
+    )
 
     return IncidentEvidenceUploadResponse(
         incident_id=incident_id,

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -37,9 +37,10 @@ class GoogleCloudStorageAdapter(FileStoragePort):
         data: bytes,
     ) -> StoredFileResult:
         extension = Path(filename).suffix.lower() or ".jpg"
-        now = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         object_name = (
-            f"{self._evidence_prefix}/incidents/{incident_id}/{now}-{uuid4().hex}{extension}"
+            f"{self._evidence_prefix}/incidents/{incident_id}/"
+            f"{now}-{uuid4().hex}{extension}"
         )
 
         return await run_in_threadpool(
