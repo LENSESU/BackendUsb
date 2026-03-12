@@ -87,7 +87,7 @@ class IncidentResponse(BaseModel):
     lugar_campus: list[Campus] | None
     latitud: float | None
     longitud: float | None
-    estado: IncidentStatus
+    estado: str
     prioridad: str | None
     foto_antes_id: UUID | None
     foto_despues_id: UUID | None
