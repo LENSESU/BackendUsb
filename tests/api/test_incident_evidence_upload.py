@@ -4,8 +4,28 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.storage import get_incident_evidence_service
+from app.application.services.incident_evidence_service import IncidentEvidenceService
+from app.infrastructure.adapters.in_memory_file_repository import InMemoryFileRepository
+from app.infrastructure.adapters.in_memory_file_storage import (
+    InMemoryFileStorageAdapter,
+)
+from app.infrastructure.adapters.in_memory_incident_repository import (
+    InMemoryIncidentRepository,
+)
 from app.main import app
 
+
+def _test_evidence_service() -> IncidentEvidenceService:
+    """Servicio de evidencia con adaptadores en memoria (sin GCS ni BD)."""
+    return IncidentEvidenceService(
+        storage=InMemoryFileStorageAdapter(),
+        file_repository=InMemoryFileRepository(),
+        incident_repository=InMemoryIncidentRepository(),
+    )
+
+
+app.dependency_overrides[get_incident_evidence_service] = _test_evidence_service
 client = TestClient(app)
 
 
@@ -22,6 +42,8 @@ def test_upload_incident_evidence_accepts_jpeg() -> None:
     assert data["incident_id"] == str(incident_id)
     assert data["filename"] == "evidencia.jpg"
     assert data["content_type"] == "image/jpeg"
+    assert data.get("file_id") is not None
+    assert data.get("message")
 
 
 def test_upload_incident_evidence_accepts_png() -> None:

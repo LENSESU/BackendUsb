@@ -3,7 +3,6 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.security import hash_password
 from app.core.token_blacklist import clear_blacklist
 from app.main import app
 
@@ -21,13 +20,13 @@ def clear_token_blacklist():
 def test_login_logout_flow():
     """
     Test del flujo completo de login y logout.
-    
+
     Este test requiere que exista un usuario en la base de datos.
     Por ahora es un test de integración conceptual que muestra el flujo.
     """
     # TODO: Crear usuario de prueba en la BD antes de ejecutar este test
     # Por ahora, este test fallará sin datos de prueba en la BD
-    
+
     # 1. Login con credenciales válidas (requiere usuario en BD)
     # login_data = {
     #     "email": "test@example.com",
@@ -38,9 +37,9 @@ def test_login_logout_flow():
     # token_data = response.json()
     # assert "access_token" in token_data
     # assert token_data["token_type"] == "bearer"
-    # 
+    #
     # token = token_data["access_token"]
-    # 
+    #
     # # 2. Usar token para acceder a endpoint protegido
     # headers = {"Authorization": f"Bearer {token}"}
     # response = client.get("/api/v1/auth/me", headers=headers)
@@ -48,17 +47,17 @@ def test_login_logout_flow():
     # user_info = response.json()
     # assert "user_id" in user_info
     # assert "email" in user_info
-    # 
+    #
     # # 3. Hacer logout
     # response = client.post("/api/v1/auth/logout", headers=headers)
     # assert response.status_code == 200
     # assert response.json()["message"] == "Sesión cerrada exitosamente"
-    # 
+    #
     # # 4. Intentar usar el token después del logout (debe fallar)
     # response = client.get("/api/v1/auth/me", headers=headers)
     # assert response.status_code == 401
     # assert "revocado" in response.json()["detail"]
-    
+
     # Test placeholder
     assert True
 
@@ -77,10 +76,7 @@ def test_me_endpoint_without_token():
 
 def test_login_with_invalid_credentials():
     """Test de login con credenciales inválidas."""
-    login_data = {
-        "email": "nonexistent@example.com",
-        "password": "wrongpassword"
-    }
+    login_data = {"email": "nonexistent@example.com", "password": "wrongpassword"}
     response = client.post("/api/v1/auth/login", json=login_data)
     # Puede ser 401 si la lógica encuentra que no existe
     # o error de conexión a BD si no está configurada
@@ -90,7 +86,7 @@ def test_login_with_invalid_credentials():
 def test_refresh_token_flow():
     """
     Test del flujo de refresh token.
-    
+
     Requiere usuario en la BD para login inicial.
     """
     # TODO: Implementar con usuario de prueba
@@ -104,10 +100,7 @@ def test_refresh_token_flow():
 def test_validate_token_endpoint():
     """Test del endpoint de validación de tokens."""
     # Token inválido
-    response = client.post(
-        "/api/v1/auth/validate",
-        json={"token": "invalid_token"}
-    )
+    response = client.post("/api/v1/auth/validate", json={"token": "invalid_token"})
     assert response.status_code == 200
     data = response.json()
     assert data["valid"] is False
@@ -117,8 +110,7 @@ def test_validate_token_endpoint():
 def test_refresh_with_invalid_token():
     """Test de refresh con token inválido."""
     response = client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": "invalid_token"}
+        "/api/v1/auth/refresh", json={"refresh_token": "invalid_token"}
     )
     assert response.status_code == 401
     data = response.json()
@@ -126,7 +118,10 @@ def test_refresh_with_invalid_token():
     # Verificar estructura de error
     if isinstance(data["detail"], dict):
         assert "error_code" in data["detail"]
-        assert data["detail"]["error_code"] in ["REFRESH_TOKEN_INVALID", "REFRESH_TOKEN_EXPIRED"]
+        assert data["detail"]["error_code"] in [
+            "REFRESH_TOKEN_INVALID",
+            "REFRESH_TOKEN_EXPIRED",
+        ]
 
 
 def test_token_expiration_response_structure():
@@ -137,12 +132,12 @@ def test_token_expiration_response_structure():
     # Endpoint protegido sin token
     response = client.get("/api/v1/auth/me")
     assert response.status_code == 403
-    
+
     # Con token inválido
     headers = {"Authorization": "Bearer invalid_token"}
     response = client.get("/api/v1/auth/me", headers=headers)
     assert response.status_code == 401
-    
+
     data = response.json()
     # Verificar que incluye información estructurada
     if isinstance(data.get("detail"), dict):
@@ -150,4 +145,3 @@ def test_token_expiration_response_structure():
         assert "message" in detail
         assert "error_code" in detail
         assert "redirect_to_login" in detail
-

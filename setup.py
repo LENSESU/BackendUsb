@@ -7,7 +7,6 @@ Ejecuta este script después de clonar el repositorio para:
 """
 
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -16,7 +15,7 @@ def run_command(cmd: str, description: str) -> bool:
     print(f"\n{'=' * 60}")
     print(f"📌 {description}")
     print(f"{'=' * 60}")
-    
+
     try:
         result = subprocess.run(
             cmd,
@@ -45,7 +44,7 @@ def main():
     # Verificar que existe .env
     env_file = Path(".env")
     env_example = Path(".env.example")
-    
+
     if not env_file.exists() and env_example.exists():
         print("⚠️  No se encontró archivo .env")
         print("📝 Copiando .env.example a .env...")
@@ -53,11 +52,10 @@ def main():
         with open(".env", "w") as f:
             f.write(env_example.read_text())
         print("✅ Archivo .env creado")
-    
+
     # Instalar dependencias
     if not run_command(
-        "pip install -r requirements.txt",
-        "Instalando dependencias de Python"
+        "pip install -r requirements.txt", "Instalando dependencias de Python"
     ):
         print("\n❌ Error instalando dependencias")
         return

@@ -11,15 +11,15 @@ _project_root = Path(__file__).resolve().parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from logging.config import fileConfig
+from logging.config import fileConfig  # noqa: E402
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from alembic import context
+from sqlalchemy import engine_from_config, pool  # noqa: E402
+
+from alembic import context  # noqa: E402
+from app.infrastructure.database import models  # noqa: E402,F401
 
 # Importar Base y todos los modelos para que target_metadata esté completo
-from app.infrastructure.database.base import Base
-from app.infrastructure.database import models  # noqa: F401
+from app.infrastructure.database.base import Base  # noqa: E402
 
 config = context.config
 
@@ -32,6 +32,7 @@ target_metadata = Base.metadata
 def get_url() -> str:
     """Obtiene la URL de la base de datos desde la configuración de la app."""
     from app.core.config import settings
+
     return settings.database_url_sync
 
 

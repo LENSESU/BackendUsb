@@ -21,10 +21,10 @@ class Incident:
     technician_id: UUID | None
     category_id: UUID
     description: str
-    status: str = "Nuevo"
-    priority: str | None = None
     before_photo_id: UUID
     after_photo_id: UUID | None = None
+    status: str = "Nuevo"
+    priority: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     location: IncidentLocation | None = None

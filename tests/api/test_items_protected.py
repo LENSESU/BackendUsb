@@ -226,4 +226,3 @@ class TestCrossAccessValidation:
         """Verifica que al crear un item, el owner_id se asigna correctamente."""
         item = self._create_item_as(STUDENT_USER_ID, "Student")
         assert item["owner_id"] == str(STUDENT_USER_ID)
-

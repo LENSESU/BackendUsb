@@ -1,11 +1,16 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi.concurrency import run_in_threadpool
+from google.api_core.exceptions import GoogleAPIError
 from google.cloud import storage
 
-from app.application.ports.file_storage import FileStoragePort, StoredFileResult
+from app.application.ports.file_storage import (
+    FileStoragePort,
+    StorageUploadError,
+    StoredFileResult,
+)
 
 
 class GoogleCloudStorageAdapter(FileStoragePort):
@@ -37,9 +42,10 @@ class GoogleCloudStorageAdapter(FileStoragePort):
         data: bytes,
     ) -> StoredFileResult:
         extension = Path(filename).suffix.lower() or ".jpg"
-        now = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         object_name = (
-            f"{self._evidence_prefix}/incidents/{incident_id}/{now}-{uuid4().hex}{extension}"
+            f"{self._evidence_prefix}/incidents/{incident_id}/"
+            f"{now}-{uuid4().hex}{extension}"
         )
 
         return await run_in_threadpool(
@@ -55,12 +61,19 @@ class GoogleCloudStorageAdapter(FileStoragePort):
         content_type: str,
         data: bytes,
     ) -> StoredFileResult:
-        blob = self._bucket.blob(object_name)
-        blob.upload_from_string(data, content_type=content_type)
+        """Sube el archivo al bucket GCS y maneja errores del proveedor."""
+        try:
+            blob = self._bucket.blob(object_name)
+            blob.upload_from_string(data, content_type=content_type)
 
-        file_url = f"gs://{self._bucket_name}/{object_name}"
-        if self._make_public:
-            blob.make_public()
-            file_url = blob.public_url
+            file_url = f"gs://{self._bucket_name}/{object_name}"
+            if self._make_public:
+                blob.make_public()
+                file_url = blob.public_url
 
-        return StoredFileResult(object_name=object_name, file_url=file_url)
+            return StoredFileResult(object_name=object_name, file_url=file_url)
+        except GoogleAPIError as exc:
+            raise StorageUploadError(
+                "Error al subir la evidencia al servicio de almacenamiento externo.",
+                cause=exc,
+            ) from exc

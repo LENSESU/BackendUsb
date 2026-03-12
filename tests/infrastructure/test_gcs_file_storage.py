@@ -5,7 +5,7 @@ from app.infrastructure.adapters.gcs_file_storage import GoogleCloudStorageAdapt
 
 def _build_adapter(make_public: bool) -> tuple[GoogleCloudStorageAdapter, Mock, Mock]:
     """Construye un adaptador GCS con clientes y blobs falsos para pruebas."""
-    
+
     fake_blob = Mock()
     fake_blob.public_url = "https://storage.googleapis.com/bucket/path/to/file.jpg"
 
@@ -29,8 +29,8 @@ def _build_adapter(make_public: bool) -> tuple[GoogleCloudStorageAdapter, Mock, 
 
 
 def test_upload_blocking_returns_gs_url_when_not_public() -> None:
-    """Verifica que el adaptador GCS devuelve la URL gs:// cuando make_public es False."""
-    
+    """Verifica que el adaptador GCS devuelve URL gs:// con make_public=False."""
+
     adapter, _, fake_blob = _build_adapter(make_public=False)
 
     result = adapter._upload_blocking(
@@ -48,8 +48,8 @@ def test_upload_blocking_returns_gs_url_when_not_public() -> None:
 
 
 def test_upload_blocking_returns_public_url_when_public_enabled() -> None:
-    """Verifica que el adaptador GCS devuelve la URL pública cuando make_public es True."""
-    
+    """Verifica que el adaptador GCS devuelve URL pública con make_public=True."""
+
     adapter, _, fake_blob = _build_adapter(make_public=True)
 
     result = adapter._upload_blocking(

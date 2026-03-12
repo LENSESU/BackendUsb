@@ -112,7 +112,7 @@ La carga de evidencias de incidentes puede persistirse en **Google Cloud Storage
 Precondicion: el administrador ya agrego tu correo en IAM con permisos sobre el bucket.
 
 1. Abre una terminal de [Google Cloud SDK CLI](https://docs.cloud.google.com/sdk/docs/install-sdk?hl=es-419#latest-version) o cualquier terminal donde `gcloud` este disponible.
-2. Inicia sesion con tu cuenta institucional/corporativa:
+2. Inicia sesion con tu correo:
 
 ```bash
 gcloud auth login
@@ -147,7 +147,7 @@ gcloud auth application-default print-access-token
 ```bash
 GCS_ENABLED=true
 GCS_PROJECT_ID=tu-proyecto-gcp
-GCS_BUCKET_NAME=usb-incidentes-evidencias
+GCS_BUCKET_NAME=multimedia_incidents
 GCS_EVIDENCE_PREFIX=incidents/evidence
 GCS_MAKE_PUBLIC=false
 ```
@@ -209,6 +209,14 @@ Esto crea los siguientes usuarios con sus roles:
 | Administrador | admin@usb.ve | admin123 |
 | Estudiante | estudiante@usb.ve | estudiante123 |
 | Técnico | tecnico@usb.ve | tecnico123 |
+
+### Probar el endpoint de evidencias de incidentes
+
+**POST /api/v1/incidents/{incident_id}/evidence**: sube una foto de evidencia (JPEG o PNG, máx. 5 MB) y la vincula al incidente en la BD. Necesitas un `incident_id` de un incidente existente.
+
+- **Con Swagger** (ver [URLs útiles](#urls-útiles)): ejecuta `python scripts/test_incident_evidence.py --seed-only`, copia el UUID mostrado y en Swagger → **incidents** → **POST .../evidence** → Try it out → pega el UUID en `incident_id` y selecciona un archivo en `photo` → Execute.
+
+Códigos: **201** éxito; **404** incidente inexistente; **400** formato/tamaño no válido.
 
 ---
 

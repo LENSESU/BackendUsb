@@ -65,4 +65,3 @@ def test_user_response_from_attributes() -> None:
     assert response.id == user_id
     assert response.role_id == role_id
     assert response.is_active is True
-

@@ -1,6 +1,7 @@
-import pytest
 from datetime import datetime
 from uuid import uuid4
+
+import pytest
 
 from app.domain.entities.user import User
 
@@ -54,4 +55,3 @@ def test_user_entity_rejects_invalid_email() -> None:
             password_hash="hashed-password",
             role_id=uuid4(),
         )
-

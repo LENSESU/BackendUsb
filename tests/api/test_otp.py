@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencies.otp import get_otp_service
@@ -77,9 +76,7 @@ def test_verify_otp_rejects_invalid_email_format() -> None:
 
 def test_verify_otp_returns_404_for_unknown_email() -> None:
     """La verificación debe retornar 404 si el email no existe en BD."""
-    with patch(
-        "app.api.routes.auth.get_db_session"
-    ) as mock_session:
+    with patch("app.api.routes.auth.get_db_session") as mock_session:
         mock_db = MagicMock()
         mock_db.scalar.return_value = None
         mock_session.return_value = mock_db
@@ -125,9 +122,11 @@ def test_verify_otp_returns_400_for_invalid_code() -> None:
     assert response.status_code == 400
     assert "inválido" in response.json()["detail"].lower()
 
+
 # ---------------------------------------------------------------------------
 # /resend-otp
 # ---------------------------------------------------------------------------
+
 
 def test_resend_otp_returns_404_for_unknown_email() -> None:
     """El reenvío debe retornar 404 si el email no existe en BD."""
@@ -151,7 +150,9 @@ def test_resend_otp_returns_429_during_cooldown() -> None:
     mock_user.id = uuid4()
 
     mock_otp_service = MagicMock()
-    mock_otp_service.resend = AsyncMock(side_effect=ValueError("Debes esperar 12 segundos antes de reenviar"))
+    mock_otp_service.resend = AsyncMock(
+        side_effect=ValueError("Debes esperar 12 segundos antes de reenviar")
+    )
 
     with patch("app.api.routes.auth.get_db_session") as mock_session:
         mock_db = MagicMock()
@@ -175,7 +176,9 @@ def test_resend_otp_returns_400_when_no_active_otp() -> None:
     mock_user.id = uuid4()
 
     mock_otp_service = MagicMock()
-    mock_otp_service.resend = AsyncMock(side_effect=ValueError("No hay un OTP activo para este usuario"))
+    mock_otp_service.resend = AsyncMock(
+        side_effect=ValueError("No hay un OTP activo para este usuario")
+    )
 
     with patch("app.api.routes.auth.get_db_session") as mock_session:
         mock_db = MagicMock()
