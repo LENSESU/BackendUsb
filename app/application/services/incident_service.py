@@ -2,15 +2,25 @@
 
 from uuid import UUID, uuid4
 
+from fastapi import HTTPException
+
 from app.application.ports import IncidentRepositoryPort
+from app.application.ports.incident_category_repository import (
+    IncidentCategoryRepositoryPort,
+)
 from app.domain.entities.incident import Incident, IncidentLocation
 
 
 class IncidentService:
     """Servicio de aplicación para Incidentes. Orquesta dominio y puertos."""
 
-    def __init__(self, repository: IncidentRepositoryPort) -> None:
+    def __init__(
+        self,
+        repository: IncidentRepositoryPort,
+        category_repository: IncidentCategoryRepositoryPort | None = None,
+    ) -> None:
         self._repository = repository
+        self._category_repository = category_repository
 
     def get_incident(self, incident_id: UUID) -> Incident | None:
         return self._repository.get_by_id(incident_id)
@@ -31,6 +41,15 @@ class IncidentService:
         priority: str | None = None,
         status: str | None = None,
     ) -> Incident:
+      
+        if self._category_repository is not None:
+            category = self._category_repository.get_by_id(category_id)
+            if category is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"La categoría con id '{category_id}' no existe.",
+                )
+
         location = None
         if campus_place is not None or latitude is not None or longitude is not None:
             location = IncidentLocation(
@@ -38,6 +57,7 @@ class IncidentService:
                 latitude=latitude,
                 longitude=longitude,
             )
+       
         incident = Incident(
             id=uuid4(),
             student_id=student_id,
