@@ -40,4 +40,3 @@ class SqlFileRepository(FileRepositoryPort):
             return file_model.id
         finally:
             db.close()
-

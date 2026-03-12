@@ -17,4 +17,3 @@ class FileRepositoryPort(ABC):
     ) -> UUID:
         """Crea un registro de archivo y retorna su ID."""
         ...
-
