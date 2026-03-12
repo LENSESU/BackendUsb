@@ -160,6 +160,26 @@ Notas:
 - Si `GCS_MAKE_PUBLIC=true`, cada archivo se marca público y se retorna `file_url`.
 - Si `GCS_ENABLED=false`, el sistema usa un adaptador in-memory (útil para tests y desarrollo sin GCP).
 
+#### Probar el endpoint de carga de evidencias Swagger
+
+Crear un incidente de prueba con claves foráneas válidas:
+
+```bash
+python -m app.scripts.create_incident_for_evidence
+```
+
+Anota el `ID del incidente` que se imprime en consola.
+
+   - Pulsa en el endpoint, luego en **Try it out**.
+   - Copia el `ID del incidente` generado en el paso 1 en el parámetro `incident_id`.
+   - En el campo `photo`, selecciona un archivo de imagen JPG o PNG desde tu equipo.
+   - Ejecuta la petición con **Execute**.
+
+Verificar en la respuesta que:
+   - `storage_object_name` contiene la ruta en el bucket.
+   - `file_url` tenga la URL de acceso (si `GCS_MAKE_PUBLIC=true`).
+   - `incident_id` coincida con el UUID usado en la llamada.
+
 ### Ejecutar en local (uvicorn)
 
 Asegúrate de haber configurado `.env`.

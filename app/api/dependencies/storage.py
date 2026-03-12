@@ -6,11 +6,13 @@ from app.infrastructure.adapters.gcs_file_storage import GoogleCloudStorageAdapt
 from app.infrastructure.adapters.in_memory_file_storage import (
     InMemoryFileStorageAdapter,
 )
+from app.infrastructure.adapters.sql_file_repository import SqlFileRepository
+from app.infrastructure.adapters.sql_incident_repository import SqlIncidentRepository
 
 
 @lru_cache
 def get_incident_evidence_service() -> IncidentEvidenceService:
-    """Construye la evidencia con el adaptador de almacenamiento activo."""
+    """Adaptador de almacenamiento y repositorios activos."""
 
     if settings.gcs_enabled:
         if not settings.gcs_bucket_name:
@@ -25,4 +27,11 @@ def get_incident_evidence_service() -> IncidentEvidenceService:
     else:
         storage_adapter = InMemoryFileStorageAdapter()
 
-    return IncidentEvidenceService(storage=storage_adapter)
+    incident_repository = SqlIncidentRepository()
+    file_repository = SqlFileRepository()
+
+    return IncidentEvidenceService(
+        storage=storage_adapter,
+        incident_repository=incident_repository,
+        file_repository=file_repository,
+    )
