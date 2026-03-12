@@ -28,8 +28,7 @@ def list_categories(
 ) -> IncidentCategoryListResponse:
     """Lista todas las categorías registradas."""
     categories = [
-        IncidentCategoryResponse.model_validate(c)
-        for c in service.list_all()
+        IncidentCategoryResponse.model_validate(c) for c in service.list_all()
     ]
     return IncidentCategoryListResponse(count=len(categories), items=categories)
 
@@ -48,7 +47,7 @@ def get_category(
     if not category:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Categoría con id {category_id} no encontrada"
+            detail=f"Categoría con id {category_id} no encontrada",
         )
     return IncidentCategoryResponse.model_validate(category)
 

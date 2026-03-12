@@ -21,8 +21,9 @@ class IncidentCategoryResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class IncidentCategoryListResponse(BaseModel):
     """Respuesta paginada para listado de categorías."""
-    
+
     count: int
     items: list[IncidentCategoryResponse]

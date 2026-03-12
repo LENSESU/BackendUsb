@@ -20,6 +20,6 @@ class IncidentCategoryService:
 
     def list_all(self) -> list[IncidentCategory]:
         return self._repository.find_all()
-    
+
     def get_by_id(self, category_id: str) -> IncidentCategory | None:
         return self._repository.find_by_id(category_id)
