@@ -18,9 +18,9 @@ def make_service(category_exists: bool) -> IncidentService:
             id=UUID("16edf08c-acf2-427d-94a9-9492c764a552"),
             name="Infraestructura",
         )
-        category_repo.get_by_id.return_value = fake_category
+        category_repo.find_by_id.return_value = fake_category
     else:
-        category_repo.get_by_id.return_value = None
+        category_repo.find_by_id.return_value = None
 
     fake_incident = MagicMock()
     fake_incident.id = uuid4()

@@ -43,7 +43,7 @@ class IncidentService:
     ) -> Incident:
       
         if self._category_repository is not None:
-            category = self._category_repository.get_by_id(category_id)
+            category = self._category_repository.find_by_id(str(category_id))
             if category is None:
                 raise HTTPException(
                     status_code=422,
