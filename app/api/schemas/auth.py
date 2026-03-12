@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
@@ -58,3 +58,15 @@ class UserAuthInfo(BaseModel):
     role_id: UUID
 
     model_config = {"from_attributes": True}
+
+
+class ResendCodeRequest(BaseModel):
+    """Petición para reenviar el código de verificación."""
+
+    email: EmailStr
+
+
+class ResendCodeResponse(BaseModel):
+    """Respuesta al reenviar código de verificación."""
+
+    message: str = "Si el correo está registrado, recibirás un nuevo código en breve."

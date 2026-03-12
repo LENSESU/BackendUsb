@@ -11,6 +11,8 @@ from app.api.schemas.incident import IncidentEvidenceUploadResponse
 from app.api.schemas.item import ItemCreate, ItemResponse
 
 __all__ = [
+    "IncidentCreate",
+    "IncidentResponse",
     "ItemCreate",
     "ItemResponse",
     "LoginRequest",

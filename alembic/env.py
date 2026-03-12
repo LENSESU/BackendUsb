@@ -13,13 +13,13 @@ if str(_project_root) not in sys.path:
 
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
+
 from alembic import context
+from app.infrastructure.database import models  # noqa: F401
 
 # Importar Base y todos los modelos para que target_metadata esté completo
 from app.infrastructure.database.base import Base
-from app.infrastructure.database import models  # noqa: F401
 
 config = context.config
 

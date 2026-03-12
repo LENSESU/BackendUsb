@@ -1,40 +1,81 @@
-"""Esquemas Pydantic para incidentes."""
+"""Esquemas Pydantic para incidentes (contrato HTTP en español)."""
 
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class Campus(StrEnum):
+    """Campus disponibles (enum para Swagger)."""
+
+    FARRALLONES = "Farrallones"
+    PARQUE_TECNOLOGICO = "ParqueTecnologico"
+    CEDRO = "Cedro"
+    LAGO = "Lago"
+    NARANJOS = "Naranjos"
+    BIBLIOTECA = "Biblioteca"
+    CAFETERIA = "Cafeteria"
+    PARQUEADERO = "Parqueadero"
+    OTRO = "Otro"
 
 
 class IncidentCreate(BaseModel):
-    """Payload para crear un incidente."""
+    """Payload para crear un incidente. El estudiante se toma del JWT."""
 
-    student_id: UUID = Field(...)
-    category_id: UUID = Field(...)
-    description: str = Field(..., min_length=1)
-    campus_place: str | None = Field(default=None, max_length=200)
-    latitude: float | None = Field(default=None, ge=-90, le=90)
-    longitude: float | None = Field(default=None, ge=-180, le=180)
-    priority: str | None = Field(default=None, max_length=20)
-    before_photo_id: UUID = Field(...)
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "categoria_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "descripcion": "Descripción detallada del incidente",
+                "lugar_campus": ["Biblioteca"],
+                "latitud": 3.3759,
+                "longitud": -76.5305,
+                "prioridad": "Alta",
+                "estado": "Nuevo",
+                "foto_antes_id": None,
+            }
+        }
+    )
+
+    categoria_id: UUID = Field(..., description="ID de la categoría del incidente")
+    descripcion: str = Field(
+        ..., min_length=1, description="Descripción detallada del incidente"
+    )
+    lugar_campus: list[Campus] | None = Field(
+        default=None,
+        description="Campus seleccionado (array de enums).",
+    )
+    latitud: float | None = Field(default=None, ge=-90, le=90)
+    longitud: float | None = Field(default=None, ge=-180, le=180)
+    estado: str | None = Field(default=None, max_length=20)
+    prioridad: str | None = Field(default=None, max_length=20)
+    foto_antes_id: UUID | None = Field(default=None)
 
 
 class IncidentUpdate(BaseModel):
     """Payload para actualizar un incidente."""
 
-    technician_id: UUID | None = None
-    category_id: UUID | None = None
-    description: str | None = Field(default=None, min_length=1)
-    campus_place: str | None = Field(default=None, max_length=200)
-    latitude: float | None = Field(default=None, ge=-90, le=90)
-    longitude: float | None = Field(default=None, ge=-180, le=180)
-    status: str | None = Field(default=None, max_length=20)
-    priority: str | None = Field(default=None, max_length=20)
-    after_photo_id: UUID | None = None
+    tecnico_id: UUID | None = None
+    categoria_id: UUID | None = None
+    descripcion: str | None = Field(default=None, min_length=1)
+    lugar_campus: list[Campus] | None = Field(default=None)
+    latitud: float | None = Field(default=None, ge=-90, le=90)
+    longitud: float | None = Field(default=None, ge=-180, le=180)
+    estado: str | None = Field(default=None, max_length=20)
+    prioridad: str | None = Field(default=None, max_length=20)
+    foto_antes_id: UUID | None = None
+    foto_despues_id: UUID | None = None
 
 
 class IncidentResponse(BaseModel):
     """Respuesta con datos de un incidente."""
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"campus_disponibles": [c.value for c in Campus]},
+    )
 
     id: UUID
     student_id: UUID
