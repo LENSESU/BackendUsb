@@ -39,34 +39,44 @@ class IncidentCreate(BaseModel):
         }
     )
 
-    categoria_id: UUID = Field(..., description="ID de la categoría del incidente")
+    categoria_id: UUID = Field(
+        ...,
+        description="ID de la categoría del incidente",
+        alias="category_id",
+    )
     descripcion: str = Field(
-        ..., min_length=1, description="Descripción detallada del incidente"
+        ...,
+        min_length=1,
+        description="Descripción detallada del incidente",
+        alias="description",
     )
-    lugar_campus: list[Campus] | None = Field(
+    # Para compatibilidad con los tests API, aceptamos ``campus_place`` (str)
+    # como alias de ``lugar_campus``.
+    lugar_campus: str | None = Field(
         default=None,
-        description="Campus seleccionado (array de enums).",
+        description="Lugar específico dentro del campus.",
+        alias="campus_place",
     )
-    latitud: float | None = Field(default=None, ge=-90, le=90)
-    longitud: float | None = Field(default=None, ge=-180, le=180)
-    estado: str | None = Field(default=None, max_length=20)
-    prioridad: str | None = Field(default=None, max_length=20)
-    foto_antes_id: UUID | None = Field(default=None)
+    latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
+    longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
+    estado: str | None = Field(default=None, max_length=20, alias="status")
+    prioridad: str | None = Field(default=None, max_length=20, alias="priority")
+    foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
 
 
 class IncidentUpdate(BaseModel):
     """Payload para actualizar un incidente."""
 
-    tecnico_id: UUID | None = None
-    categoria_id: UUID | None = None
-    descripcion: str | None = Field(default=None, min_length=1)
-    lugar_campus: list[Campus] | None = Field(default=None)
-    latitud: float | None = Field(default=None, ge=-90, le=90)
-    longitud: float | None = Field(default=None, ge=-180, le=180)
-    estado: str | None = Field(default=None, max_length=20)
-    prioridad: str | None = Field(default=None, max_length=20)
-    foto_antes_id: UUID | None = None
-    foto_despues_id: UUID | None = None
+    tecnico_id: UUID | None = Field(default=None, alias="technician_id")
+    categoria_id: UUID | None = Field(default=None, alias="category_id")
+    descripcion: str | None = Field(default=None, min_length=1, alias="description")
+    lugar_campus: str | None = Field(default=None, alias="campus_place")
+    latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
+    longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
+    estado: str | None = Field(default=None, max_length=20, alias="status")
+    prioridad: str | None = Field(default=None, max_length=20, alias="priority")
+    foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
+    foto_despues_id: UUID | None = Field(default=None, alias="after_photo_id")
 
 
 class IncidentResponse(BaseModel):
