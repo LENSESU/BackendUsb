@@ -7,7 +7,11 @@ from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.api.dependencies.auth import get_current_user_id, require_role
 from app.api.dependencies.storage import get_incident_evidence_service
-from app.api.schemas import IncidentCreate, IncidentEvidenceUploadResponse, IncidentResponse
+from app.api.schemas import (
+    IncidentCreate,
+    IncidentEvidenceUploadResponse,
+    IncidentResponse,
+)
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.incident_service import IncidentService
