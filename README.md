@@ -109,40 +109,44 @@ La carga de evidencias de incidentes puede persistirse en **Google Cloud Storage
 
 #### Flujo recomendado para desarrolladores (ADC sin JSON)
 
-Precondicion: el administrador ya agrego tu correo en IAM con permisos sobre el bucket.
+**Precondición:** el administrador ya agregó tu correo en IAM con permisos sobre el bucket.
 
-1. Abre una terminal de [Google Cloud SDK CLI](https://docs.cloud.google.com/sdk/docs/install-sdk?hl=es-419#latest-version) o cualquier terminal donde `gcloud` este disponible.
-2. Inicia sesion con tu cuenta institucional/corporativa:
+##### Autenticación desde cero (solo Docker CLI)
 
-```bash
-gcloud auth login
-```
+Backend levantado con `docker compose up -d`. Sustituye `PROJECT_ID` por el ID de tu proyecto en GCP.
 
-3. Selecciona el proyecto activo para trabajar en local:
+**Paso 0 (opcional).** Listar proyectos para obtener el Project ID:
 
 ```bash
-gcloud config set project project-1dbf72c5-51f7-430c-932
+docker compose exec backend gcloud projects list
 ```
 
-4. Genera/actualiza credenciales ADC para que las use el SDK de Python:
+**Pasos 1–5.**
 
 ```bash
-gcloud auth application-default login
+docker compose exec -it backend gcloud auth login
+docker compose exec backend gcloud config set project PROJECT_ID
+docker compose exec -it backend gcloud auth application-default login
+docker compose exec backend gcloud auth application-default set-quota-project PROJECT_ID
+docker compose exec backend gcloud auth application-default print-access-token
 ```
 
-5. Asocia el quota project de ADC al mismo proyecto (evita errores de cuota/facturacion):
+##### Si bajas el contenedor (`docker compose down`)
 
-```bash
-gcloud auth application-default set-quota-project project-1dbf72c5-51f7-430c-932
-```
+Las credenciales ADC se guardan **dentro** del contenedor. Al hacer `docker compose down` (o reconstruir la imagen) se pierden. Para volver a usarlas:
 
-6. Verifica rapidamente que ADC quedo activo:
+1. Levanta de nuevo el backend: `docker compose up -d backend`
+2. Repite al menos el **login ADC** y el **quota project** (sustituye `PROJECT_ID`):
+   ```bash
+   docker compose exec -it backend gcloud auth application-default login
+   docker compose exec backend gcloud auth application-default set-quota-project PROJECT_ID
+   ```
 
-```bash
-gcloud auth application-default print-access-token
-```
+En producción se suele usar una **cuenta de servicio** y montar su JSON (o variable de entorno) en lugar de ADC de usuario.
 
-7. Configura en `.env`:
+##### Configura en `.env`
+
+Usa el mismo `PROJECT_ID` y nombre de bucket que tengas en GCP:
 
 ```bash
 GCS_ENABLED=true
@@ -152,7 +156,7 @@ GCS_EVIDENCE_PREFIX=incidents/evidence
 GCS_MAKE_PUBLIC=false
 ```
 
-Notas:
+**Notas:**
 
 - El backend usa **Application Default Credentials (ADC)**; no requiere ni lee rutas JSON.
 - Cada desarrollador usa su propia identidad; no se comparten llaves ni archivos sensibles.
