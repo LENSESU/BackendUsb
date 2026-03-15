@@ -6,8 +6,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.entities.incident import IncidentStatus
-
 
 class Campus(StrEnum):
     """Campus disponibles (enum para Swagger)."""
@@ -41,34 +39,44 @@ class IncidentCreate(BaseModel):
         }
     )
 
-    categoria_id: UUID = Field(..., description="ID de la categoría del incidente")
+    categoria_id: UUID = Field(
+        ...,
+        description="ID de la categoría del incidente",
+        alias="category_id",
+    )
     descripcion: str = Field(
-        ..., min_length=1, description="Descripción detallada del incidente"
+        ...,
+        min_length=1,
+        description="Descripción detallada del incidente",
+        alias="description",
     )
-    lugar_campus: list[Campus] | None = Field(
+    # Para compatibilidad con los tests API, aceptamos ``campus_place`` (str)
+    # como alias de ``lugar_campus``.
+    lugar_campus: str | None = Field(
         default=None,
-        description="Campus seleccionado (array de enums).",
+        description="Lugar específico dentro del campus.",
+        alias="campus_place",
     )
-    latitud: float | None = Field(default=None, ge=-90, le=90)
-    longitud: float | None = Field(default=None, ge=-180, le=180)
-    estado: IncidentStatus | None = Field(default=None)
-    prioridad: str | None = Field(default=None, max_length=20)
-    foto_antes_id: UUID | None = Field(default=None)
+    latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
+    longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
+    estado: str | None = Field(default=None, max_length=20, alias="status")
+    prioridad: str | None = Field(default=None, max_length=20, alias="priority")
+    foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
 
 
 class IncidentUpdate(BaseModel):
     """Payload para actualizar un incidente."""
 
-    tecnico_id: UUID | None = None
-    categoria_id: UUID | None = None
-    descripcion: str | None = Field(default=None, min_length=1)
-    lugar_campus: list[Campus] | None = Field(default=None)
-    latitud: float | None = Field(default=None, ge=-90, le=90)
-    longitud: float | None = Field(default=None, ge=-180, le=180)
-    estado: IncidentStatus | None = Field(default=None)
-    prioridad: str | None = Field(default=None, max_length=20)
-    foto_antes_id: UUID | None = None
-    foto_despues_id: UUID | None = None
+    tecnico_id: UUID | None = Field(default=None, alias="technician_id")
+    categoria_id: UUID | None = Field(default=None, alias="category_id")
+    descripcion: str | None = Field(default=None, min_length=1, alias="description")
+    lugar_campus: str | None = Field(default=None, alias="campus_place")
+    latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
+    longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
+    estado: str | None = Field(default=None, max_length=20, alias="status")
+    prioridad: str | None = Field(default=None, max_length=20, alias="priority")
+    foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
+    foto_despues_id: UUID | None = Field(default=None, alias="after_photo_id")
 
 
 class IncidentResponse(BaseModel):
@@ -80,22 +88,29 @@ class IncidentResponse(BaseModel):
     )
 
     id: UUID
-    estudiante_id: UUID
-    tecnico_id: UUID | None
-    categoria_id: UUID
-    descripcion: str
-    lugar_campus: list[Campus] | None
-    latitud: float | None
-    longitud: float | None
-    estado: str
-    prioridad: str | None
-    foto_antes_id: UUID | None
-    foto_despues_id: UUID | None
-    creado_en: datetime
-    actualizado_en: datetime | None
+    student_id: UUID
+    technician_id: UUID | None
+    category_id: UUID
+    description: str
+    campus_place: str | None
+    latitude: float | None
+    longitude: float | None
+    status: str
+    priority: str | None
+    before_photo_id: UUID | None
+    after_photo_id: UUID | None
+    created_at: datetime
+    updated_at: datetime | None
+
+    model_config = {"from_attributes": True}
 
 
-def campus_options() -> list[Campus]:
-    """Lista fija de campus disponibles para clientes."""
+class IncidentEvidenceUploadResponse(BaseModel):
+    """Respuesta para carga de evidencia fotográfica de incidente."""
 
-    return list(Campus)
+    incident_id: UUID
+    filename: str
+    content_type: str
+    storage_object_name: str | None = None
+    file_url: str | None = None
+    message: str

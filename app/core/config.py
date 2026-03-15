@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     # Whitelist domains
     allowed_email_domains: list[str] = ["correo.usbcali.edu.co"]
 
+    # Google Cloud Storage
+    gcs_enabled: bool = False
+    gcs_project_id: str | None = None
+    gcs_bucket_name: str = ""
+    gcs_evidence_prefix: str = "incidents/evidence"
+    gcs_make_public: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

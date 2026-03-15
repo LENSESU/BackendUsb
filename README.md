@@ -108,6 +108,87 @@ ALLOWED_EMAIL_DOMAINS=["correo.usbcali.edu.co"]
 
 > Consulta `.env.example` para ver todas las variables disponibles con sus descripciones.
 
+### Google Cloud Storage para evidencias
+
+La carga de evidencias de incidentes puede persistirse en **Google Cloud Storage**.
+
+#### Flujo recomendado para desarrolladores (ADC sin JSON)
+
+**Precondición:** el administrador ya agregó tu correo en IAM con permisos sobre el bucket.
+
+##### Autenticación desde cero (solo Docker CLI)
+
+Backend levantado con `docker compose up -d`. Sustituye `PROJECT_ID` por el ID de tu proyecto en GCP.
+
+**Paso 0 (opcional).** Listar proyectos para obtener el Project ID:
+
+```bash
+docker compose exec backend gcloud projects list
+```
+
+**Pasos 1–5.**
+
+```bash
+docker compose exec -it backend gcloud auth login
+docker compose exec backend gcloud config set project PROJECT_ID
+docker compose exec -it backend gcloud auth application-default login
+docker compose exec backend gcloud auth application-default set-quota-project PROJECT_ID
+docker compose exec backend gcloud auth application-default print-access-token
+```
+
+##### Si bajas el contenedor (`docker compose down`)
+
+Las credenciales ADC se guardan **dentro** del contenedor. Al hacer `docker compose down` (o reconstruir la imagen) se pierden. Para volver a usarlas:
+
+1. Levanta de nuevo el backend: `docker compose up -d backend`
+2. Repite al menos el **login ADC** y el **quota project** (sustituye `PROJECT_ID`):
+   ```bash
+   docker compose exec -it backend gcloud auth application-default login
+   docker compose exec backend gcloud auth application-default set-quota-project PROJECT_ID
+   ```
+
+En producción se suele usar una **cuenta de servicio** y montar su JSON (o variable de entorno) en lugar de ADC de usuario.
+
+##### Configura en `.env`
+
+Usa el mismo `PROJECT_ID` y nombre de bucket que tengas en GCP:
+
+```bash
+GCS_ENABLED=true
+GCS_PROJECT_ID=tu-proyecto-gcp
+GCS_BUCKET_NAME=usb-incidentes-evidencias
+GCS_EVIDENCE_PREFIX=incidents/evidence
+GCS_MAKE_PUBLIC=false
+```
+
+**Notas:**
+
+- El backend usa **Application Default Credentials (ADC)**; no requiere ni lee rutas JSON.
+- Cada desarrollador usa su propia identidad; no se comparten llaves ni archivos sensibles.
+- En Cloud Run/GKE/GCE, ADC se resuelve con la identidad del workload (sin cambios de código).
+- Si `GCS_MAKE_PUBLIC=true`, cada archivo se marca público y se retorna `file_url`.
+- Si `GCS_ENABLED=false`, el sistema usa un adaptador in-memory (útil para tests y desarrollo sin GCP).
+
+#### Probar el endpoint de carga de evidencias Swagger
+
+Crear un incidente de prueba con claves foráneas válidas:
+
+```bash
+python -m app.scripts.create_incident_via_api
+```
+
+Anota el `ID del incidente` que se imprime en consola.
+
+   - Pulsa en el endpoint, luego en **Try it out**.
+   - Copia el `ID del incidente` generado en el paso 1 en el parámetro `incident_id`.
+   - En el campo `photo`, selecciona un archivo de imagen JPG o PNG desde tu equipo.
+   - Ejecuta la petición con **Execute**.
+
+Verificar en la respuesta que:
+   - `storage_object_name` contiene la ruta en el bucket.
+   - `file_url` tenga la URL de acceso (si `GCS_MAKE_PUBLIC=true`).
+   - `incident_id` coincida con el UUID usado en la llamada.
+
 ### Ejecutar en local (uvicorn)
 
 Asegúrate de haber configurado `.env`.
