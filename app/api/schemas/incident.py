@@ -6,8 +6,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.entities.incident import IncidentStatus
-
 
 class Campus(StrEnum):
     """Campus disponibles (enum para Swagger)."""
@@ -99,7 +97,7 @@ class IncidentResponse(BaseModel):
     longitude: float | None
     status: str
     priority: str | None
-    before_photo_id: UUID
+    before_photo_id: UUID | None
     after_photo_id: UUID | None
     created_at: datetime
     updated_at: datetime | None

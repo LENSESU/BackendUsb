@@ -87,4 +87,3 @@ def downgrade() -> None:
             """
         )
     )
-
