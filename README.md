@@ -174,7 +174,7 @@ GCS_MAKE_PUBLIC=false
 Crear un incidente de prueba con claves foráneas válidas:
 
 ```bash
-python -m app.scripts.create_incident_for_evidence
+python -m app.scripts.create_incident_via_api
 ```
 
 Anota el `ID del incidente` que se imprime en consola.
