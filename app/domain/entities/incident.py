@@ -15,7 +15,16 @@ Cambios relevantes para HU-E2-011:
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
+
+
+class IncidentStatus(StrEnum):
+    """Estados permitidos para un incidente."""
+
+    NUEVO = "Nuevo"
+    EN_PROCESO = "En_proceso"
+    RESUELTO = "Resuelto"
 
 
 @dataclass(slots=True)
@@ -33,7 +42,7 @@ class Incident:
     category_id: UUID
     description: str
     before_photo_id: UUID | None = None
-    status: str = "Nuevo"
+    status: str = IncidentStatus.NUEVO.value
     priority: str | None = None
     after_photo_id: UUID | None = None
     created_at: datetime | None = None

@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.domain.entities.incident import IncidentStatus
+
 
 class Campus(StrEnum):
     """Campus disponibles (enum para Swagger)."""

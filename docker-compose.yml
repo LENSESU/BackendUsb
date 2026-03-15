@@ -10,7 +10,9 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-app_db}
-      - ALLOWED_EMAIL_DOMAINS=${ALLOWED_EMAIL_DOMAINS:-["dominio.co", "domain.com"]}
+      - ALLOWED_EMAIL_DOMAINS=${ALLOWED_EMAIL_DOMAINS:-["correo.usbcali.edu.co"]}
+      - RUN_MIGRATIONS_ON_STARTUP=${RUN_MIGRATIONS_ON_STARTUP:-true}
+      - SEED_USERS_ON_STARTUP=${SEED_USERS_ON_STARTUP:-true}
       - MAIL_HOST=mailpit
       - MAIL_PORT=${MAIL_PORT:-1025}
       - MAIL_FROM=${MAIL_FROM:-noreply@correo.com}
@@ -63,5 +65,5 @@ services:
 
 volumes:
   postgres_data:
-  mailpit_data: 
+  mailpit_data:
   gcloud-config:

@@ -38,6 +38,8 @@ class Settings(BaseSettings):
 
     # Si es False, no se ejecutan migraciones al arranque (útil en tests sin BD)
     run_migrations_on_startup: bool = True
+    # Si es True, ejecuta el seed de usuarios al arrancar la app
+    seed_users_on_startup: bool = False
 
     # Autenticación JWT
     jwt_secret_key: str = "dev-secret-key-CHANGE-IN-PRODUCTION"
@@ -57,7 +59,7 @@ class Settings(BaseSettings):
     otp_resend_cooldown_seconds: int = 15
 
     # Whitelist domains
-    allowed_email_domains: list[str] = ["correo.usbcali.edu.co", "usbcali.edu.co"]
+    allowed_email_domains: list[str] = ["correo.usbcali.edu.co"]
 
     # Google Cloud Storage
     gcs_enabled: bool = False

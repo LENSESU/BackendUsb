@@ -147,36 +147,20 @@ El endpoint de login ahora devuelve refresh token:
 
 ---
 
-## 📚 Nueva Documentación
+## 📚 Documentación actual
 
-### 1. **`docs/FRONTEND_TOKEN_HANDLING.md`** ⭐ **NUEVO**
-Guía completa para desarrolladores de frontend:
-- Conceptos de access y refresh tokens
-- Flujo de autenticación completo
-- Implementación en JavaScript vanilla
-- Implementación en React con Context API
-- Interceptores de Axios
-- Ejemplos de manejo de errores
-- Mejores prácticas de seguridad
-- Testing
+### 1. **`README.md`**
+- ✅ Guía principal de instalación y ejecución
+- ✅ Sección de autenticación con refresh tokens
+- ✅ Credenciales de desarrollo y comandos operativos
 
-### 2. **`docs/examples/frontend-integration.js`** ⭐ **NUEVO**
-Ejemplo funcional completo de:
-- Clase `AuthenticatedApiClient` con auto-refresh
-- Manejo de cola de peticiones durante refresh
-- Ejemplos de uso en componentes
-- Inicialización de aplicación
+### 2. **`docs/README.md`**
+- ✅ Índice de documentación suplementaria
+- ✅ Convención para evitar duplicar setup y operación
 
-### 3. **`README.md`** - Actualizado
-- ✅ Sección de autenticación expandida
-- ✅ Documentación de refresh tokens
-- ✅ Códigos de error explicados
-- ✅ Referencia a guía de frontend
-
-### 4. **`docs/README.md`** - Actualizado
-- ✅ Enlace a nueva guía de frontend
-- ✅ Lista de endpoints actualizados
-- ✅ Información sobre manejo de expiración
+### 3. **`docs/CHANGELOG_TOKEN_EXPIRATION.md`**
+- ✅ Historial técnico de la implementación de sesiones
+- ✅ Resumen de cambios en tokens, errores y endpoints
 
 ---
 
@@ -214,7 +198,7 @@ No se requiere instalar nuevas dependencias. Las librerías JWT (`python-jose`) 
 ### Para Proyectos Existentes
 
 1. **Actualizar Frontend:**
-   - Implementar manejo de refresh tokens (ver `docs/FRONTEND_TOKEN_HANDLING.md`)
+   - Implementar manejo de refresh tokens siguiendo la sección de autenticación de `README.md`
    - Actualizar manejo de errores para usar `error_code` y `redirect_to_login`
    - Implementar interceptor de peticiones para auto-refresh
 
@@ -327,8 +311,9 @@ No se requiere instalar nuevas dependencias. Las librerías JWT (`python-jose`) 
 
 ## 📖 Recursos Adicionales
 
-- **Documentación Completa**: `docs/FRONTEND_TOKEN_HANDLING.md`
-- **Ejemplos de Código**: `docs/examples/frontend-integration.js`
+- **Guía principal**: `README.md`
+- **Índice de docs**: `docs/README.md`
+- **Historial técnico**: `docs/CHANGELOG_TOKEN_EXPIRATION.md`
 - **Tests**: `tests/api/test_auth.py`
 - **Swagger UI**: http://127.0.0.1:8000/docs
 
@@ -346,6 +331,6 @@ Branch: `feature/auth-session`
 
 - El sistema es completamente funcional y listo para producción
 - Recomendado usar Redis para blacklist en producción
-- El frontend debe implementar el manejo de refresh tokens según la guía
+- El frontend debe implementar el manejo de refresh tokens según el flujo documentado en `README.md`
 - Todos los tests pasan sin errores
 - Código cumple con PEP 8 y ruff linting

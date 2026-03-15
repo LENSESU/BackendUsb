@@ -27,4 +27,6 @@ __all__ = [
     "TokenValidationRequest",
     "TokenValidationResponse",
     "UserAuthInfo",
+    "IncidentCategoryCreate",
+    "IncidentCategoryResponse",
 ]

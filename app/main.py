@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import api_router
 from app.core.config import settings
 from app.infrastructure.database.migrations import run_migrations
+from app.scripts.seed_users import seed_users
 
 # --- Migraciones al arranque ---
 # Al levantar la app se aplican las migraciones a Postgres (tablas al día).
@@ -20,6 +21,8 @@ async def lifespan(app: FastAPI):
     """Arranque: aplica migraciones a la BD. Parada: nada."""
     if settings.run_migrations_on_startup:
         run_migrations()
+    if settings.seed_users_on_startup:
+        seed_users()
     yield
 
 
