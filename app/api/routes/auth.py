@@ -386,9 +386,7 @@ async def register(
 
     role_id = data.role_id
     if role_id is None:
-        student_role = db.scalar(
-            select(RoleModel).where(RoleModel.name == "Student")
-        )
+        student_role = db.scalar(select(RoleModel).where(RoleModel.name == "Student"))
         if student_role is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
