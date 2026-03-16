@@ -24,13 +24,19 @@ _repository: IncidentRepositoryPort | None = None
 def get_incident_service() -> IncidentService:
     """Obtiene el servicio de Incidentes (DI: SQL repository)."""
     global _repository
+    from app.infrastructure.adapters.incident_category_repository import (
+        SqlAlchemyIncidentCategoryRepository,
+    )
     from app.infrastructure.adapters.sql_incident_repository import (
         SqlIncidentRepository,
     )
 
     if _repository is None:
         _repository = SqlIncidentRepository()
-    return IncidentService(repository=_repository)
+    return IncidentService(
+        repository=_repository,
+        category_repository=SqlAlchemyIncidentCategoryRepository(),
+    )
 
 
 def _incident_to_response(incident: Incident) -> IncidentResponse:
