@@ -7,6 +7,7 @@ Uso:
     python -m app.scripts.seed_users
 """
 
+import logging
 from collections.abc import Sequence
 from uuid import uuid4
 
@@ -16,6 +17,14 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.core.security import hash_password
 from app.infrastructure.database.models import RoleModel, UserModel
+
+logger = logging.getLogger("uvicorn.error")
+
+
+def emit_seed_log(message: str) -> None:
+    """Emite mensajes visibles del seed en Docker."""
+    logger.info(message)
+    print(f"[seed-users] {message}", flush=True)
 
 
 def ensure_role(
@@ -77,7 +86,7 @@ def seed_users() -> None:
     db = SessionLocal()
 
     try:
-        print("Verificando roles...")
+        emit_seed_log("Verificando roles base...")
         admin_role, admin_role_created = ensure_role(
             db,
             name="Administrator",
@@ -96,11 +105,11 @@ def seed_users() -> None:
 
         if admin_role_created or student_role_created or technician_role_created:
             db.commit()
-            print("✓ Roles creados o completados")
+            emit_seed_log("Roles creados o completados")
         else:
-            print("Roles ya existen")
+            emit_seed_log("Los roles base ya existian")
 
-        print("\nVerificando usuarios de prueba...")
+        emit_seed_log("Verificando usuarios de prueba...")
         users_to_seed: Sequence[dict[str, str]] = (
             {
                 "first_name": "Admin",
@@ -133,33 +142,28 @@ def seed_users() -> None:
 
         if created_users:
             db.commit()
-            print("✓ Usuarios creados exitosamente")
+            emit_seed_log(
+                "Usuarios de prueba creados exitosamente: "
+                f"{', '.join(email for email, _ in created_users)}"
+            )
         else:
-            print("Usuarios de prueba ya existen en la BD")
+            emit_seed_log("Los usuarios de prueba ya existian en la base de datos")
 
-        print("\nCredenciales de prueba:")
-        print("-" * 50)
-        print("Administrador:")
-        print("  Email: admin@usbcali.edu.co")
-        print("  Password: admin123")
-        print("\nEstudiante:")
-        print("  Email: estudiante@correo.usbcali.edu.co")
-        print("  Password: estudiante123")
-        print("\nTécnico:")
-        print("  Email: tecnico@usbcali.edu.co")
-        print("  Password: tecnico123")
-        print("-" * 50)
+        emit_seed_log(
+            "Credenciales disponibles: admin@usbcali.edu.co, "
+            "estudiante@correo.usbcali.edu.co, tecnico@usbcali.edu.co"
+        )
 
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
+    except Exception:
         db.rollback()
+        logger.exception("Error ejecutando el seed de usuarios")
         raise
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    print("Poblando base de datos con usuarios de prueba...")
-    print("=" * 50)
+    logging.basicConfig(level=logging.INFO)
+    emit_seed_log("Poblando base de datos con usuarios de prueba...")
     seed_users()
-    print("\n✅ Proceso completado")
+    emit_seed_log("Proceso completado")

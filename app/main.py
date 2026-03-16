@@ -1,5 +1,6 @@
 """Punto de entrada de la aplicación FastAPI."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,14 +16,35 @@ from app.scripts.seed_users import seed_users
 # Solo necesitas: Postgres corriendo + .env con POSTGRES_* (o DATABASE_URL).
 # En tests se desactiva con RUN_MIGRATIONS_ON_STARTUP=false (conftest).
 
+logger = logging.getLogger("uvicorn.error")
+
+
+def emit_startup_log(message: str) -> None:
+    """Emite mensajes visibles en Docker durante el startup."""
+    logger.info(message)
+    print(f"[startup] {message}", flush=True)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Arranque: aplica migraciones a la BD. Parada: nada."""
+    emit_startup_log(
+        "Iniciando startup de la aplicacion "
+        f"(migraciones={settings.run_migrations_on_startup}, "
+        f"seed_usuarios={settings.seed_users_on_startup})"
+    )
+
     if settings.run_migrations_on_startup:
+        emit_startup_log("Ejecutando migraciones de base de datos...")
         run_migrations()
+        emit_startup_log("Migraciones completadas correctamente")
+
     if settings.seed_users_on_startup:
+        emit_startup_log("Ejecutando seed de usuarios...")
         seed_users()
+        emit_startup_log("Seed de usuarios completado correctamente")
+
+    emit_startup_log("Startup de la aplicacion completado")
     yield
 
 
