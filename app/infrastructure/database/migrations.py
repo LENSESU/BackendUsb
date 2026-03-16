@@ -32,5 +32,6 @@ def run_migrations() -> None:
 
         logger.info("Migraciones aplicadas correctamente")
 
-    except Exception as e:
-        logger.error(f"Error ejecutando migraciones: {e}")
+    except Exception:
+        logger.exception("Error ejecutando migraciones")
+        raise

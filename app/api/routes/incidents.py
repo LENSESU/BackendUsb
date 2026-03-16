@@ -32,10 +32,19 @@ def get_incident_service() -> IncidentService:
     del endpoint, similar a como se hace con Items.
     """
     global _repository
+    from app.infrastructure.adapters.incident_category_repository import (
+        SqlAlchemyIncidentCategoryRepository,
+    )
+    from app.infrastructure.adapters.sql_incident_repository import (
+        SqlIncidentRepository,
+    )
 
     if _repository is None:
-        _repository = InMemoryIncidentRepository()
-    return IncidentService(repository=_repository)
+        _repository = SqlIncidentRepository()
+    return IncidentService(
+        repository=_repository,
+        category_repository=SqlAlchemyIncidentCategoryRepository(),
+    )
 
 
 @router.post(
