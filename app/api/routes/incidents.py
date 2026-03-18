@@ -15,9 +15,6 @@ from app.api.schemas import (
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.incident_service import IncidentService
-from app.infrastructure.adapters.in_memory_incident_repository import (
-    InMemoryIncidentRepository,
-)
 
 router = APIRouter()
 
