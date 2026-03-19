@@ -5,6 +5,12 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+RUN apt-get update && apt-get install -y \
+    curl gnupg && \
+    curl -sSL https://sdk.cloud.google.com | bash -s -- --disable-prompts
+ENV PATH="/root/google-cloud-sdk/bin:$PATH"
+
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

@@ -1,28 +1,33 @@
-"""Rutas HTTP para Incidentes. Requieren JWT y rol autorizado."""
+"""Rutas HTTP para incidentes."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.api.dependencies.auth import get_current_user_id, require_role
-from app.api.schemas.incident import (
-    Campus,
+from app.api.dependencies.storage import get_incident_evidence_service
+from app.api.schemas import (
     IncidentCreate,
+    IncidentEvidenceUploadResponse,
     IncidentResponse,
-    IncidentUpdate,
 )
-from app.application.ports import IncidentRepositoryPort
-from app.application.services import IncidentService
-from app.core.exceptions import NotFoundError
-from app.domain.entities.incident import Incident
+from app.application.ports.incident_repository import IncidentRepositoryPort
+from app.application.services.incident_evidence_service import IncidentEvidenceService
+from app.application.services.incident_service import IncidentService
 
 router = APIRouter()
+
 
 _repository: IncidentRepositoryPort | None = None
 
 
 def get_incident_service() -> IncidentService:
-    """Obtiene el servicio de Incidentes (DI: SQL repository)."""
+    """Obtiene el servicio de incidentes utilizando un repositorio in-memory.
+
+    Este patrón evita depender de la base de datos real durante las pruebas
+    del endpoint, similar a como se hace con Items.
+    """
     global _repository
     from app.infrastructure.adapters.incident_category_repository import (
         SqlAlchemyIncidentCategoryRepository,
@@ -39,134 +44,57 @@ def get_incident_service() -> IncidentService:
     )
 
 
-def _incident_to_response(incident: Incident) -> IncidentResponse:
-    """Mapea entidad de dominio a schema de respuesta."""
-    assert incident.id is not None and incident.created_at is not None
-    loc = incident.location
-    selected: list[Campus] | None = None
-    if loc and loc.campus_place:
-        try:
-            selected = [Campus(loc.campus_place)]
-        except ValueError:
-            selected = [Campus.OTRO]
-    return IncidentResponse(
-        id=incident.id,
-        estudiante_id=incident.student_id,
-        tecnico_id=incident.technician_id,
-        categoria_id=incident.category_id,
-        descripcion=incident.description,
-        lugar_campus=selected,
-        latitud=float(loc.latitude) if loc and loc.latitude is not None else None,
-        longitud=float(loc.longitude) if loc and loc.longitude is not None else None,
-        estado=incident.status,
-        prioridad=incident.priority,
-        foto_antes_id=incident.before_photo_id,
-        foto_despues_id=incident.after_photo_id,
-        creado_en=incident.created_at,
-        actualizado_en=incident.updated_at,
-    )
-
-
 @router.post(
     "/",
     response_model=IncidentResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=201,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 def create_incident(
     payload: IncidentCreate,
     current_user_id: UUID = Depends(get_current_user_id),
 ) -> IncidentResponse:
-    """Crea un nuevo incidente. El estudiante se asigna desde el JWT."""
+    """Crea un incidente usando el usuario autenticado como student_id."""
     service = get_incident_service()
-    campus_name = (
-        payload.lugar_campus[0].value
-        if payload.lugar_campus and len(payload.lugar_campus) > 0
-        else None
-    )
+
+    now = datetime.now(UTC)
     incident = service.create_incident(
         student_id=current_user_id,
         category_id=payload.categoria_id,
         description=payload.descripcion,
         before_photo_id=payload.foto_antes_id,
-        campus_place=campus_name,
+        campus_place=payload.lugar_campus,
         latitude=payload.latitud,
         longitude=payload.longitud,
         priority=payload.prioridad,
-        status=payload.estado.value if payload.estado is not None else None,
+        status=payload.estado,
     )
-    return _incident_to_response(incident)
+    incident.created_at = now
+
+    return IncidentResponse.model_validate(incident)
 
 
-@router.get(
-    "/",
-    response_model=list[IncidentResponse],
-    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+@router.post(
+    "/{incident_id}/evidence",
+    response_model=IncidentEvidenceUploadResponse,
+    status_code=201,
 )
-def list_incidents() -> list[IncidentResponse]:
-    """Lista todos los incidentes."""
-    service = get_incident_service()
-    incidents = service.list_incidents()
-    return [_incident_to_response(i) for i in incidents]
-
-
-@router.get(
-    "/{incident_id}",
-    response_model=IncidentResponse,
-    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
-)
-def get_incident(incident_id: UUID) -> IncidentResponse:
-    """Obtiene un incidente por ID."""
-    service = get_incident_service()
-    incident = service.get_incident(incident_id)
-    if incident is None:
-        raise NotFoundError("Incidente no encontrado")
-    return _incident_to_response(incident)
-
-
-@router.patch(
-    "/{incident_id}",
-    response_model=IncidentResponse,
-    dependencies=[Depends(require_role("Administrator", "Technician"))],
-)
-def update_incident(incident_id: UUID, payload: IncidentUpdate) -> IncidentResponse:
-    """Actualiza estado o prioridad (y otros campos) de un incidente."""
-    service = get_incident_service()
-    campus_name = (
-        payload.lugar_campus[0].value
-        if payload.lugar_campus and len(payload.lugar_campus) > 0
-        else None
+async def upload_incident_evidence(
+    incident_id: UUID,
+    photo: UploadFile = File(...),
+    evidence_service: IncidentEvidenceService = Depends(get_incident_evidence_service),
+) -> IncidentEvidenceUploadResponse:
+    """Valida y carga una evidencia fotográfica para un incidente."""
+    stored_file = await evidence_service.upload_evidence(
+        incident_id=incident_id,
+        file=photo,
     )
-    incident = service.update_incident(
-        incident_id,
-        technician_id=payload.tecnico_id,
-        category_id=payload.categoria_id,
-        description=payload.descripcion,
-        campus_place=campus_name,
-        latitude=payload.latitud,
-        longitude=payload.longitud,
-        status=payload.estado.value if payload.estado is not None else None,
-        priority=payload.prioridad,
-        before_photo_id=payload.foto_antes_id,
-        after_photo_id=payload.foto_despues_id,
+
+    return IncidentEvidenceUploadResponse(
+        incident_id=incident_id,
+        filename=photo.filename or "",
+        content_type=(photo.content_type or "").lower(),
+        storage_object_name=stored_file.object_name,
+        file_url=stored_file.file_url,
+        message="Evidencia fotográfica cargada correctamente",
     )
-    if incident is None:
-        raise NotFoundError("Incidente no encontrado")
-    return _incident_to_response(incident)
-
-
-@router.delete(
-    "/{incident_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role("Administrator", "Technician"))],
-)
-def delete_incident(incident_id: UUID) -> None:
-    """Elimina un incidente. Solo Administrator o Technician."""
-    service = get_incident_service()
-    if service.get_incident(incident_id) is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incidente no encontrado",
-        )
-    service.delete_incident(incident_id)
-    return None

@@ -19,6 +19,13 @@ services:
       - MAIL_FROM=${MAIL_FROM:-noreply@correo.com}
       - OTP_EXPIRE_MINUTES=${OTP_EXPIRE_MINUTES:-2}
       - OTP_RESEND_COOLDOWN_SECONDS=${OTP_RESEND_COOLDOWN_SECONDS:-15}
+      # Google Cloud Storage
+      - GCS_ENABLED=${GCS_ENABLED:-true}
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
+      - GCS_PROJECT_ID=${GCS_PROJECT_ID}
+      - GCS_EVIDENCE_PREFIX=${GCS_EVIDENCE_PREFIX:-incidents/evidence}
+    volumes:
+      - gcloud-config:/root/.config/gcloud
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,4 +66,5 @@ services:
 
 volumes:
   postgres_data:
-  mailpit_data: 
+  mailpit_data:
+  gcloud-config:
