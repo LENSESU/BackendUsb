@@ -4,10 +4,16 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.error_handlers import (
+    app_error_handler,
+    validation_error_handler,
+)
 from app.api.routes import api_router
 from app.core.config import settings
+from app.core.exceptions import AppError
 from app.infrastructure.database.migrations import run_migrations
 from app.scripts.seed_users import seed_users
 
@@ -70,6 +76,10 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api/v1")
+
+# Manejadores de errores globalmente
+app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
 
 
 @app.get("/health")

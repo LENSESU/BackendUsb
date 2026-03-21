@@ -131,7 +131,7 @@ def test_register_defaults_to_student_role_when_role_id_is_missing() -> None:
                 "first_name": "Juan",
                 "last_name": "Pérez",
                 "email": "juan@correo.usbcali.edu.co",
-                "password": "password123",
+                "password": "Password12!",
             },
         )
         app.dependency_overrides.clear()
@@ -155,7 +155,7 @@ def test_register_rejects_unknown_role_id() -> None:
                 "first_name": "Juan",
                 "last_name": "Pérez",
                 "email": "juan@correo.usbcali.edu.co",
-                "password": "password123",
+                "password": "Password12!",
                 "role_id": str(uuid4()),
             },
         )
@@ -254,7 +254,9 @@ def test_resend_otp_returns_429_during_cooldown() -> None:
     mock_user.id = uuid4()
 
     mock_otp_service = MagicMock()
-    mock_otp_service.resend = AsyncMock(side_effect=ValueError("Debes esperar 12 segundos antes de reenviar"))
+    mock_otp_service.resend = AsyncMock(
+        side_effect=ValueError("Debes esperar 12 segundos antes de reenviar")
+    )
 
     with patch("app.api.routes.auth.get_db_session") as mock_session:
         mock_db = MagicMock()
@@ -278,7 +280,9 @@ def test_resend_otp_returns_400_when_no_active_otp() -> None:
     mock_user.id = uuid4()
 
     mock_otp_service = MagicMock()
-    mock_otp_service.resend = AsyncMock(side_effect=ValueError("No hay un OTP activo para este usuario"))
+    mock_otp_service.resend = AsyncMock(
+        side_effect=ValueError("No hay un OTP activo para este usuario")
+    )
 
     with patch("app.api.routes.auth.get_db_session") as mock_session:
         mock_db = MagicMock()

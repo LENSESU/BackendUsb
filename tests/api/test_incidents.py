@@ -23,6 +23,10 @@ from fastapi.testclient import TestClient
 
 from app.core.security import create_access_token
 from app.core.token_blacklist import clear_blacklist
+from app.application.services.incident_service import IncidentService
+from app.infrastructure.adapters.in_memory_incident_repository import (
+    InMemoryIncidentRepository,
+)
 from app.main import app
 
 client = TestClient(app)
@@ -66,10 +70,14 @@ def _valid_payload() -> dict:
 
 
 @pytest.fixture(autouse=True)
-def _clean():
+def _clean(monkeypatch):
     """Limpia blacklist y repositorio in-memory entre tests."""
     clear_blacklist()
     import app.api.routes.incidents as incidents_mod
+
+    repo = InMemoryIncidentRepository()
+    service = IncidentService(repository=repo, category_repository=None)
+    monkeypatch.setattr(incidents_mod, "get_incident_service", lambda: service)
 
     incidents_mod._repository = None
     yield

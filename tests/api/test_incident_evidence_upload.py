@@ -2,11 +2,35 @@
 
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.storage import get_incident_evidence_service
+from app.application.services.incident_evidence_service import IncidentEvidenceService
+from app.infrastructure.adapters.in_memory_file_storage import InMemoryFileStorageAdapter
+from app.infrastructure.adapters.in_memory_incident_repository import (
+    InMemoryIncidentRepository,
+)
 from app.main import app
 
 client = TestClient(app)
+
+
+class _DummyFileRepository:
+    def create_file(self, *, url, file_type, uploaded_by_user_id):
+        return uuid4()
+
+
+@pytest.fixture(autouse=True)
+def _override_evidence_service() -> None:
+    service = IncidentEvidenceService(
+        storage=InMemoryFileStorageAdapter(),
+        incident_repository=InMemoryIncidentRepository(),
+        file_repository=_DummyFileRepository(),
+    )
+    app.dependency_overrides[get_incident_evidence_service] = lambda: service
+    yield
+    app.dependency_overrides.pop(get_incident_evidence_service, None)
 
 
 def test_upload_incident_evidence_accepts_jpeg() -> None:
