@@ -13,6 +13,11 @@ from app.api.schemas.incident import (
     IncidentResponse,
 )
 from app.api.schemas.item import ItemCreate, ItemResponse
+from app.api.schemas.suggestion import (
+    SuggestionCreate,
+    SuggestionResponse,
+    SuggestionUpdate,
+)
 
 __all__ = [
     "IncidentCreate",
@@ -23,6 +28,9 @@ __all__ = [
     "IncidentEvidenceUploadResponse",
     "LogoutResponse",
     "RefreshTokenRequest",
+    "SuggestionCreate",
+    "SuggestionResponse",
+    "SuggestionUpdate",
     "TokenResponse",
     "TokenValidationRequest",
     "TokenValidationResponse",

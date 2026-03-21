@@ -1,38 +1,77 @@
-"""Esquemas Pydantic para sugerencias."""
+"""Esquemas Pydantic para sugerencias (contrato HTTP en español)."""
 
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SuggestionCreate(BaseModel):
     """Payload para crear una sugerencia."""
 
-    student_id: UUID = Field(...)
-    title: str = Field(..., min_length=1, max_length=200)
-    content: str = Field(..., min_length=1)
-    photo_id: UUID | None = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    estudiante_id: UUID = Field(
+        ...,
+        description="ID del estudiante (usuario)",
+        alias="student_id",
+    )
+    titulo: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        alias="title",
+    )
+    contenido: str = Field(
+        ...,
+        min_length=1,
+        alias="content",
+    )
+    total_votos: int | None = Field(
+        default=None,
+        ge=0,
+        description="Si se omite, se inicializa en 0",
+        alias="total_votes",
+    )
+    foto_id: UUID | None = Field(default=None, alias="photo_id")
 
 
 class SuggestionUpdate(BaseModel):
-    """Payload para actualizar una sugerencia."""
+    """Payload para actualizar una sugerencia (parcial)."""
 
-    title: str | None = Field(default=None, min_length=1, max_length=200)
-    content: str | None = Field(default=None, min_length=1)
-    institutional_comment: str | None = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    titulo: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+        alias="title",
+    )
+    contenido: str | None = Field(default=None, min_length=1, alias="content")
+    total_votos: int | None = Field(default=None, ge=0, alias="total_votes")
+    foto_id: UUID | None = Field(default=None, alias="photo_id")
+    comentario_institucional: str | None = Field(
+        default=None,
+        alias="institutional_comment",
+    )
 
 
 class SuggestionResponse(BaseModel):
     """Respuesta con datos de una sugerencia."""
 
     id: UUID
-    student_id: UUID
-    title: str
-    content: str
-    photo_id: UUID | None
-    total_votes: int
-    institutional_comment: str | None
+    estudiante_id: UUID
+    titulo: str
+    contenido: str
+    total_votos: int
+    foto_id: UUID | None
+    comentario_institucional: str | None
     created_at: datetime
-
-    model_config = {"from_attributes": True}
+    puntuacion_sentimiento: float | None = Field(
+        default=None,
+        description="Score de sentimiento cuando exista análisis automático",
+    )
+    sentimiento: str | None = Field(
+        default=None,
+        description="Etiqueta de sentimiento (p. ej. positivo/neutral); reservado",
+    )

@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import Request, status
+from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -26,7 +26,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 async def validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    """Formato consistente para errores de validación Pydantic (422)."""
+    """Formato consistente para errores de validación Pydantic (400)."""
     errors = [
         {
             "loc": list(e.get("loc", [])),
@@ -36,16 +36,18 @@ async def validation_error_handler(
         for e in exc.errors()
     ]
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": errors, "status_code": 422},
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": errors, "status_code": 400},
     )
 
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Captura cualquier otra excepción.
-
-    Devuelve 500 (evitar filtrar datos sensibles).
-    """
+    """Captura excepciones no manejadas; reexpone HTTPException de FastAPI."""
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail, "status_code": exc.status_code},
+        )
     logger.exception("Error no controlado: %s", exc)
     return _error_response(
         "Error interno del servidor",
