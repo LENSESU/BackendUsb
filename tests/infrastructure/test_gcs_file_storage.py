@@ -28,8 +28,8 @@ def _build_adapter(make_public: bool) -> tuple[GoogleCloudStorageAdapter, Mock, 
     return adapter, fake_bucket, fake_blob
 
 
-def test_upload_blocking_returns_gs_url_when_not_public() -> None:
-    """Verifica que el adaptador GCS devuelve la URL gs:// cuando make_public es False."""
+def test_upload_blocking_returns_https_url_when_not_public() -> None:
+    """Verifica que el adaptador GCS devuelve URL HTTPS util para frontend."""
     
     adapter, _, fake_blob = _build_adapter(make_public=False)
 
@@ -44,7 +44,10 @@ def test_upload_blocking_returns_gs_url_when_not_public() -> None:
         content_type="image/jpeg",
     )
     fake_blob.make_public.assert_not_called()
-    assert result.file_url == "gs://bucket/incidents/evidence/incidents/123/file.jpg"
+    assert (
+        result.file_url
+        == "https://storage.googleapis.com/bucket/incidents/evidence/incidents/123/file.jpg"
+    )
 
 
 def test_upload_blocking_returns_public_url_when_public_enabled() -> None:

@@ -3,6 +3,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi.concurrency import run_in_threadpool
+from google.api_core.exceptions import GoogleAPIError
 from google.cloud import storage
 
 from app.application.ports.file_storage import FileStoragePort, StoredFileResult
@@ -59,9 +60,16 @@ class GoogleCloudStorageAdapter(FileStoragePort):
         blob = self._bucket.blob(object_name)
         blob.upload_from_string(data, content_type=content_type)
 
-        file_url = f"gs://{self._bucket_name}/{object_name}"
+        # URL utilizable directamente por frontend.
+        file_url = f"https://storage.googleapis.com/{self._bucket_name}/{object_name}"
         if self._make_public:
-            blob.make_public()
-            file_url = blob.public_url
+            try:
+                # Puede fallar cuando el bucket usa IAM uniforme (UBLA) o PAP.
+                blob.make_public()
+                file_url = blob.public_url
+            except GoogleAPIError:
+                # Si la apertura ACL no aplica, mantenemos URL HTTPS y dejamos
+                # el control de acceso a la política del bucket/IAM.
+                pass
 
         return StoredFileResult(object_name=object_name, file_url=file_url)
