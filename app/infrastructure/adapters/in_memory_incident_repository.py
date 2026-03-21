@@ -34,3 +34,10 @@ class InMemoryIncidentRepository(IncidentRepositoryPort):
         """Guarda o sobrescribe un incidente por su ID."""
         self._store[incident.id] = incident
         return incident
+
+    def delete(self, incident_id: UUID) -> bool:
+        """Elimina un incidente por ID y retorna si existia."""
+        if incident_id not in self._store:
+            return False
+        del self._store[incident_id]
+        return True

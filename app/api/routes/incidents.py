@@ -70,8 +70,23 @@ def create_incident(
         status=payload.estado,
     )
     incident.created_at = now
-
-    return IncidentResponse.model_validate(incident)
+    location = incident.location
+    return IncidentResponse(
+        id=incident.id,
+        student_id=incident.student_id,
+        technician_id=incident.technician_id,
+        category_id=incident.category_id,
+        description=incident.description,
+        campus_place=location.campus_place if location else None,
+        latitude=location.latitude if location else None,
+        longitude=location.longitude if location else None,
+        status=incident.status,
+        priority=incident.priority,
+        before_photo_id=incident.before_photo_id,
+        after_photo_id=incident.after_photo_id,
+        created_at=incident.created_at or now,
+        updated_at=incident.updated_at,
+    )
 
 
 @router.post(

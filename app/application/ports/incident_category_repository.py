@@ -18,7 +18,3 @@ class IncidentCategoryRepositoryPort(ABC):
     def find_all(self) -> list[IncidentCategory]:
         """Retorna todas las categorías registradas."""
         ...
-
-    @abstractmethod
-    def find_by_id(self, category_id: str) -> IncidentCategory | None:
-        """Retorna una categoría por ID."""

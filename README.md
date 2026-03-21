@@ -237,6 +237,12 @@ Con `docker compose up`, este seed corre automáticamente al arrancar el backend
 python -m app.scripts.seed_users
 ```
 
+Si desactivaste las migraciones automáticas (`RUN_MIGRATIONS_ON_STARTUP=false`), primero aplica el esquema para evitar errores como `relation "roles" does not exist`:
+
+```bash
+alembic upgrade head
+```
+
 Esto crea los siguientes usuarios con sus roles:
 
 | Rol | Email | Password |
