@@ -75,3 +75,11 @@ class SuggestionResponse(BaseModel):
         default=None,
         description="Etiqueta de sentimiento (p. ej. positivo/neutral); reservado",
     )
+
+
+class SuggestionPopularResponse(BaseModel):
+    """Respuesta compacta para ranking de sugerencias populares."""
+
+    id: UUID
+    titulo: str
+    total_votos: int

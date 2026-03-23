@@ -83,6 +83,22 @@ class SqlSuggestionRepository(SuggestionRepositoryPort):
         finally:
             db.close()
 
+    def list_popular(self, limit: int) -> list[Suggestion]:
+        db = _get_session()
+        try:
+            stmt = (
+                select(SuggestionModel)
+                .order_by(
+                    SuggestionModel.total_votes.desc(),
+                    SuggestionModel.created_at.desc(),
+                )
+                .limit(limit)
+            )
+            rows = db.scalars(stmt).all()
+            return [_model_to_entity(m) for m in rows]
+        finally:
+            db.close()
+
     def save(self, suggestion: Suggestion) -> Suggestion:
         db = _get_session()
         try:

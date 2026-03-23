@@ -20,6 +20,11 @@ class SuggestionRepositoryPort(ABC):
         ...
 
     @abstractmethod
+    def list_popular(self, limit: int) -> list[Suggestion]:
+        """Lista sugerencias populares por votos descendente."""
+        ...
+
+    @abstractmethod
     def save(self, suggestion: Suggestion) -> Suggestion:
         """Guarda o actualiza una sugerencia."""
         ...

@@ -26,7 +26,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 async def validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    """Formato consistente para errores de validación Pydantic (400)."""
+    """Formato consistente para errores de validación Pydantic (422)."""
     errors = [
         {
             "loc": list(e.get("loc", [])),
@@ -37,7 +37,7 @@ async def validation_error_handler(
     ]
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
-        content={"detail": errors, "status_code": 400},
+        content={"detail": errors, "status_code": 422},
     )
 
 

@@ -2,12 +2,13 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.dependencies.auth import require_role
 from app.api.dependencies.suggestion import get_suggestion_service
 from app.api.schemas.suggestion import (
     SuggestionCreate,
+    SuggestionPopularResponse,
     SuggestionResponse,
     SuggestionUpdate,
 )
@@ -35,6 +36,17 @@ def _to_response(s: Suggestion) -> SuggestionResponse:
     )
 
 
+def _to_popular_response(s: Suggestion) -> SuggestionPopularResponse:
+    if s.id is None:
+        msg = "La sugerencia persistida debe tener id"
+        raise RuntimeError(msg)
+    return SuggestionPopularResponse(
+        id=s.id,
+        titulo=s.title,
+        total_votos=s.total_votes,
+    )
+
+
 @router.get(
     "/",
     response_model=list[SuggestionResponse],
@@ -44,6 +56,19 @@ def list_suggestions(
     service: SuggestionService = Depends(get_suggestion_service),
 ) -> list[SuggestionResponse]:
     return [_to_response(s) for s in service.list_all()]
+
+
+@router.get(
+    "/popular",
+    response_model=list[SuggestionPopularResponse],
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def list_popular_suggestions(
+    limit: int = Query(default=5, ge=1, le=100),
+    service: SuggestionService = Depends(get_suggestion_service),
+) -> list[SuggestionPopularResponse]:
+    suggestions = service.list_popular(limit=limit)
+    return [_to_popular_response(s) for s in suggestions]
 
 
 @router.get(

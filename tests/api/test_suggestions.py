@@ -44,6 +44,14 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
     def list_all(self) -> list[Suggestion]:
         return list(self._by_id.values())
 
+    def list_popular(self, limit: int) -> list[Suggestion]:
+        ordered = sorted(
+            self._by_id.values(),
+            key=lambda s: (s.total_votes, s.created_at or datetime.min.replace(tzinfo=UTC)),
+            reverse=True,
+        )
+        return ordered[:limit]
+
     def save(self, suggestion: Suggestion) -> Suggestion:
         if suggestion.id is None:
             msg = "La sugerencia debe tener id antes de guardar"
@@ -196,3 +204,44 @@ class TestSuggestionCrud:
             headers=_auth(token),
         )
         assert missing.status_code == 404
+
+    def test_popular_returns_sorted_and_limited(self) -> None:
+        token = _make_token(STUDENT_USER_ID, "Student")
+
+        p1 = _valid_create_payload()
+        p1["titulo"] = "A"
+        p1["total_votos"] = 2
+        p2 = _valid_create_payload()
+        p2["titulo"] = "B"
+        p2["total_votos"] = 10
+        p3 = _valid_create_payload()
+        p3["titulo"] = "C"
+        p3["total_votos"] = 5
+
+        for payload in (p1, p2, p3):
+            resp = client.post(
+                "/api/v1/suggestions/",
+                json=payload,
+                headers=_auth(token),
+            )
+            assert resp.status_code == 201
+
+        popular = client.get(
+            "/api/v1/suggestions/popular?limit=2",
+            headers=_auth(token),
+        )
+        assert popular.status_code == 200
+        body = popular.json()
+        assert len(body) == 2
+        assert body[0]["titulo"] == "B"
+        assert body[0]["total_votos"] == 10
+        assert body[1]["titulo"] == "C"
+        assert body[1]["total_votos"] == 5
+
+    def test_popular_rejects_invalid_limit(self) -> None:
+        token = _make_token(STUDENT_USER_ID, "Student")
+        resp = client.get(
+            "/api/v1/suggestions/popular?limit=0",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 400
