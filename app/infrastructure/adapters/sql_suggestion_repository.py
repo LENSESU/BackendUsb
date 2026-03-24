@@ -17,12 +17,6 @@ def _get_session() -> Session:
     return SessionLocal()
 
 
-def _score_to_float(value: object) -> float | None:
-    if value is None:
-        return None
-    return float(value)
-
-
 def _model_to_entity(model: SuggestionModel) -> Suggestion:
     return Suggestion(
         id=model.id,
@@ -32,7 +26,6 @@ def _model_to_entity(model: SuggestionModel) -> Suggestion:
         photo_id=model.photo_id,
         total_votes=model.total_votes,
         institutional_comment=model.institutional_comment,
-        sentiment_score=_score_to_float(model.sentiment_score),
         created_at=model.created_at,
     )
 
@@ -47,7 +40,6 @@ def _entity_to_model(
         existing.photo_id = suggestion.photo_id
         existing.total_votes = suggestion.total_votes
         existing.institutional_comment = suggestion.institutional_comment
-        existing.sentiment_score = suggestion.sentiment_score
         return existing
 
     return SuggestionModel(
@@ -58,7 +50,6 @@ def _entity_to_model(
         photo_id=suggestion.photo_id,
         total_votes=suggestion.total_votes,
         institutional_comment=suggestion.institutional_comment,
-        sentiment_score=suggestion.sentiment_score,
     )
 
 

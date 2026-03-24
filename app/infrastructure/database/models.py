@@ -190,10 +190,6 @@ class SuggestionModel(Base):
     )
     total_votes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     institutional_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    sentiment_score: Mapped[float | None] = mapped_column(
-        Numeric(5, 4),
-        nullable=True,
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

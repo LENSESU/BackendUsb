@@ -65,7 +65,6 @@ class SuggestionService:
             photo_id=photo_id,
             total_votes=total_votes,
             institutional_comment=institutional_comment,
-            sentiment_score=existing.sentiment_score,
             created_at=existing.created_at,
         )
         return self._repository.save(updated)

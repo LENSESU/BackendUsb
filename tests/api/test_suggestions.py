@@ -66,7 +66,6 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
             photo_id=suggestion.photo_id,
             total_votes=suggestion.total_votes,
             institutional_comment=suggestion.institutional_comment,
-            sentiment_score=suggestion.sentiment_score,
             created_at=created_at,
         )
         self._by_id[stored.id] = stored
@@ -114,8 +113,6 @@ class TestSuggestionCrud:
         assert body["titulo"] == "Mejorar iluminación"
         assert body["total_votos"] == 0
         assert body["estudiante_id"] == str(STUDENT_USER_ID)
-        assert body["puntuacion_sentimiento"] is None
-        assert body["sentimiento"] is None
         assert body["id"] is not None
 
     def test_create_with_total_votos(self) -> None:

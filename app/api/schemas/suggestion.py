@@ -67,14 +67,6 @@ class SuggestionResponse(BaseModel):
     foto_id: UUID | None
     comentario_institucional: str | None
     created_at: datetime
-    puntuacion_sentimiento: float | None = Field(
-        default=None,
-        description="Score de sentimiento cuando exista análisis automático",
-    )
-    sentimiento: str | None = Field(
-        default=None,
-        description="Etiqueta de sentimiento (p. ej. positivo/neutral); reservado",
-    )
 
 
 class SuggestionPopularResponse(BaseModel):

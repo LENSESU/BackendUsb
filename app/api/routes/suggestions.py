@@ -31,8 +31,6 @@ def _to_response(s: Suggestion) -> SuggestionResponse:
         foto_id=s.photo_id,
         comentario_institucional=s.institutional_comment,
         created_at=s.created_at,
-        puntuacion_sentimiento=s.sentiment_score,
-        sentimiento=None,
     )
 
 
