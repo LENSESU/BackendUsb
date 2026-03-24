@@ -1,6 +1,5 @@
 """Rutas HTTP para incidentes."""
 
-from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, UploadFile
@@ -57,7 +56,6 @@ def create_incident(
     """Crea un incidente usando el usuario autenticado como student_id."""
     service = get_incident_service()
 
-    now = datetime.now(UTC)
     incident = service.create_incident(
         student_id=current_user_id,
         category_id=payload.categoria_id,
@@ -69,9 +67,24 @@ def create_incident(
         priority=payload.prioridad,
         status=payload.estado,
     )
-    incident.created_at = now
 
-    return IncidentResponse.model_validate(incident)
+    location = incident.location
+    return IncidentResponse(
+        id=incident.id,
+        student_id=incident.student_id,
+        technician_id=incident.technician_id,
+        category_id=incident.category_id,
+        description=incident.description,
+        campus_place=location.campus_place if location else None,
+        latitude=location.latitude if location else None,
+        longitude=location.longitude if location else None,
+        status=incident.status,
+        priority=incident.priority,
+        before_photo_id=incident.before_photo_id,
+        after_photo_id=incident.after_photo_id,
+        created_at=incident.created_at,
+        updated_at=incident.updated_at,
+    )
 
 
 @router.post(

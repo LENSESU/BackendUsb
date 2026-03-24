@@ -102,8 +102,6 @@ class IncidentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
 
-    model_config = {"from_attributes": True}
-
 
 class IncidentEvidenceUploadResponse(BaseModel):
     """Respuesta para carga de evidencia fotográfica de incidente."""
