@@ -190,6 +190,15 @@ class TestSuggestionCrud:
         assert upd.status_code == 200
         assert upd.json()["titulo"] == "Nuevo título"
 
+        null_votes = client.patch(
+            f"/api/v1/suggestions/{sid}",
+            json={"total_votos": None},
+            headers=_auth(token),
+        )
+        assert null_votes.status_code == 400
+        body = null_votes.json()
+        assert body.get("error_code") == "SUGGESTION_VALIDATION_ERROR"
+
         deleted = client.delete(
             f"/api/v1/suggestions/{sid}",
             headers=_auth(token),

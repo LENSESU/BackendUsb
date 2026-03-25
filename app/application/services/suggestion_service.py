@@ -51,6 +51,8 @@ class SuggestionService:
 
         title = partial.get("titulo", existing.title)
         content = partial.get("contenido", existing.content)
+        if "total_votos" in partial and partial["total_votos"] is None:
+            raise ValueError("El campo total_votos no puede ser nulo")
         total_votes = partial.get("total_votos", existing.total_votes)
         photo_id = partial.get("foto_id", existing.photo_id)
         institutional_comment = partial.get(
