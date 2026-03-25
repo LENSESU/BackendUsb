@@ -4,7 +4,7 @@ services:
     container_name: backend-api
     restart: on-failure
     ports:
-      - "8000:8000"
+      - "8080:8000"
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
@@ -40,7 +40,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-app_db}
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -56,8 +56,8 @@ services:
     volumes:
       - mailpit_data:/mailpit_data
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "8026:8025"
+      - "1026:1025"
     environment:
       MP_MAX_MESSAGES: 5000
       MP_DATABASE: /mailpit_data/mailpit.db

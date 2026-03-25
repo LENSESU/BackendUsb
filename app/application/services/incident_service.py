@@ -92,6 +92,13 @@ class IncidentService:
         existing = self._repository.get_by_id(incident_id)
         if existing is None:
             return None
+        if category_id is not None and self._category_repository is not None:
+            category = self._category_repository.find_by_id(str(category_id))
+            if category is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"La categoría con id '{category_id}' no existe.",
+                )
         loc = existing.location
         if campus_place is not None or latitude is not None or longitude is not None:
             location = IncidentLocation(

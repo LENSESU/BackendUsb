@@ -37,11 +37,12 @@ from app.core.security import TokenExpiredError, TokenInvalidError, decode_acces
 from app.core.token_blacklist import is_token_blacklisted
 
 # Esquema de seguridad Bearer (JWT en header Authorization)
-security = HTTPBearer()
+# auto_error=False permite manejar credenciales ausentes y retornar 401 en lugar de 403
+security = HTTPBearer(auto_error=False)
 
 
 def get_current_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> str:
     """
     Extrae y valida el token JWT del header Authorization.
@@ -57,6 +58,17 @@ def get_current_token(
     Raises:
         HTTPException 401: Si el token es inválido, expirado o blacklisted
     """
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "No autenticado. Proporcione un token de acceso.",
+                "error_code": "MISSING_TOKEN",
+                "redirect_to_login": True,
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     token = credentials.credentials
 
     # Verificar si el token está blacklisted (logout)
