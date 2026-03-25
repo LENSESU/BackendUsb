@@ -197,7 +197,7 @@ Asegúrate de haber configurado `.env`.
 uvicorn app.main:app --reload
 ```
 
-La API quedará disponible en `http://127.0.0.1:8000`.
+La API quedará disponible en `http://127.0.0.1:8080`.
 
 ### Ejecutar con Docker
 
@@ -221,7 +221,7 @@ Para ejecutar en segundo plano:
 docker compose up -d --build
 ```
 
-Con Docker, la API queda en `http://127.0.0.1:8000`, PostgreSQL en `localhost:5432` y Mailpit (cliente de correo local) en `http://localhost:8025`.
+Con Docker, la API queda en `http://127.0.0.1:8080`, PostgreSQL en `localhost:5432` y Mailpit (cliente de correo local) en `http://localhost:8025`.
 
 > **Nota**: `--build` solo es necesario la primera vez o cuando cambies el `Dockerfile` o `requirements.txt`. Para el resto de casos basta con `docker compose up`.
 
@@ -413,7 +413,7 @@ El sistema de logout funciona mediante una **blacklist de tokens**:
 
 ## URLs útiles
 
-- Documentación interactiva (Swagger): **http://127.0.0.1:8000/docs**
+- Documentación interactiva (Swagger): **http://127.0.0.1:8080/docs**
 - Health check: **http://127.0.0.1:8000/health**
-- Auth: **http://127.0.0.1:8000/api/v1/auth/login**
+- Auth: **http://127.0.0.1:8080/api/v1/auth/login**
 - Mailpit (correos locales): **http://localhost:8025**
