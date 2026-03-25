@@ -188,7 +188,9 @@ def patch_incident(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
-                    "message": "Solo personal autorizado puede asignar o cambiar el técnico",
+                    "message": (
+                        "Solo personal autorizado puede asignar o cambiar el técnico"
+                    ),
                     "error_code": "INCIDENT_TECHNICIAN_UPDATE_FORBIDDEN",
                 },
             )
