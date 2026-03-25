@@ -82,7 +82,10 @@ def get_suggestion(
     if suggestion is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sugerencia no encontrada",
+            detail={
+                "message": "Sugerencia no encontrada",
+                "error_code": "SUGGESTION_NOT_FOUND",
+            },
         )
     return _to_response(suggestion)
 
@@ -108,7 +111,10 @@ def create_suggestion(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail={
+                "message": str(e),
+                "error_code": "SUGGESTION_VALIDATION_ERROR",
+            },
         ) from e
     return _to_response(suggestion)
 
@@ -129,12 +135,18 @@ def update_suggestion(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail={
+                "message": str(e),
+                "error_code": "SUGGESTION_VALIDATION_ERROR",
+            },
         ) from e
     if suggestion is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sugerencia no encontrada",
+            detail={
+                "message": "Sugerencia no encontrada",
+                "error_code": "SUGGESTION_NOT_FOUND",
+            },
         )
     return _to_response(suggestion)
 
@@ -152,5 +164,8 @@ def delete_suggestion(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sugerencia no encontrada",
+            detail={
+                "message": "Sugerencia no encontrada",
+                "error_code": "SUGGESTION_NOT_FOUND",
+            },
         )

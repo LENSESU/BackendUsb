@@ -47,7 +47,10 @@ def get_category(
     if not category:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Categoría con id {category_id} no encontrada",
+            detail={
+                "message": f"Categoría con id {category_id} no encontrada",
+                "error_code": "INCIDENT_CATEGORY_NOT_FOUND",
+            },
         )
     return IncidentCategoryResponse.model_validate(category)
 
@@ -68,6 +71,9 @@ def create_category(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+            detail={
+                "message": str(e),
+                "error_code": "INCIDENT_CATEGORY_ALREADY_EXISTS",
+            },
+        ) from e
     return IncidentCategoryResponse.model_validate(category)

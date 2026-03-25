@@ -38,7 +38,6 @@ from app.api.dependencies.auth import (
 from app.api.schemas import ItemCreate, ItemResponse
 from app.application.ports import ItemRepositoryPort
 from app.application.services import ItemService
-from app.core.exceptions import NotFoundError
 
 router = APIRouter()
 
@@ -84,7 +83,10 @@ def get_item(item_id: UUID) -> ItemResponse:
     service = get_item_service()
     item = service.get_item(item_id)
     if item is None:
-        raise NotFoundError("Item no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "Item no encontrado", "error_code": "ITEM_NOT_FOUND"},
+        )
     return ItemResponse.model_validate(item)
 
 
@@ -133,7 +135,10 @@ def delete_item(
     service = get_item_service()
     item = service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "Item no encontrado", "error_code": "ITEM_NOT_FOUND"},
+        )
 
     # [#63] Validación de acceso cruzado (ownership):
     # Si el item tiene dueño y el solicitante no es el dueño,
@@ -144,6 +149,6 @@ def delete_item(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
                     "message": "No puede eliminar un item que no le pertenece",
-                    "error_code": "CROSS_ACCESS_DENIED",
+                    "error_code": "ITEM_CROSS_ACCESS_DENIED",
                 },
             )

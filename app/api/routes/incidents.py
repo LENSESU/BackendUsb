@@ -106,7 +106,10 @@ def get_incident(incident_id: UUID) -> IncidentResponse:
     if incident is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incidente no encontrado",
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
         )
     return _incident_to_response(incident)
 
@@ -124,17 +127,28 @@ def create_incident(
     """Crea un incidente usando el usuario autenticado como student_id."""
     service = get_incident_service()
 
-    incident = service.create_incident(
-        student_id=current_user_id,
-        category_id=payload.categoria_id,
-        description=payload.descripcion,
-        before_photo_id=payload.foto_antes_id,
-        campus_place=payload.lugar_campus,
-        latitude=payload.latitud,
-        longitude=payload.longitud,
-        priority=payload.prioridad,
-        status=payload.estado,
-    )
+    try:
+        incident = service.create_incident(
+            student_id=current_user_id,
+            category_id=payload.categoria_id,
+            description=payload.descripcion,
+            before_photo_id=payload.foto_antes_id,
+            campus_place=payload.lugar_campus,
+            latitude=payload.latitud,
+            longitude=payload.longitud,
+            priority=payload.prioridad,
+            status=payload.estado,
+        )
+    except HTTPException as e:
+        if e.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
+            raise HTTPException(
+                status_code=e.status_code,
+                detail={
+                    "message": str(e.detail),
+                    "error_code": "INCIDENT_CATEGORY_INVALID",
+                },
+            ) from e
+        raise
 
     return _incident_to_response(incident)
 
@@ -155,26 +169,49 @@ def patch_incident(
     if existing is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incidente no encontrado",
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
         )
     raw = payload.model_dump(exclude_unset=True)
     if current_role == "Student":
         if existing.student_id != current_user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No puede modificar un incidente que no le pertenece",
+                detail={
+                    "message": "No puede modificar un incidente que no le pertenece",
+                    "error_code": "INCIDENT_CROSS_ACCESS_DENIED",
+                },
             )
         if "tecnico_id" in raw:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo personal autorizado puede asignar o cambiar el técnico",
+                detail={
+                    "message": "Solo personal autorizado puede asignar o cambiar el técnico",
+                    "error_code": "INCIDENT_TECHNICIAN_UPDATE_FORBIDDEN",
+                },
             )
     kwargs = _incident_patch_kwargs(payload)
-    updated = service.update_incident(incident_id, **kwargs)
+    try:
+        updated = service.update_incident(incident_id, **kwargs)
+    except HTTPException as e:
+        if e.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
+            raise HTTPException(
+                status_code=e.status_code,
+                detail={
+                    "message": str(e.detail),
+                    "error_code": "INCIDENT_CATEGORY_INVALID",
+                },
+            ) from e
+        raise
     if updated is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incidente no encontrado",
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
         )
     return _incident_to_response(updated)
 
@@ -194,18 +231,27 @@ def delete_incident(
     if existing is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incidente no encontrado",
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
         )
     if current_role not in ("Administrator", "Technician"):
         if existing.student_id != current_user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No puede eliminar un incidente que no le pertenece",
+                detail={
+                    "message": "No puede eliminar un incidente que no le pertenece",
+                    "error_code": "INCIDENT_CROSS_ACCESS_DENIED",
+                },
             )
     if not service.delete_incident(incident_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incidente no encontrado",
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
         )
 
 
