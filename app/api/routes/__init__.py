@@ -9,4 +9,6 @@ api_router.include_router(items.router, prefix="/items", tags=["items"])
 api_router.include_router(
     incident_category.router, prefix="/categories", tags=["categories"]
 )
-api_router.include_router(suggestions.router, prefix="/suggestions", tags=["suggestions"])
+api_router.include_router(
+    suggestions.router, prefix="/suggestions", tags=["suggestions"]
+)
