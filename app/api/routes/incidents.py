@@ -2,18 +2,24 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.api.dependencies.auth import get_current_user_id, require_role
+from app.api.dependencies.auth import (
+    get_current_role_name,
+    get_current_user_id,
+    require_role,
+)
 from app.api.dependencies.storage import get_incident_evidence_service
 from app.api.schemas import (
     IncidentCreate,
     IncidentEvidenceUploadResponse,
     IncidentResponse,
+    IncidentUpdate,
 )
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.incident_service import IncidentService
+from app.domain.entities.incident import Incident
 
 router = APIRouter()
 
@@ -22,10 +28,9 @@ _repository: IncidentRepositoryPort | None = None
 
 
 def get_incident_service() -> IncidentService:
-    """Obtiene el servicio de incidentes utilizando un repositorio in-memory.
+    """Obtiene el servicio de incidentes con repositorio SQL y categorías.
 
-    Este patrón evita depender de la base de datos real durante las pruebas
-    del endpoint, similar a como se hace con Items.
+    El repositorio se cachea en módulo; ``_repository = None`` en tests lo reinicia.
     """
     global _repository
     from app.infrastructure.adapters.incident_category_repository import (
@@ -43,31 +48,7 @@ def get_incident_service() -> IncidentService:
     )
 
 
-@router.post(
-    "/",
-    response_model=IncidentResponse,
-    status_code=201,
-    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
-)
-def create_incident(
-    payload: IncidentCreate,
-    current_user_id: UUID = Depends(get_current_user_id),
-) -> IncidentResponse:
-    """Crea un incidente usando el usuario autenticado como student_id."""
-    service = get_incident_service()
-
-    incident = service.create_incident(
-        student_id=current_user_id,
-        category_id=payload.categoria_id,
-        description=payload.descripcion,
-        before_photo_id=payload.foto_antes_id,
-        campus_place=payload.lugar_campus,
-        latitude=payload.latitud,
-        longitude=payload.longitud,
-        priority=payload.prioridad,
-        status=payload.estado,
-    )
-
+def _incident_to_response(incident: Incident) -> IncidentResponse:
     location = incident.location
     return IncidentResponse(
         id=incident.id,
@@ -85,6 +66,195 @@ def create_incident(
         created_at=incident.created_at,
         updated_at=incident.updated_at,
     )
+
+
+def _incident_patch_kwargs(payload: IncidentUpdate) -> dict:
+    raw = payload.model_dump(exclude_unset=True)
+    key_map = {
+        "tecnico_id": "technician_id",
+        "categoria_id": "category_id",
+        "descripcion": "description",
+        "lugar_campus": "campus_place",
+        "latitud": "latitude",
+        "longitud": "longitude",
+        "estado": "status",
+        "prioridad": "priority",
+        "foto_antes_id": "before_photo_id",
+        "foto_despues_id": "after_photo_id",
+    }
+    return {key_map[k]: v for k, v in raw.items() if k in key_map}
+
+
+@router.get(
+    "/",
+    response_model=list[IncidentResponse],
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def list_incidents() -> list[IncidentResponse]:
+    service = get_incident_service()
+    return [_incident_to_response(i) for i in service.list_incidents()]
+
+
+@router.get(
+    "/{incident_id}",
+    response_model=IncidentResponse,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def get_incident(incident_id: UUID) -> IncidentResponse:
+    service = get_incident_service()
+    incident = service.get_incident(incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
+        )
+    return _incident_to_response(incident)
+
+
+@router.post(
+    "/",
+    response_model=IncidentResponse,
+    status_code=201,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def create_incident(
+    payload: IncidentCreate,
+    current_user_id: UUID = Depends(get_current_user_id),
+) -> IncidentResponse:
+    """Crea un incidente usando el usuario autenticado como student_id."""
+    service = get_incident_service()
+
+    try:
+        incident = service.create_incident(
+            student_id=current_user_id,
+            category_id=payload.categoria_id,
+            description=payload.descripcion,
+            before_photo_id=payload.foto_antes_id,
+            campus_place=payload.lugar_campus,
+            latitude=payload.latitud,
+            longitude=payload.longitud,
+            priority=payload.prioridad,
+            status=payload.estado,
+        )
+    except HTTPException as e:
+        if e.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
+            raise HTTPException(
+                status_code=e.status_code,
+                detail={
+                    "message": str(e.detail),
+                    "error_code": "INCIDENT_CATEGORY_INVALID",
+                },
+            ) from e
+        raise
+
+    return _incident_to_response(incident)
+
+
+@router.patch(
+    "/{incident_id}",
+    response_model=IncidentResponse,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def patch_incident(
+    incident_id: UUID,
+    payload: IncidentUpdate,
+    current_user_id: UUID = Depends(get_current_user_id),
+    current_role: str = Depends(get_current_role_name),
+) -> IncidentResponse:
+    service = get_incident_service()
+    existing = service.get_incident(incident_id)
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
+        )
+    raw = payload.model_dump(exclude_unset=True)
+    if current_role == "Student":
+        if existing.student_id != current_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "message": "No puede modificar un incidente que no le pertenece",
+                    "error_code": "INCIDENT_CROSS_ACCESS_DENIED",
+                },
+            )
+        if "tecnico_id" in raw:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "message": (
+                        "Solo personal autorizado puede asignar o cambiar el técnico"
+                    ),
+                    "error_code": "INCIDENT_TECHNICIAN_UPDATE_FORBIDDEN",
+                },
+            )
+    kwargs = _incident_patch_kwargs(payload)
+    try:
+        updated = service.update_incident(incident_id, **kwargs)
+    except HTTPException as e:
+        if e.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
+            raise HTTPException(
+                status_code=e.status_code,
+                detail={
+                    "message": str(e.detail),
+                    "error_code": "INCIDENT_CATEGORY_INVALID",
+                },
+            ) from e
+        raise
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
+        )
+    return _incident_to_response(updated)
+
+
+@router.delete(
+    "/{incident_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def delete_incident(
+    incident_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id),
+    current_role: str = Depends(get_current_role_name),
+) -> None:
+    service = get_incident_service()
+    existing = service.get_incident(incident_id)
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
+        )
+    if current_role not in ("Administrator", "Technician"):
+        if existing.student_id != current_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "message": "No puede eliminar un incidente que no le pertenece",
+                    "error_code": "INCIDENT_CROSS_ACCESS_DENIED",
+                },
+            )
+    if not service.delete_incident(incident_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
+        )
 
 
 @router.post(

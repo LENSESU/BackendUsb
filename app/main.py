@@ -4,10 +4,13 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import error_handlers
 from app.api.routes import api_router
 from app.core.config import settings
+from app.core.exceptions import AppError
 from app.infrastructure.database.migrations import run_migrations
 from app.scripts.seed_users import seed_users
 
@@ -68,6 +71,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_exception_handler(AppError, error_handlers.app_error_handler)
+app.add_exception_handler(
+    RequestValidationError, error_handlers.validation_error_handler
+)
+app.add_exception_handler(Exception, error_handlers.generic_exception_handler)
 
 app.include_router(api_router, prefix="/api/v1")
 

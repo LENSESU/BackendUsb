@@ -10,15 +10,17 @@ from pydantic import BaseModel, ConfigDict, Field
 class Campus(StrEnum):
     """Campus disponibles (enum para Swagger)."""
 
-    FARRALLONES = "Farrallones"
-    PARQUE_TECNOLOGICO = "ParqueTecnologico"
-    CEDRO = "Cedro"
-    LAGO = "Lago"
-    NARANJOS = "Naranjos"
     BIBLIOTECA = "Biblioteca"
-    CAFETERIA = "Cafeteria"
-    PARQUEADERO = "Parqueadero"
-    OTRO = "Otro"
+    LAGO = "Lago"
+    CEDRO = "Cedro"
+    CENTRAL = "Central"
+    FARRALLONES = "Farrallones"
+    PARQUEADERO_ESTUDIANTES = "Parqueadero_estudiantes"
+    PARQUE_TECNOLOGICO = "Parque tecnologico"
+    NARANJOS = "Naranjos"
+    HIGUERONES = "Higuerones"
+    CANCHA = "Cancha"
+    OTROS = "Otros"
 
 
 class IncidentCreate(BaseModel):
@@ -29,7 +31,7 @@ class IncidentCreate(BaseModel):
             "example": {
                 "categoria_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                 "descripcion": "Descripción detallada del incidente",
-                "lugar_campus": ["Biblioteca"],
+                "lugar_campus": "Biblioteca",
                 "latitud": 3.3759,
                 "longitud": -76.5305,
                 "prioridad": "Alta",
@@ -52,7 +54,7 @@ class IncidentCreate(BaseModel):
     )
     # Para compatibilidad con los tests API, aceptamos ``campus_place`` (str)
     # como alias de ``lugar_campus``.
-    lugar_campus: str | None = Field(
+    lugar_campus: Campus | None = Field(
         default=None,
         description="Lugar específico dentro del campus.",
         alias="campus_place",
@@ -70,7 +72,7 @@ class IncidentUpdate(BaseModel):
     tecnico_id: UUID | None = Field(default=None, alias="technician_id")
     categoria_id: UUID | None = Field(default=None, alias="category_id")
     descripcion: str | None = Field(default=None, min_length=1, alias="description")
-    lugar_campus: str | None = Field(default=None, alias="campus_place")
+    lugar_campus: Campus | None = Field(default=None, alias="campus_place")
     latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
     longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
     estado: str | None = Field(default=None, max_length=20, alias="status")
