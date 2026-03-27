@@ -23,6 +23,10 @@ class SuggestionService:
     def list_popular(self, limit: int = 5) -> list[Suggestion]:
         return self._repository.list_popular(limit=limit)
 
+    def get_top_suggestions(self, limit: int = 5) -> list[Suggestion]:
+        """Alias semántico para dashboard: top sugerencias por votos."""
+        return self.list_popular(limit=limit)
+
     def create(
         self,
         student_id: UUID,

@@ -7,6 +7,7 @@ from app.api.schemas.auth import (
     TokenValidationResponse,
     UserAuthInfo,
 )
+from app.api.schemas.dashboard import DashboardResponse
 from app.api.schemas.incident import (
     IncidentCreate,
     IncidentEvidenceUploadResponse,
@@ -50,4 +51,5 @@ __all__ = [
     "UserAuthInfo",
     "IncidentCategoryCreate",
     "IncidentCategoryResponse",
+    "DashboardResponse",
 ]
