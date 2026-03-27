@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.api.dependencies.auth import require_role
 from app.api.dependencies.suggestion import get_suggestion_service
 from app.api.schemas.suggestion import (
+    PaginatedPopularSuggestionsResponse,
+    PaginatedSuggestionsResponse,
     SuggestionCreate,
     SuggestionPopularResponse,
     SuggestionResponse,
@@ -47,26 +49,51 @@ def _to_popular_response(s: Suggestion) -> SuggestionPopularResponse:
 
 @router.get(
     "/",
-    response_model=list[SuggestionResponse],
+    response_model=PaginatedSuggestionsResponse,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 def list_suggestions(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
     service: SuggestionService = Depends(get_suggestion_service),
-) -> list[SuggestionResponse]:
-    return [_to_response(s) for s in service.list_all()]
+) -> PaginatedSuggestionsResponse:
+    suggestions = service.list_all()
+    total = len(suggestions)
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    start = (page - 1) * limit
+    end = start + limit
+    return PaginatedSuggestionsResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=[_to_response(s) for s in suggestions[start:end]],
+    )
 
 
 @router.get(
     "/popular",
-    response_model=list[SuggestionPopularResponse],
+    response_model=PaginatedPopularSuggestionsResponse,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 def list_popular_suggestions(
-    limit: int = Query(default=5, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
     service: SuggestionService = Depends(get_suggestion_service),
-) -> list[SuggestionPopularResponse]:
-    suggestions = service.list_popular(limit=limit)
-    return [_to_popular_response(s) for s in suggestions]
+) -> PaginatedPopularSuggestionsResponse:
+    total = len(service.list_all())
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    upto = page * limit
+    suggestions = service.list_popular(limit=upto)
+    start = (page - 1) * limit
+    end = start + limit
+    return PaginatedPopularSuggestionsResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=[_to_popular_response(s) for s in suggestions[start:end]],
+    )
 
 
 @router.get(

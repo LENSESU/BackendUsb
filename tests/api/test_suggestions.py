@@ -180,7 +180,9 @@ class TestSuggestionCrud:
 
         listed = client.get("/api/v1/suggestions/", headers=_auth(token))
         assert listed.status_code == 200
-        assert len(listed.json()) == 1
+        listed_body = listed.json()
+        assert listed_body["total"] == 1
+        assert len(listed_body["items"]) == 1
 
         upd = client.patch(
             f"/api/v1/suggestions/{sid}",
@@ -238,11 +240,11 @@ class TestSuggestionCrud:
         )
         assert popular.status_code == 200
         body = popular.json()
-        assert len(body) == 2
-        assert body[0]["titulo"] == "B"
-        assert body[0]["total_votos"] == 10
-        assert body[1]["titulo"] == "C"
-        assert body[1]["total_votos"] == 5
+        assert len(body["items"]) == 2
+        assert body["items"][0]["titulo"] == "B"
+        assert body["items"][0]["total_votos"] == 10
+        assert body["items"][1]["titulo"] == "C"
+        assert body["items"][1]["total_votos"] == 5
 
     def test_popular_rejects_invalid_limit(self) -> None:
         token = _make_token(STUDENT_USER_ID, "Student")
