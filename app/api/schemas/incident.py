@@ -105,6 +105,16 @@ class IncidentResponse(BaseModel):
     updated_at: datetime | None
 
 
+class PaginatedIncidentsResponse(BaseModel):
+    """Respuesta paginada para listado de incidentes."""
+
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+    items: list[IncidentResponse]
+
+
 class IncidentEvidenceUploadResponse(BaseModel):
     """Respuesta para carga de evidencia fotográfica de incidente."""
 

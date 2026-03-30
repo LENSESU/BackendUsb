@@ -1,6 +1,13 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, incident_category, incidents, items, suggestions
+from app.api.routes import (
+    auth,
+    dashboard,
+    incident_category,
+    incidents,
+    items,
+    suggestions,
+)
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -12,3 +19,4 @@ api_router.include_router(
 api_router.include_router(
     suggestions.router, prefix="/suggestions", tags=["suggestions"]
 )
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])

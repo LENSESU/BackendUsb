@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
 from app.api.dependencies.auth import (
     get_current_role_name,
@@ -15,6 +15,7 @@ from app.api.schemas import (
     IncidentEvidenceUploadResponse,
     IncidentResponse,
     IncidentUpdate,
+    PaginatedIncidentsResponse,
 )
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
@@ -87,12 +88,26 @@ def _incident_patch_kwargs(payload: IncidentUpdate) -> dict:
 
 @router.get(
     "/",
-    response_model=list[IncidentResponse],
+    response_model=PaginatedIncidentsResponse,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
-def list_incidents() -> list[IncidentResponse]:
+def list_incidents(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+) -> PaginatedIncidentsResponse:
     service = get_incident_service()
-    return [_incident_to_response(i) for i in service.list_incidents()]
+    incidents = service.list_incidents()
+    total = len(incidents)
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    start = (page - 1) * limit
+    end = start + limit
+    return PaginatedIncidentsResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=[_incident_to_response(i) for i in incidents[start:end]],
+    )
 
 
 @router.get(

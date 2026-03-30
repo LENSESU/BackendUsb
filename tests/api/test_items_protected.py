@@ -123,7 +123,10 @@ class TestAuthenticatedAccess:
         token = _make_token(STUDENT_USER_ID, "Student")
         r = client.get("/api/v1/items/", headers=_auth(token))
         assert r.status_code == 200
-        assert isinstance(r.json(), list)
+        body = r.json()
+        assert isinstance(body.get("items"), list)
+        assert body["page"] == 1
+        assert body["limit"] == 10
 
     def test_create_item_returns_201(self):
         token = _make_token(STUDENT_USER_ID, "Student")
@@ -202,14 +205,14 @@ class TestCrossAccessValidation:
         other_token = _make_token(STUDENT2_USER_ID, "Student")
         r = client.delete(f"/api/v1/items/{item['id']}", headers=_auth(other_token))
         assert r.status_code == 403
-        assert r.json()["detail"]["error_code"] == "CROSS_ACCESS_DENIED"
+        assert r.json()["error_code"] == "ITEM_CROSS_ACCESS_DENIED"
 
     def test_non_owner_technician_cannot_delete(self):
         item = self._create_item_as(STUDENT_USER_ID, "Student")
         tech_token = _make_token(TECH_USER_ID, "Technician")
         r = client.delete(f"/api/v1/items/{item['id']}", headers=_auth(tech_token))
         assert r.status_code == 403
-        assert r.json()["detail"]["error_code"] == "CROSS_ACCESS_DENIED"
+        assert r.json()["error_code"] == "ITEM_CROSS_ACCESS_DENIED"
 
     def test_admin_can_delete_any_item(self):
         item = self._create_item_as(STUDENT_USER_ID, "Student")

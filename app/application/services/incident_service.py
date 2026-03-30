@@ -28,6 +28,12 @@ class IncidentService:
     def list_incidents(self) -> list[Incident]:
         return self._repository.list_all()
 
+    def get_recent_incidents(self, student_id: UUID, limit: int = 5) -> list[Incident]:
+        """Retorna incidentes recientes del estudiante autenticado."""
+        incidents = self._repository.list_all()
+        student_incidents = [i for i in incidents if i.student_id == student_id]
+        return student_incidents[:limit]
+
     def create_incident(
         self,
         student_id: UUID,

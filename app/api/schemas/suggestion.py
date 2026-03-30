@@ -75,3 +75,23 @@ class SuggestionPopularResponse(BaseModel):
     id: UUID
     titulo: str
     total_votos: int
+
+
+class PaginatedSuggestionsResponse(BaseModel):
+    """Respuesta paginada para listado de sugerencias."""
+
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+    items: list[SuggestionResponse]
+
+
+class PaginatedPopularSuggestionsResponse(BaseModel):
+    """Respuesta paginada para listado de sugerencias populares."""
+
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+    items: list[SuggestionPopularResponse]
