@@ -11,9 +11,9 @@ from app.api.schemas.dashboard import DashboardResponse
 from app.api.schemas.incident import (
     IncidentCreate,
     IncidentEvidenceUploadResponse,
-    PaginatedIncidentsResponse,
     IncidentResponse,
     IncidentUpdate,
+    PaginatedIncidentsResponse,
 )
 from app.api.schemas.incident_category import (
     IncidentCategoryCreate,

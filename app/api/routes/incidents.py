@@ -13,9 +13,9 @@ from app.api.dependencies.storage import get_incident_evidence_service
 from app.api.schemas import (
     IncidentCreate,
     IncidentEvidenceUploadResponse,
-    PaginatedIncidentsResponse,
     IncidentResponse,
     IncidentUpdate,
+    PaginatedIncidentsResponse,
 )
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
