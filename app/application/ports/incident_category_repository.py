@@ -22,3 +22,14 @@ class IncidentCategoryRepositoryPort(ABC):
     @abstractmethod
     def find_by_id(self, category_id: str) -> IncidentCategory | None:
         """Retorna una categoría por ID."""
+        ...
+
+    @abstractmethod
+    def update(self, category: IncidentCategory) -> IncidentCategory | None:
+        """Actualiza una categoría existente."""
+        ...
+
+    @abstractmethod
+    def delete(self, category_id: str) -> bool:
+        """Elimina una categoría existente."""
+        ...

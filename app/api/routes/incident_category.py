@@ -2,6 +2,8 @@
 
 - GET  /  lista todas las categorías (cualquier rol autenticado)
 - POST /  crea una nueva categoría (solo Administrator)
+- PATCH /{category_id} actualiza una categoría (solo Administrator)
+- DELETE /{category_id} elimina una categoría (solo Administrator)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -12,6 +14,7 @@ from app.api.schemas.incident_category import (
     IncidentCategoryCreate,
     IncidentCategoryListResponse,
     IncidentCategoryResponse,
+    IncidentCategoryUpdate,
 )
 from app.application.services.incident_category_service import IncidentCategoryService
 
@@ -89,3 +92,60 @@ def create_category(
             },
         ) from e
     return IncidentCategoryResponse.model_validate(category)
+
+
+@router.patch(
+    "/{category_id}",
+    response_model=IncidentCategoryResponse,
+    dependencies=[Depends(require_role("Administrator"))],
+)
+def update_category(
+    category_id: str,
+    payload: IncidentCategoryUpdate,
+    service: IncidentCategoryService = Depends(get_incident_category_service),
+) -> IncidentCategoryResponse:
+    """Actualiza una categoría existente. Solo Administrators."""
+    try:
+        category = service.update(
+            category_id=category_id,
+            name=payload.name,
+            description=payload.description,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": str(e),
+                "error_code": "INCIDENT_CATEGORY_ALREADY_EXISTS",
+            },
+        ) from e
+    if category is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Categoría con id {category_id} no encontrada",
+                "error_code": "INCIDENT_CATEGORY_NOT_FOUND",
+            },
+        )
+    return IncidentCategoryResponse.model_validate(category)
+
+
+@router.delete(
+    "/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role("Administrator"))],
+)
+def delete_category(
+    category_id: str,
+    service: IncidentCategoryService = Depends(get_incident_category_service),
+) -> None:
+    """Elimina una categoría existente. Solo Administrators."""
+    deleted = service.delete(category_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Categoría con id {category_id} no encontrada",
+                "error_code": "INCIDENT_CATEGORY_NOT_FOUND",
+            },
+        )

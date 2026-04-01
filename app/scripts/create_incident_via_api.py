@@ -45,7 +45,7 @@ def main() -> None:
             print(
                 "No se encontró al menos un usuario y una categoría en la base "
                 "de datos.\nEjecuta primero los scripts de seed para poblar las "
-                "tablas users e incident_categories."
+                "tablas users y categories."
             )
             return
 

@@ -18,6 +18,7 @@ from app.api.schemas.incident import (
 from app.api.schemas.incident_category import (
     IncidentCategoryCreate,
     IncidentCategoryResponse,
+    IncidentCategoryUpdate,
 )
 from app.api.schemas.item import ItemCreate, ItemResponse, PaginatedItemsResponse
 from app.api.schemas.suggestion import (
@@ -51,5 +52,6 @@ __all__ = [
     "UserAuthInfo",
     "IncidentCategoryCreate",
     "IncidentCategoryResponse",
+    "IncidentCategoryUpdate",
     "DashboardResponse",
 ]

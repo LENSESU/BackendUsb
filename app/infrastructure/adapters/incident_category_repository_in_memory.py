@@ -35,3 +35,24 @@ class InMemoryIncidentCategoryRepository(IncidentCategoryRepositoryPort):
             if str(category.id) == category_id:
                 return category
         return None
+
+    def update(self, category: IncidentCategory) -> IncidentCategory | None:
+        if category.id is None:
+            return None
+        current = self._store.get(category.id)
+        if current is None:
+            return None
+        updated = IncidentCategory(
+            id=category.id,
+            name=category.name,
+            description=category.description,
+        )
+        self._store[category.id] = updated
+        return updated
+
+    def delete(self, category_id: str) -> bool:
+        for key in list(self._store.keys()):
+            if str(key) == category_id:
+                del self._store[key]
+                return True
+        return False
