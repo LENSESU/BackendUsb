@@ -25,5 +25,8 @@ class IncidentCategoryResponse(BaseModel):
 class IncidentCategoryListResponse(BaseModel):
     """Respuesta paginada para listado de categorías."""
 
-    count: int
+    page: int
+    limit: int
+    total: int
+    total_pages: int
     items: list[IncidentCategoryResponse]

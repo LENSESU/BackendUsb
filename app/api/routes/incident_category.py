@@ -4,7 +4,7 @@
 - POST /  crea una nueva categoría (solo Administrator)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.dependencies.auth import require_role
 from app.api.dependencies.incident_category import get_incident_category_service
@@ -24,13 +24,25 @@ router = APIRouter()
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 def list_categories(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
     service: IncidentCategoryService = Depends(get_incident_category_service),
 ) -> IncidentCategoryListResponse:
     """Lista todas las categorías registradas."""
-    categories = [
+    all_categories = [
         IncidentCategoryResponse.model_validate(c) for c in service.list_all()
     ]
-    return IncidentCategoryListResponse(count=len(categories), items=categories)
+    total = len(all_categories)
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    start = (page - 1) * limit
+    end = start + limit
+    return IncidentCategoryListResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=all_categories[start:end],
+    )
 
 
 @router.get(
@@ -47,7 +59,10 @@ def get_category(
     if not category:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Categoría con id {category_id} no encontrada",
+            detail={
+                "message": f"Categoría con id {category_id} no encontrada",
+                "error_code": "INCIDENT_CATEGORY_NOT_FOUND",
+            },
         )
     return IncidentCategoryResponse.model_validate(category)
 
@@ -68,6 +83,9 @@ def create_category(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+            detail={
+                "message": str(e),
+                "error_code": "INCIDENT_CATEGORY_ALREADY_EXISTS",
+            },
+        ) from e
     return IncidentCategoryResponse.model_validate(category)

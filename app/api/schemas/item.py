@@ -29,3 +29,13 @@ class ItemResponse(BaseModel):
     owner_id: UUID | None = None
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedItemsResponse(BaseModel):
+    """Respuesta paginada para listado de items."""
+
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+    items: list[ItemResponse]

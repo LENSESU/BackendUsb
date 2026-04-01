@@ -145,7 +145,7 @@ class IncidentModel(Base):
     campus_place: Mapped[str | None] = mapped_column(String(200), nullable=True)
     latitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="New")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="Nuevo")
     priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
     before_photo_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("files.id", ondelete="SET NULL"),

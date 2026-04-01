@@ -28,17 +28,16 @@ Archivos relacionados que también fueron modificados:
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.dependencies.auth import (
     get_current_role_name,
     get_current_user_id,
     require_role,
 )
-from app.api.schemas import ItemCreate, ItemResponse
+from app.api.schemas import ItemCreate, ItemResponse, PaginatedItemsResponse
 from app.application.ports import ItemRepositoryPort
 from app.application.services import ItemService
-from app.core.exceptions import NotFoundError
 
 router = APIRouter()
 
@@ -64,14 +63,28 @@ def get_item_service() -> ItemService:
 
 @router.get(
     "/",
-    response_model=list[ItemResponse],
+    response_model=PaginatedItemsResponse,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
-def list_items() -> list[ItemResponse]:
+def list_items(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+) -> PaginatedItemsResponse:
     """Lista todos los items.  [#61] Requiere autenticación con cualquier rol."""
     service = get_item_service()
     items = service.list_items()
-    return [ItemResponse.model_validate(i) for i in items]
+    total = len(items)
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    start = (page - 1) * limit
+    end = start + limit
+    paged_items = [ItemResponse.model_validate(i) for i in items[start:end]]
+    return PaginatedItemsResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=paged_items,
+    )
 
 
 @router.get(
@@ -84,7 +97,10 @@ def get_item(item_id: UUID) -> ItemResponse:
     service = get_item_service()
     item = service.get_item(item_id)
     if item is None:
-        raise NotFoundError("Item no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "Item no encontrado", "error_code": "ITEM_NOT_FOUND"},
+        )
     return ItemResponse.model_validate(item)
 
 
@@ -133,7 +149,10 @@ def delete_item(
     service = get_item_service()
     item = service.get_item(item_id)
     if item is None:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "Item no encontrado", "error_code": "ITEM_NOT_FOUND"},
+        )
 
     # [#63] Validación de acceso cruzado (ownership):
     # Si el item tiene dueño y el solicitante no es el dueño,
@@ -144,6 +163,6 @@ def delete_item(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
                     "message": "No puede eliminar un item que no le pertenece",
-                    "error_code": "CROSS_ACCESS_DENIED",
+                    "error_code": "ITEM_CROSS_ACCESS_DENIED",
                 },
             )

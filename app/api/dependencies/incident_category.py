@@ -3,8 +3,6 @@ from app.infrastructure.adapters.incident_category_repository import (
     SqlAlchemyIncidentCategoryRepository,
 )
 
-_repo = SqlAlchemyIncidentCategoryRepository()
-
 
 def get_incident_category_service() -> IncidentCategoryService:
-    return IncidentCategoryService(repository=_repo)
+    return IncidentCategoryService(repository=SqlAlchemyIncidentCategoryRepository())

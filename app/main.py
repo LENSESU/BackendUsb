@@ -75,6 +75,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_exception_handler(AppError, error_handlers.app_error_handler)
+app.add_exception_handler(
+    RequestValidationError, error_handlers.validation_error_handler
+)
+app.add_exception_handler(Exception, error_handlers.generic_exception_handler)
+
 app.include_router(api_router, prefix="/api/v1")
 
 # Manejadores de errores globalmente
