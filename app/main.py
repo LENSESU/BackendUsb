@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.error_handlers import (
     app_error_handler,
+    generic_exception_handler,
     validation_error_handler,
 )
 from app.api.routes import api_router
@@ -75,11 +76,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_exception_handler(AppError, error_handlers.app_error_handler)
-app.add_exception_handler(
-    RequestValidationError, error_handlers.validation_error_handler
-)
-app.add_exception_handler(Exception, error_handlers.generic_exception_handler)
+app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
 
 app.include_router(api_router, prefix="/api/v1")
 
