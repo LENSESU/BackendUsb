@@ -14,29 +14,21 @@ from app.core.exceptions import AppError
 from app.infrastructure.database.migrations import run_migrations
 from app.scripts.seed_users import seed_users
 
-# --- Migraciones al arranque ---
-# Al levantar la app se aplican las migraciones a Postgres (tablas al día).
-# Solo necesitas: Postgres corriendo + .env con POSTGRES_* (o DATABASE_URL).
-# En tests se desactiva con RUN_MIGRATIONS_ON_STARTUP=false (conftest).
-
 logger = logging.getLogger("uvicorn.error")
 
 
 def emit_startup_log(message: str) -> None:
-    """Emite mensajes visibles en Docker durante el startup."""
     logger.info(message)
     print(f"[startup] {message}", flush=True)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Arranque: aplica migraciones a la BD. Parada: nada."""
     emit_startup_log(
         "Iniciando startup de la aplicacion "
         f"(migraciones={settings.run_migrations_on_startup}, "
         f"seed_usuarios={settings.seed_users_on_startup})"
     )
-
     if settings.run_migrations_on_startup:
         emit_startup_log("Ejecutando migraciones de base de datos...")
         run_migrations()
@@ -58,9 +50,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
-# En desarrollo permite localhost:3000 (frontend Next.js).
-# En producción agregar la URL real de Vercel en ALLOWED_ORIGINS del .env.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -83,5 +72,4 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    """Comprobación de que el servicio está vivo."""
     return {"status": "ok"}

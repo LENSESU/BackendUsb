@@ -27,6 +27,10 @@ def _error_response(
     return JSONResponse(
         status_code=status_code,
         content=content,
+         headers={                                                    # 👈 agrega esto
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Credentials": "true",
+        },
     )
 
 

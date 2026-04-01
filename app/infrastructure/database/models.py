@@ -44,7 +44,7 @@ class RoleModel(Base):
 class IncidentCategoryModel(Base):
     """ORM: categoría de incidente."""
 
-    __tablename__ = "categories"
+    __tablename__ = "incident_categories"
 
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),
