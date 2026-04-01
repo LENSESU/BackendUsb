@@ -12,6 +12,13 @@ class IncidentCategoryCreate(BaseModel):
     description: str | None = Field(default=None, max_length=200)
 
 
+class IncidentCategoryUpdate(BaseModel):
+    """Payload para actualizar una categoría de incidente."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = Field(default=None, max_length=200)
+
+
 class IncidentCategoryResponse(BaseModel):
     """Respuesta con datos de una categoría de incidente."""
 

@@ -44,7 +44,7 @@ class RoleModel(Base):
 class IncidentCategoryModel(Base):
     """ORM: categoría de incidente."""
 
-    __tablename__ = "incident_categories"
+    __tablename__ = "categories"
 
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -138,7 +138,7 @@ class IncidentModel(Base):
         nullable=True,
     )
     category_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("incident_categories.id", ondelete="RESTRICT"),
+        ForeignKey("categories.id", ondelete="RESTRICT"),
         nullable=False,
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)

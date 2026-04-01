@@ -75,5 +75,41 @@ class SqlAlchemyIncidentCategoryRepository(IncidentCategoryRepositoryPort):
         finally:
             db.close()
 
+    def update(self, category: IncidentCategory) -> IncidentCategory | None:
+        db = _get_session()
+        try:
+            if category.id is None:
+                return None
+            stmt = select(IncidentCategoryModel).where(
+                IncidentCategoryModel.id == category.id
+            )
+            row = db.scalar(stmt)
+            if row is None:
+                return None
+            row.name = category.name
+            row.description = category.description
+            db.commit()
+            db.refresh(row)
+            return IncidentCategory(
+                id=row.id, name=row.name, description=row.description
+            )
+        finally:
+            db.close()
+
+    def delete(self, category_id: str) -> bool:
+        db = _get_session()
+        try:
+            stmt = select(IncidentCategoryModel).where(
+                IncidentCategoryModel.id == UUID(str(category_id))
+            )
+            row = db.scalar(stmt)
+            if row is None:
+                return False
+            db.delete(row)
+            db.commit()
+            return True
+        finally:
+            db.close()
+
     def get_by_id(self, category_id: UUID) -> IncidentCategory | None:
         return self.find_by_id(str(category_id))
