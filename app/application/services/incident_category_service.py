@@ -43,7 +43,9 @@ class IncidentCategoryService:
         updated = IncidentCategory(
             id=existing.id,
             name=new_name,
-            description=description if description is not None else existing.description,
+            description=description
+            if description is not None
+            else existing.description,
         )
         return self._repository.update(updated)
 
