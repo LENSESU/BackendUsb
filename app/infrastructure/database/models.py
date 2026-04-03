@@ -138,7 +138,7 @@ class IncidentModel(Base):
         nullable=True,
     )
     category_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("categories.id", ondelete="RESTRICT"),
+        ForeignKey("incident_categories.id", ondelete="RESTRICT"),
         nullable=False,
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
