@@ -39,7 +39,7 @@ class IncidentCreate(BaseModel):
                 "estado": "Nuevo",
                 "foto_antes_id": None,
             }
-        }
+        },
     )
 
     categoria_id: UUID = Field(
