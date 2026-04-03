@@ -27,6 +27,7 @@ class IncidentCreate(BaseModel):
     """Payload para crear un incidente. El estudiante se toma del JWT."""
 
     model_config = ConfigDict(
+        populate_by_name=True,
         json_schema_extra={
             "example": {
                 "categoria_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -38,7 +39,7 @@ class IncidentCreate(BaseModel):
                 "estado": "Nuevo",
                 "foto_antes_id": None,
             }
-        }
+        },
     )
 
     categoria_id: UUID = Field(
@@ -68,6 +69,8 @@ class IncidentCreate(BaseModel):
 
 class IncidentUpdate(BaseModel):
     """Payload para actualizar un incidente."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     tecnico_id: UUID | None = Field(default=None, alias="technician_id")
     categoria_id: UUID | None = Field(default=None, alias="category_id")
