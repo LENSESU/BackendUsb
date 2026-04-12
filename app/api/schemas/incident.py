@@ -67,6 +67,18 @@ class IncidentCreate(BaseModel):
     foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
 
 
+class AssignTechnicianRequest(BaseModel):
+    """Payload para asociar un técnico a un incidente (endpoint dedicado)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    tecnico_id: UUID = Field(
+        ...,
+        description="ID del usuario técnico a asignar",
+        alias="technician_id",
+    )
+
+
 class IncidentUpdate(BaseModel):
     """Payload para actualizar un incidente."""
 

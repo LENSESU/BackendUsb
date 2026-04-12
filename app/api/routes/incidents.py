@@ -10,7 +10,9 @@ from app.api.dependencies.auth import (
     require_role,
 )
 from app.api.dependencies.storage import get_incident_evidence_service
+from app.api.dependencies.technician import get_technician_service
 from app.api.schemas import (
+    AssignTechnicianRequest,
     IncidentCreate,
     IncidentEvidenceUploadResponse,
     IncidentResponse,
@@ -20,6 +22,7 @@ from app.api.schemas import (
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.incident_service import IncidentService
+from app.application.services.technician_service import TechnicianService
 from app.domain.entities.incident import Incident
 
 router = APIRouter()
@@ -165,6 +168,24 @@ def create_incident(
             ) from e
         raise
 
+    return _incident_to_response(incident)
+
+
+@router.post(
+    "/{incident_id}/technician",
+    response_model=IncidentResponse,
+    dependencies=[Depends(require_role("Administrator", "Technician"))],
+)
+def assign_technician_to_incident(
+    incident_id: UUID,
+    payload: AssignTechnicianRequest,
+    technician_service: TechnicianService = Depends(get_technician_service),
+) -> IncidentResponse:
+    """Asocia un técnico activo con rol adecuado a un incidente existente."""
+    incident = technician_service.assign_technician_to_incident(
+        incident_id=incident_id,
+        technician_id=payload.tecnico_id,
+    )
     return _incident_to_response(incident)
 
 
