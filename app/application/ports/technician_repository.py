@@ -13,7 +13,8 @@ class TechnicianRepositoryPort(ABC):
 
     @abstractmethod
     def find_all(self) -> list[User]:
-        """Retorna todos los técnicos registrados (por rol, sin filtrar disponibilidad)."""
+        """Retorna todos los técnicos registrados (por rol, sin filtrar
+        disponibilidad)."""
         ...
 
     @abstractmethod
@@ -25,7 +26,8 @@ class TechnicianRepositoryPort(ABC):
     def assign_technician_to_incident(
         self, technician_id: str, incident_id: str
     ) -> User | None:
-        """Asigna un técnico activo a un incidente; retorna el técnico o None si falla."""
+        """Asigna un técnico activo a un incidente; retorna el técnico o
+        None si falla."""
         ...
 
     @abstractmethod

@@ -71,7 +71,8 @@ class SqlTechnicianRepository(TechnicianRepositoryPort):
     def assign_technician_to_incident(
         self, technician_id: str, incident_id: str
     ) -> User | None:
-        """Asigna técnico al incidente si ambos existen y el usuario es técnico activo."""
+        """Asigna técnico al incidente si ambos existen y el usuario es
+        técnico activo."""
         db = _get_session()
         try:
             try:
