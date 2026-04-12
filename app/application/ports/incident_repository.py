@@ -1,4 +1,7 @@
-"""Puerto (interfaz) para persistencia de Incidents. Lo implementa la infraestructura."""
+"""Puerto (interfaz) para persistencia de Incidents.
+
+Lo implementa la infraestructura.
+"""
 
 from abc import ABC, abstractmethod
 from uuid import UUID

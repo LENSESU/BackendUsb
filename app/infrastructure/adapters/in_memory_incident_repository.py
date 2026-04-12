@@ -1,12 +1,16 @@
 """Adaptador en memoria que implementa IncidentRepositoryPort.
 Se puede sustituir por SQL, NoSQL, etc."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from app.application.ports import IncidentRepositoryPort
 from app.domain.entities import Incident
-from app.domain.entities.incident import IncidentCategory, IncidentPriority, IncidentStatus
+from app.domain.entities.incident import (
+    IncidentCategory,
+    IncidentPriority,
+    IncidentStatus,
+)
 
 
 def _seed_incidents() -> dict[UUID, Incident]:
@@ -15,15 +19,17 @@ def _seed_incidents() -> dict[UUID, Incident]:
         Incident(
             id=uuid4(),
             title="Fallo en el servidor de base de datos",
-            description="El servidor PostgreSQL dejó de responder tras un pico de carga.",
+            description=(
+                "El servidor PostgreSQL dejó de responder tras un pico de carga."
+            ),
             category=IncidentCategory.NETWORK,
             status=IncidentStatus.IN_PROGRESS,
             priority=IncidentPriority.CRITICAL,
             location="Sala de servidores — Piso 2",
             reported_by="ana.garcia@empresa.com",
             assigned_to="ops-team",
-            created_at=datetime(2026, 4, 10, 9, 0, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 4, 10, 10, 15, tzinfo=timezone.utc),
+            created_at=datetime(2026, 4, 10, 9, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 4, 10, 10, 15, tzinfo=UTC),
         ),
         Incident(
             id=uuid4(),
@@ -34,20 +40,22 @@ def _seed_incidents() -> dict[UUID, Incident]:
             priority=IncidentPriority.HIGH,
             location="Oficina central",
             reported_by="pedro.lopez@empresa.com",
-            created_at=datetime(2026, 4, 11, 8, 30, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 4, 11, 8, 30, tzinfo=timezone.utc),
+            created_at=datetime(2026, 4, 11, 8, 30, tzinfo=UTC),
+            updated_at=datetime(2026, 4, 11, 8, 30, tzinfo=UTC),
         ),
         Incident(
             id=uuid4(),
             title="Exportación de reportes lenta",
-            description="El módulo de reportes tarda más de 2 minutos en exportar a Excel.",
+            description=(
+                "El módulo de reportes tarda más de 2 minutos en exportar a Excel."
+            ),
             category=IncidentCategory.SOFTWARE,
             status=IncidentStatus.OPEN,
             priority=IncidentPriority.MEDIUM,
             location=None,
             reported_by="maria.torres@empresa.com",
-            created_at=datetime(2026, 4, 12, 7, 0, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 4, 12, 7, 0, tzinfo=timezone.utc),
+            created_at=datetime(2026, 4, 12, 7, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 4, 12, 7, 0, tzinfo=UTC),
         ),
         Incident(
             id=uuid4(),
@@ -59,8 +67,8 @@ def _seed_incidents() -> dict[UUID, Incident]:
             location="Remoto",
             reported_by="luis.ramirez@empresa.com",
             assigned_to="dev-team",
-            created_at=datetime(2026, 4, 9, 14, 0, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 4, 11, 16, 45, tzinfo=timezone.utc),
+            created_at=datetime(2026, 4, 9, 14, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 4, 11, 16, 45, tzinfo=UTC),
         ),
     ]
     return {i.id: i for i in samples}

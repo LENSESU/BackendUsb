@@ -1,12 +1,12 @@
 """Entidad de dominio: Incident."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from uuid import UUID
 
 
-class IncidentStatus(str, Enum):
+class IncidentStatus(StrEnum):
     """Estados posibles de un incidente."""
 
     OPEN = "open"
@@ -15,7 +15,7 @@ class IncidentStatus(str, Enum):
     CLOSED = "closed"
 
 
-class IncidentPriority(str, Enum):
+class IncidentPriority(StrEnum):
     """Niveles de prioridad de un incidente."""
 
     LOW = "low"
@@ -24,7 +24,7 @@ class IncidentPriority(str, Enum):
     CRITICAL = "critical"
 
 
-class IncidentCategory(str, Enum):
+class IncidentCategory(StrEnum):
     """Categorías de un incidente."""
 
     HARDWARE = "hardware"
@@ -47,8 +47,8 @@ class Incident:
     description: str | None = None
     location: str | None = None
     assigned_to: str | None = None
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         if not self.title or not self.title.strip():

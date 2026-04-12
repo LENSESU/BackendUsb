@@ -5,7 +5,11 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.domain.entities.incident import IncidentCategory, IncidentPriority, IncidentStatus
+from app.domain.entities.incident import (
+    IncidentCategory,
+    IncidentPriority,
+    IncidentStatus,
+)
 
 
 class IncidentSummary(BaseModel):

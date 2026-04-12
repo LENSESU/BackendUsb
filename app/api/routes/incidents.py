@@ -12,7 +12,10 @@ _repository: IncidentRepositoryPort | None = None
 
 
 def get_incident_service() -> IncidentService:
-    """Obtiene el servicio de Incidents (en producción vendría de un contenedor de DI)."""
+    """Obtiene el servicio de Incidents.
+
+    En producción vendría de un contenedor de DI.
+    """
     global _repository
     from app.infrastructure.adapters import InMemoryIncidentRepository
 
