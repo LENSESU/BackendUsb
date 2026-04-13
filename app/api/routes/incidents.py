@@ -1,6 +1,5 @@
 """Rutas HTTP para incidentes."""
 
-from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -19,6 +18,7 @@ from app.api.schemas import (
     IncidentEvidenceUploadResponse,
     IncidentResponse,
     IncidentUpdate,
+    PaginatedAdminIncidentsResponse,
     PaginatedIncidentsResponse,
 )
 from app.application.ports.incident_repository import IncidentRepositoryPort
@@ -106,21 +106,28 @@ def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
 
 @router.get(
     "/admin-inbox",
-    response_model=list[AdminIncidentSummary],
+    response_model=PaginatedAdminIncidentsResponse,
     dependencies=[Depends(require_role("Administrator"))],
 )
-def list_incidents_admin_inbox() -> list[AdminIncidentSummary]:
-    """Bandeja del administrador: lista todos los incidentes del sistema,
-    ordenados del más reciente al más antiguo."""
-    from datetime import datetime
-
+def list_incidents_admin_inbox(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+) -> PaginatedAdminIncidentsResponse:
+    """Bandeja del administrador: lista paginada de todos los incidentes,
+    ordenados del más reciente al más antiguo (ordenamiento en base de datos)."""
     service = get_incident_service()
-    incidents = sorted(
-        service.list_incidents(),
-        key=lambda i: i.created_at or datetime.min.replace(tzinfo=UTC),
-        reverse=True,
+    incidents = service.list_incidents()
+    total = len(incidents)
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    start = (page - 1) * limit
+    end = start + limit
+    return PaginatedAdminIncidentsResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=[_incident_to_admin_summary(i) for i in incidents[start:end]],
     )
-    return [_incident_to_admin_summary(i) for i in incidents]
 
 
 @router.get(

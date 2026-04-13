@@ -15,6 +15,7 @@ from app.api.schemas.incident import (
     IncidentEvidenceUploadResponse,
     IncidentResponse,
     IncidentUpdate,
+    PaginatedAdminIncidentsResponse,
     PaginatedIncidentsResponse,
 )
 from app.api.schemas.incident_category import (
@@ -34,6 +35,7 @@ from app.api.schemas.suggestion import (
 __all__ = [
     "AdminIncidentSummary",
     "AssignTechnicianRequest",
+    "PaginatedAdminIncidentsResponse",
     "IncidentCreate",
     "IncidentResponse",
     "IncidentUpdate",

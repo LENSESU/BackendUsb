@@ -27,8 +27,17 @@ class InMemoryIncidentRepository(IncidentRepositoryPort):
         return self._store.get(incident_id)
 
     def list_all(self) -> list[Incident]:
-        """Retorna todos los incidentes almacenados."""
-        return list(self._store.values())
+        """Retorna todos los incidentes ordenados por fecha descendente.
+
+        Mismo orden que SqlIncidentRepository para consistencia en tests.
+        """
+        from datetime import UTC, datetime
+
+        return sorted(
+            self._store.values(),
+            key=lambda i: i.created_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
+        )
 
     def save(self, incident: Incident) -> Incident:
         """Guarda o sobrescribe un incidente por su ID."""

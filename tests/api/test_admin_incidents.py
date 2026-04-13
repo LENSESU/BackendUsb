@@ -2,9 +2,11 @@
 
 Valida:
 - Solo el rol Administrator puede acceder (Student y Technician reciben 403).
-- Sin token -> 401; token inválido -> 401.
-- La respuesta es una lista con los campos correctos de la bandeja.
-- Los incidentes llegan ordenados del más reciente al más antiguo.
+- Sin token -> 401; token invalido -> 401.
+- La respuesta sigue la estructura paginada {page, limit, total, total_pages, items}.
+- Los items exponen exactamente los campos de la bandeja del administrador.
+- Los incidentes llegan ordenados del mas reciente al mas antiguo (orden del repo).
+- Los parametros de paginacion funcionan correctamente.
 """
 
 from datetime import UTC, datetime
@@ -27,7 +29,7 @@ STUDENT_ID = uuid4()
 TECH_ID = uuid4()
 CATEGORY_ID = uuid4()
 
-EXPECTED_FIELDS = {
+ITEM_FIELDS = {
     "id",
     "category_id",
     "status",
@@ -36,6 +38,8 @@ EXPECTED_FIELDS = {
     "location",
     "reported_by",
 }
+
+PAGINATED_FIELDS = {"page", "limit", "total", "total_pages", "items"}
 
 
 def _make_token(user_id, role_name: str) -> str:
@@ -54,7 +58,7 @@ def _auth(token: str) -> dict[str, str]:
 
 
 def _seed_incident(repo, student_id=None, created_at=None):
-    """Guarda un incidente mínimo en el repositorio in-memory."""
+    """Guarda un incidente minimo en el repositorio in-memory."""
     from app.domain.entities.incident import Incident
 
     incident = Incident(
@@ -62,7 +66,7 @@ def _seed_incident(repo, student_id=None, created_at=None):
         student_id=student_id or STUDENT_ID,
         technician_id=None,
         category_id=CATEGORY_ID,
-        description="Luminaria dañada en el pasillo B",
+        description="Luminaria danada en el pasillo B",
         created_at=created_at or datetime.now(UTC),
     )
     repo.save(incident)
@@ -112,32 +116,77 @@ class TestAdminInboxAccess:
         assert resp.status_code == 401
 
 
-# ── Forma de la respuesta ─────────────────────────────────────────────────────
+# ── Estructura de la respuesta paginada ──────────────────────────────────────
 
 
-class TestAdminInboxResponse:
-    def test_returns_list(self):
+class TestAdminInboxPaginatedShape:
+    def test_response_has_pagination_envelope(self):
+        """La respuesta tiene el mismo envoltorio que list_incidents."""
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
-        assert isinstance(resp.json(), list)
+        assert set(resp.json().keys()) == PAGINATED_FIELDS
 
-    def test_empty_list_when_no_incidents(self):
+    def test_empty_repo_returns_zero_total(self):
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
-        assert resp.json() == []
+        body = resp.json()
+        assert body["items"] == []
+        assert body["total"] == 0
+        assert body["total_pages"] == 0
 
-    def test_response_fields(self):
-        """Cada elemento expone exactamente los campos de la bandeja."""
+    def test_default_pagination_params(self):
+        """Sin query params, page=1 y limit=10."""
+        token = _make_token(ADMIN_ID, "Administrator")
+        resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
+        body = resp.json()
+        assert body["page"] == 1
+        assert body["limit"] == 10
+
+    def test_total_reflects_incident_count(self):
+        import app.api.routes.incidents as incidents_mod
+
+        for _ in range(3):
+            _seed_incident(incidents_mod._repository)
+
+        token = _make_token(ADMIN_ID, "Administrator")
+        resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
+        assert resp.json()["total"] == 3
+
+    def test_pagination_slices_correctly(self):
+        """page=2&limit=2 con 3 incidentes devuelve 1 item."""
+        import app.api.routes.incidents as incidents_mod
+
+        for _ in range(3):
+            _seed_incident(incidents_mod._repository)
+
+        token = _make_token(ADMIN_ID, "Administrator")
+        resp = client.get(
+            "/api/v1/incidents/admin-inbox?page=2&limit=2",
+            headers=_auth(token),
+        )
+        body = resp.json()
+        assert body["page"] == 2
+        assert body["limit"] == 2
+        assert body["total_pages"] == 2
+        assert len(body["items"]) == 1
+
+
+# ── Campos de cada item ───────────────────────────────────────────────────────
+
+
+class TestAdminInboxItemFields:
+    def test_item_fields(self):
+        """Cada item expone exactamente los campos de la bandeja."""
         import app.api.routes.incidents as incidents_mod
 
         _seed_incident(incidents_mod._repository)
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
-        assert set(resp.json()[0].keys()) == EXPECTED_FIELDS
+        assert set(resp.json()["items"][0].keys()) == ITEM_FIELDS
 
     def test_reported_by_matches_student(self):
-        """reported_by coincide con el usuario que reportó el incidente."""
+        """reported_by coincide con el usuario que reporto el incidente."""
         import app.api.routes.incidents as incidents_mod
 
         expected_student = uuid4()
@@ -145,10 +194,10 @@ class TestAdminInboxResponse:
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
-        assert resp.json()[0]["reported_by"] == str(expected_student)
+        assert resp.json()["items"][0]["reported_by"] == str(expected_student)
 
     def test_ordered_most_recent_first(self):
-        """Los incidentes se retornan del más reciente al más antiguo."""
+        """Los items llegan del mas reciente al mas antiguo (orden del repositorio)."""
         import app.api.routes.incidents as incidents_mod
 
         repo = incidents_mod._repository
@@ -158,5 +207,5 @@ class TestAdminInboxResponse:
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
-        dates = [item["created_at"] for item in resp.json()]
+        dates = [item["created_at"] for item in resp.json()["items"]]
         assert dates == sorted(dates, reverse=True)

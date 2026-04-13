@@ -158,3 +158,13 @@ class AdminIncidentSummary(BaseModel):
     created_at: datetime
     location: str | None
     reported_by: UUID
+
+
+class PaginatedAdminIncidentsResponse(BaseModel):
+    """Respuesta paginada para la bandeja del administrador."""
+
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+    items: list[AdminIncidentSummary]
