@@ -64,7 +64,9 @@ async def get_dashboard(
             for i in filtered_incidents
         ]
         if category_tasks:
-            categories_raw = await asyncio.gather(*category_tasks, return_exceptions=True)
+            categories_raw = await asyncio.gather(
+                *category_tasks, return_exceptions=True
+            )
             categories = [
                 c if not isinstance(c, Exception) else None for c in categories_raw
             ]
