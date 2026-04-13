@@ -8,7 +8,14 @@ from app.application.ports import IncidentRepositoryPort
 from app.application.ports.incident_category_repository import (
     IncidentCategoryRepositoryPort,
 )
-from app.domain.entities.incident import Incident, IncidentLocation, IncidentStatus
+from app.domain.entities.incident import (
+    Incident,
+    IncidentLocation,
+    IncidentStatus,
+    incident_status_as_str,
+    is_known_incident_status,
+    validate_incident_status_transition,
+)
 
 
 class IncidentService:
@@ -64,13 +71,42 @@ class IncidentService:
                 longitude=longitude,
             )
 
+        if status is None or not str(incident_status_as_str(status)).strip():
+            resolved_status = IncidentStatus.NUEVO.value
+        else:
+            candidate = incident_status_as_str(status)
+            if not is_known_incident_status(candidate):
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "message": (
+                            f"Estado de incidente no válido: {candidate!r}. "
+                            f"Valores permitidos: "
+                            f"{', '.join(s.value for s in IncidentStatus)}."
+                        ),
+                        "error_code": "INCIDENT_STATUS_INVALID",
+                    },
+                )
+            if candidate != IncidentStatus.NUEVO.value:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "message": (
+                            "Al crear un incidente solo se permite el estado "
+                            f"inicial {IncidentStatus.NUEVO.value!r}."
+                        ),
+                        "error_code": "INCIDENT_STATUS_CREATE_INVALID",
+                    },
+                )
+            resolved_status = candidate
+
         incident = Incident(
             id=uuid4(),
             student_id=student_id,
             technician_id=technician_id,
             category_id=category_id,
             description=description.strip(),
-            status=status if status else IncidentStatus.NUEVO.value,
+            status=resolved_status,
             priority=priority,
             before_photo_id=before_photo_id,
             after_photo_id=None,
@@ -134,13 +170,28 @@ class IncidentService:
         after_id = (
             after_photo_id if after_photo_id is not None else existing.after_photo_id
         )
+        resolved_status = existing.status
+        if status is not None:
+            new_status_str = incident_status_as_str(status)
+            if new_status_str != existing.status:
+                try:
+                    validate_incident_status_transition(existing.status, new_status_str)
+                except ValueError as e:
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "message": str(e),
+                            "error_code": "INCIDENT_STATUS_TRANSITION_INVALID",
+                        },
+                    ) from e
+            resolved_status = new_status_str
         updated = Incident(
             id=existing.id,
             student_id=existing.student_id,
             technician_id=tech_id,
             category_id=cat_id,
             description=(description or existing.description).strip(),
-            status=status if status is not None else existing.status,
+            status=resolved_status,
             priority=priority if priority is not None else existing.priority,
             before_photo_id=before_id,
             after_photo_id=after_id,
