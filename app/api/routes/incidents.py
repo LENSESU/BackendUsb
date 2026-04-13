@@ -111,6 +111,7 @@ def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
     return AdminIncidentSummary(
         id=incident.id,
         category_id=incident.category_id,
+        technician_id=incident.technician_id,
         status=incident.status,
         priority=incident.priority,
         created_at=incident.created_at,

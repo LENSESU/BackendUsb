@@ -16,6 +16,7 @@ class DashboardIncident(BaseModel):
     id: UUID
     category_id: UUID
     categoria: str | None = None
+    technician_id: UUID | None = None
     description: str
     status: str
     priority: str | None

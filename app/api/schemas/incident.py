@@ -147,7 +147,7 @@ class AdminIncidentSummary(BaseModel):
     """Resumen de un incidente para la bandeja del administrador.
 
     Expone solo los campos necesarios para la vista de lista:
-    identificador, categoría, estado, prioridad, fecha, ubicación y
+    identificador, categoría, id del técnico, estado, prioridad, fecha, ubicación y
     usuario reportante.
     """
 
@@ -155,6 +155,7 @@ class AdminIncidentSummary(BaseModel):
 
     id: UUID
     category_id: UUID
+    technician_id: UUID | None
     status: str
     priority: str | None
     created_at: datetime
