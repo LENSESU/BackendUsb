@@ -9,6 +9,7 @@ from app.api.schemas.auth import (
 )
 from app.api.schemas.dashboard import DashboardResponse
 from app.api.schemas.incident import (
+    AdminIncidentSummary,
     AssignTechnicianRequest,
     IncidentCreate,
     IncidentEvidenceUploadResponse,
@@ -31,6 +32,7 @@ from app.api.schemas.suggestion import (
 )
 
 __all__ = [
+    "AdminIncidentSummary",
     "AssignTechnicianRequest",
     "IncidentCreate",
     "IncidentResponse",

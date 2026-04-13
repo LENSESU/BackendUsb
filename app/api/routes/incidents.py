@@ -1,5 +1,6 @@
 """Rutas HTTP para incidentes."""
 
+from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -12,6 +13,7 @@ from app.api.dependencies.auth import (
 from app.api.dependencies.storage import get_incident_evidence_service
 from app.api.dependencies.technician import get_technician_service
 from app.api.schemas import (
+    AdminIncidentSummary,
     AssignTechnicianRequest,
     IncidentCreate,
     IncidentEvidenceUploadResponse,
@@ -87,6 +89,38 @@ def _incident_patch_kwargs(payload: IncidentUpdate) -> dict:
         "foto_despues_id": "after_photo_id",
     }
     return {key_map[k]: v for k, v in raw.items() if k in key_map}
+
+
+def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
+    loc = incident.location
+    return AdminIncidentSummary(
+        id=incident.id,
+        category_id=incident.category_id,
+        status=incident.status,
+        priority=incident.priority,
+        created_at=incident.created_at,
+        location=loc.campus_place if loc else None,
+        reported_by=incident.student_id,
+    )
+
+
+@router.get(
+    "/admin-inbox",
+    response_model=list[AdminIncidentSummary],
+    dependencies=[Depends(require_role("Administrator"))],
+)
+def list_incidents_admin_inbox() -> list[AdminIncidentSummary]:
+    """Bandeja del administrador: lista todos los incidentes del sistema,
+    ordenados del más reciente al más antiguo."""
+    from datetime import datetime
+
+    service = get_incident_service()
+    incidents = sorted(
+        service.list_incidents(),
+        key=lambda i: i.created_at or datetime.min.replace(tzinfo=UTC),
+        reverse=True,
+    )
+    return [_incident_to_admin_summary(i) for i in incidents]
 
 
 @router.get(
