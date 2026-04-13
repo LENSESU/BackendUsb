@@ -139,3 +139,32 @@ class IncidentEvidenceUploadResponse(BaseModel):
     storage_object_name: str | None = None
     file_url: str | None = None
     message: str
+
+
+class AdminIncidentSummary(BaseModel):
+    """Resumen de un incidente para la bandeja del administrador.
+
+    Expone solo los campos necesarios para la vista de lista:
+    identificador, categoría, estado, prioridad, fecha, ubicación y
+    usuario reportante.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    category_id: UUID
+    status: str
+    priority: str | None
+    created_at: datetime
+    location: str | None
+    reported_by: UUID
+
+
+class PaginatedAdminIncidentsResponse(BaseModel):
+    """Respuesta paginada para la bandeja del administrador."""
+
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+    items: list[AdminIncidentSummary]

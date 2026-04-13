@@ -9,11 +9,13 @@ from app.api.schemas.auth import (
 )
 from app.api.schemas.dashboard import DashboardResponse
 from app.api.schemas.incident import (
+    AdminIncidentSummary,
     AssignTechnicianRequest,
     IncidentCreate,
     IncidentEvidenceUploadResponse,
     IncidentResponse,
     IncidentUpdate,
+    PaginatedAdminIncidentsResponse,
     PaginatedIncidentsResponse,
 )
 from app.api.schemas.incident_category import (
@@ -31,7 +33,9 @@ from app.api.schemas.suggestion import (
 )
 
 __all__ = [
+    "AdminIncidentSummary",
     "AssignTechnicianRequest",
+    "PaginatedAdminIncidentsResponse",
     "IncidentCreate",
     "IncidentResponse",
     "IncidentUpdate",

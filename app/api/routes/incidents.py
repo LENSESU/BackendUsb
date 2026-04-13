@@ -12,11 +12,13 @@ from app.api.dependencies.auth import (
 from app.api.dependencies.storage import get_incident_evidence_service
 from app.api.dependencies.technician import get_technician_service
 from app.api.schemas import (
+    AdminIncidentSummary,
     AssignTechnicianRequest,
     IncidentCreate,
     IncidentEvidenceUploadResponse,
     IncidentResponse,
     IncidentUpdate,
+    PaginatedAdminIncidentsResponse,
     PaginatedIncidentsResponse,
 )
 from app.application.ports.incident_repository import IncidentRepositoryPort
@@ -87,6 +89,45 @@ def _incident_patch_kwargs(payload: IncidentUpdate) -> dict:
         "foto_despues_id": "after_photo_id",
     }
     return {key_map[k]: v for k, v in raw.items() if k in key_map}
+
+
+def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
+    loc = incident.location
+    return AdminIncidentSummary(
+        id=incident.id,
+        category_id=incident.category_id,
+        status=incident.status,
+        priority=incident.priority,
+        created_at=incident.created_at,
+        location=loc.campus_place if loc else None,
+        reported_by=incident.student_id,
+    )
+
+
+@router.get(
+    "/admin-inbox",
+    response_model=PaginatedAdminIncidentsResponse,
+    dependencies=[Depends(require_role("Administrator"))],
+)
+def list_incidents_admin_inbox(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+) -> PaginatedAdminIncidentsResponse:
+    """Bandeja del administrador: lista paginada de todos los incidentes,
+    ordenados del más reciente al más antiguo (ordenamiento en base de datos)."""
+    service = get_incident_service()
+    incidents = service.list_incidents()
+    total = len(incidents)
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    start = (page - 1) * limit
+    end = start + limit
+    return PaginatedAdminIncidentsResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=[_incident_to_admin_summary(i) for i in incidents[start:end]],
+    )
 
 
 @router.get(
