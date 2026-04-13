@@ -22,6 +22,7 @@ client = TestClient(app)
 
 STUDENT_USER_ID = uuid4()
 OTHER_USER_ID = uuid4()
+TECHNICIAN_USER_ID = uuid4()
 
 
 def _make_token(user_id: UUID, role_name: str) -> str:
@@ -147,6 +148,7 @@ def test_dashboard_returns_user_incidents_and_top_suggestions() -> None:
     assert len(body["recentIncidents"]) == 5
     assert all(i["description"].startswith("Incidente") for i in body["recentIncidents"])
     assert "categoria" in body["recentIncidents"][0]
+    assert "technician_id" in body["recentIncidents"][0]
 
     assert len(body["suggestions"]) == 5
     assert body["suggestions"][0]["total_votos"] == 10
@@ -155,3 +157,55 @@ def test_dashboard_returns_user_incidents_and_top_suggestions() -> None:
 def test_dashboard_requires_authentication() -> None:
     response = client.get("/api/v1/dashboard/")
     assert response.status_code == 401
+
+
+def test_dashboard_for_technician_returns_assigned_incidents_only() -> None:
+    import app.api.routes.incidents as incidents_mod
+
+    incident_repo = incidents_mod._repository
+    now = datetime.now(UTC)
+
+    incident_repo.save(
+        Incident(
+            id=uuid4(),
+            student_id=STUDENT_USER_ID,
+            technician_id=TECHNICIAN_USER_ID,
+            category_id=uuid4(),
+            description="Incidente asignado al tecnico autenticado",
+            status="En_proceso",
+            priority="Alta",
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=now + timedelta(minutes=1),
+            updated_at=None,
+            location=None,
+        )
+    )
+    incident_repo.save(
+        Incident(
+            id=uuid4(),
+            student_id=STUDENT_USER_ID,
+            technician_id=uuid4(),
+            category_id=uuid4(),
+            description="Incidente asignado a otro tecnico",
+            status="En_proceso",
+            priority="Media",
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=now + timedelta(minutes=2),
+            updated_at=None,
+            location=None,
+        )
+    )
+
+    token = _make_token(TECHNICIAN_USER_ID, "Technician")
+    response = client.get("/api/v1/dashboard/", headers=_auth(token))
+    assert response.status_code == 200
+    body = response.json()
+
+    assert len(body["recentIncidents"]) == 1
+    assert (
+        body["recentIncidents"][0]["description"]
+        == "Incidente asignado al tecnico autenticado"
+    )
+    assert body["recentIncidents"][0]["technician_id"] == str(TECHNICIAN_USER_ID)

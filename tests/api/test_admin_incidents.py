@@ -32,6 +32,7 @@ CATEGORY_ID = uuid4()
 ITEM_FIELDS = {
     "id",
     "category_id",
+    "technician_id",
     "status",
     "priority",
     "created_at",
@@ -57,14 +58,14 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _seed_incident(repo, student_id=None, created_at=None):
+def _seed_incident(repo, student_id=None, created_at=None, technician_id=None):
     """Guarda un incidente minimo en el repositorio in-memory."""
     from app.domain.entities.incident import Incident
 
     incident = Incident(
         id=uuid4(),
         student_id=student_id or STUDENT_ID,
-        technician_id=None,
+        technician_id=technician_id,
         category_id=CATEGORY_ID,
         description="Luminaria danada en el pasillo B",
         created_at=created_at or datetime.now(UTC),
@@ -195,6 +196,17 @@ class TestAdminInboxItemFields:
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
         assert resp.json()["items"][0]["reported_by"] == str(expected_student)
+
+    def test_item_includes_assigned_technician(self):
+        """La bandeja admin refleja el técnico asignado cuando existe."""
+        import app.api.routes.incidents as incidents_mod
+
+        expected_tech = uuid4()
+        _seed_incident(incidents_mod._repository, technician_id=expected_tech)
+
+        token = _make_token(ADMIN_ID, "Administrator")
+        resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
+        assert resp.json()["items"][0]["technician_id"] == str(expected_tech)
 
     def test_ordered_most_recent_first(self):
         """Los items llegan del mas reciente al mas antiguo (orden del repositorio)."""
