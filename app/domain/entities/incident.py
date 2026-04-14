@@ -103,6 +103,7 @@ class Incident:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     location: IncidentLocation | None = None
+    reporter_email: str | None = None
 
     def __post_init__(self) -> None:
         if not self.description or not self.description.strip():

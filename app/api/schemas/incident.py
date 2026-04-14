@@ -161,6 +161,7 @@ class AdminIncidentSummary(BaseModel):
     created_at: datetime
     location: str | None
     reported_by: UUID
+    reporter_email: str | None
 
 
 class PaginatedAdminIncidentsResponse(BaseModel):

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.core.config import settings
 from app.domain.entities.incident import Incident, IncidentLocation
-from app.infrastructure.database.models import IncidentModel
+from app.infrastructure.database.models import IncidentModel, UserModel
 
 
 def _get_session() -> Session:
@@ -18,7 +18,9 @@ def _get_session() -> Session:
     return SessionLocal()
 
 
-def _model_to_entity(model: IncidentModel) -> Incident:
+def _model_to_entity(
+    model: IncidentModel, reporter_email: str | None = None
+) -> Incident:
     """Convierte IncidentModel a entidad de dominio Incident."""
     location = None
     if (
@@ -44,6 +46,7 @@ def _model_to_entity(model: IncidentModel) -> Incident:
         created_at=model.created_at,
         updated_at=model.updated_at,
         location=location,
+        reporter_email=reporter_email,
     )
 
 
@@ -102,9 +105,13 @@ class SqlIncidentRepository(IncidentRepositoryPort):
     def list_all(self) -> list[Incident]:
         db = _get_session()
         try:
-            stmt = select(IncidentModel).order_by(IncidentModel.created_at.desc())
-            rows = db.scalars(stmt).all()
-            return [_model_to_entity(m) for m in rows]
+            stmt = (
+                select(IncidentModel, UserModel.email)
+                .outerjoin(UserModel, IncidentModel.student_id == UserModel.id)
+                .order_by(IncidentModel.created_at.desc())
+            )
+            rows = db.execute(stmt).all()
+            return [_model_to_entity(row[0], row[1]) for row in rows]
         finally:
             db.close()
 

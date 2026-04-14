@@ -117,6 +117,7 @@ def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
         created_at=incident.created_at,
         location=loc.campus_place if loc else None,
         reported_by=incident.student_id,
+        reporter_email=incident.reporter_email,
     )
 
 

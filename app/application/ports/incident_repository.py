@@ -28,3 +28,4 @@ class IncidentRepositoryPort(ABC):
     def delete(self, incident_id: UUID) -> bool:
         """Elimina un incidente por ID. Retorna True si existía."""
         ...
+
