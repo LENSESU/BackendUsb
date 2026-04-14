@@ -21,6 +21,7 @@ def _get_session() -> Session:
 @dataclass
 class FileData:
     """Datos de un archivo."""
+
     id: UUID
     url: str
     file_type: str | None

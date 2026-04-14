@@ -8,6 +8,7 @@ from uuid import UUID
 @dataclass
 class FileData:
     """Datos de un archivo."""
+
     id: UUID
     url: str
     file_type: str | None
