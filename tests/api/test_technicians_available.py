@@ -10,7 +10,6 @@ from app.api.dependencies.technician import (
     get_technician_service,
     reset_technician_dependencies,
 )
-from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.ports.technician_repository import TechnicianRepositoryPort
 from app.application.services.technician_service import TechnicianService
 from app.core.security import create_access_token
