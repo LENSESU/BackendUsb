@@ -57,6 +57,10 @@ def get_incident_service() -> IncidentService:
     from app.infrastructure.adapters.incident_category_repository import (
         SqlAlchemyIncidentCategoryRepository,
     )
+    from app.infrastructure.adapters.postgres_user_repository import (
+        PostgresUserRepository,
+    )
+    from app.infrastructure.adapters.sql_file_repository import SqlFileRepository
     from app.infrastructure.adapters.sql_incident_repository import (
         SqlIncidentRepository,
     )
@@ -66,10 +70,45 @@ def get_incident_service() -> IncidentService:
     return IncidentService(
         repository=_repository,
         category_repository=SqlAlchemyIncidentCategoryRepository(),
+        user_repository=PostgresUserRepository(),
+        file_repository=SqlFileRepository(),
+    )
+
+
+def _incident_with_details_to_response(incident_with_details) -> IncidentResponse:
+    """Convierte IncidentWithDetails a IncidentResponse."""
+    incident = incident_with_details.incident
+    location = incident.location
+
+    return IncidentResponse(
+        id=incident.id,
+        student_id=incident.student_id,
+        technician_id=incident.technician_id,
+        category_id=incident.category_id,
+        description=incident.description,
+        campus_place=location.campus_place if location else None,
+        latitude=location.latitude if location else None,
+        longitude=location.longitude if location else None,
+        status=incident.status,
+        priority=incident.priority,
+        before_photo_id=incident.before_photo_id,
+        after_photo_id=incident.after_photo_id,
+        created_at=incident.created_at,
+        updated_at=incident.updated_at,
+        category_name=incident_with_details.category_name,
+        student_first_name=incident_with_details.student_first_name,
+        student_last_name=incident_with_details.student_last_name,
+        student_email=incident_with_details.student_email,
+        technician_first_name=incident_with_details.technician_first_name,
+        technician_last_name=incident_with_details.technician_last_name,
+        technician_email=incident_with_details.technician_email,
+        before_photo_url=incident_with_details.before_photo_url,
+        after_photo_url=incident_with_details.after_photo_url,
     )
 
 
 def _incident_to_response(incident: Incident) -> IncidentResponse:
+    """Convierte Incident a IncidentResponse sin detalles."""
     location = incident.location
     return IncidentResponse(
         id=incident.id,
@@ -178,8 +217,8 @@ def list_incidents(
 )
 def get_incident(incident_id: UUID) -> IncidentResponse:
     service = get_incident_service()
-    incident = service.get_incident(incident_id)
-    if incident is None:
+    incident_with_details = service.get_incident_with_details(incident_id)
+    if incident_with_details is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -187,7 +226,7 @@ def get_incident(incident_id: UUID) -> IncidentResponse:
                 "error_code": "INCIDENT_NOT_FOUND",
             },
         )
-    return _incident_to_response(incident)
+    return _incident_with_details_to_response(incident_with_details)
 
 
 @router.post(
