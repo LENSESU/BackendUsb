@@ -1,5 +1,6 @@
 """Adaptador SQLAlchemy que implementa IncidentRepositoryPort."""
 
+from abc import abstractmethod
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -136,5 +137,22 @@ class SqlIncidentRepository(IncidentRepositoryPort):
             db.delete(model)
             db.commit()
             return True
+        finally:
+            db.close()
+            
+    @abstractmethod
+    def update_status(self, incident_id: UUID, new_status: str) -> Incident | None:
+  
+        db = _get_session()
+        try:
+            stmt = select(IncidentModel).where(IncidentModel.id == incident_id)
+            model = db.scalar(stmt)
+            if model is None:
+                return None
+            model.status = new_status
+            model.updated_at = datetime.now(UTC)
+            db.commit()
+            db.refresh(model)
+            return _model_to_entity(model)
         finally:
             db.close()

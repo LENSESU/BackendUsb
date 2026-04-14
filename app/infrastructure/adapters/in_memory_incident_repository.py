@@ -4,6 +4,7 @@ Creado para #107/#108/#109 (HU-E2-011).
 Sigue el mismo patrón que ``InMemoryItemRepository``.
 """
 
+from dataclasses import replace
 from uuid import UUID
 
 from app.application.ports.incident_repository import IncidentRepositoryPort
@@ -38,3 +39,13 @@ class InMemoryIncidentRepository(IncidentRepositoryPort):
     def delete(self, incident_id: UUID) -> bool:
         """Elimina un incidente por ID. Retorna True si existía."""
         return self._store.pop(incident_id, None) is not None
+
+    def update_status(self, incident_id: UUID, new_status: str) -> Incident | None:
+        """Actualiza únicamente el estado del incidente en memoria."""
+        incident = self._store.get(incident_id)
+        if incident is None:
+            return None
+        
+        updated = replace(incident, status=new_status)
+        self._store[incident_id] = updated
+        return updated
