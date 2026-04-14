@@ -1,11 +1,23 @@
 """Implementación de UserRepositoryPort usando PostgreSQL con SQLAlchemy async."""
 
-from sqlalchemy import select
+from uuid import UUID
+
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 
 from app.application.ports import UserRepositoryPort
+from app.application.ports.user_repository import UserBasicData
+from app.core.config import settings
 from app.domain.entities import User, UserRole
 from app.infrastructure.db import get_session
 from app.infrastructure.models.user_model import UserModel
+
+
+def _get_session_sync():
+    """Crea una sesión síncrona."""
+    engine = create_engine(settings.database_url_sync)
+    SessionLocal = sessionmaker(bind=engine)
+    return SessionLocal()
 
 
 class PostgresUserRepository(UserRepositoryPort):
@@ -50,3 +62,20 @@ class PostgresUserRepository(UserRepositoryPort):
 
             await session.commit()
             return user
+
+    def get_by_id(self, user_id: UUID) -> UserBasicData | None:
+        """Obtiene datos básicos de un usuario por su ID (síncrono)."""
+        db = _get_session_sync()
+        try:
+            stmt = select(UserModel).where(UserModel.id == user_id)
+            model = db.scalar(stmt)
+            if model:
+                return UserBasicData(
+                    id=model.id,
+                    first_name=model.first_name,
+                    last_name=model.last_name,
+                    email=model.email,
+                )
+            return None
+        finally:
+            db.close()

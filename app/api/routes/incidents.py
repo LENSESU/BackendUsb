@@ -3,8 +3,6 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
 
 from app.api.dependencies.auth import (
     get_current_role_name,
@@ -27,13 +25,7 @@ from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.incident_service import IncidentService
 from app.application.services.technician_service import TechnicianService
-from app.core.config import settings
 from app.domain.entities.incident import Incident
-from app.infrastructure.adapters.incident_category_repository import (
-    SqlAlchemyIncidentCategoryRepository,
-)
-from app.infrastructure.adapters.sql_file_repository import SqlFileRepository
-from app.infrastructure.database.models import UserModel
 
 router = APIRouter()
 
@@ -65,6 +57,10 @@ def get_incident_service() -> IncidentService:
     from app.infrastructure.adapters.incident_category_repository import (
         SqlAlchemyIncidentCategoryRepository,
     )
+    from app.infrastructure.adapters.postgres_user_repository import (
+        PostgresUserRepository,
+    )
+    from app.infrastructure.adapters.sql_file_repository import SqlFileRepository
     from app.infrastructure.adapters.sql_incident_repository import (
         SqlIncidentRepository,
     )
@@ -74,71 +70,15 @@ def get_incident_service() -> IncidentService:
     return IncidentService(
         repository=_repository,
         category_repository=SqlAlchemyIncidentCategoryRepository(),
+        user_repository=PostgresUserRepository(),
+        file_repository=SqlFileRepository(),
     )
 
 
-def _get_user_by_id_sync(user_id: UUID) -> dict | None:
-    """Obtiene datos básicos de un usuario por su ID (síncrono)."""
-    engine = create_engine(settings.database_url_sync)
-    SessionLocal = sessionmaker(bind=engine)
-    db = SessionLocal()
-    try:
-        stmt = select(UserModel).where(UserModel.id == user_id)
-        model = db.scalar(stmt)
-        if model:
-            return {
-                "first_name": model.first_name,
-                "last_name": model.last_name,
-                "email": model.email,
-            }
-        return None
-    finally:
-        db.close()
-
-
-def _incident_to_response(incident: Incident) -> IncidentResponse:
+def _incident_with_details_to_response(incident_with_details) -> IncidentResponse:
+    """Convierte IncidentWithDetails a IncidentResponse."""
+    incident = incident_with_details.incident
     location = incident.location
-
-    category_name = None
-    student_first_name = None
-    student_last_name = None
-    student_email = None
-    technician_first_name = None
-    technician_last_name = None
-    technician_email = None
-    before_photo_url = None
-    after_photo_url = None
-
-    category_repo = SqlAlchemyIncidentCategoryRepository()
-    if incident.category_id:
-        category = category_repo.find_by_id(str(incident.category_id))
-        if category:
-            category_name = category.name
-
-    student = _get_user_by_id_sync(incident.student_id)
-    if student:
-        student_first_name = student["first_name"]
-        student_last_name = student["last_name"]
-        student_email = student["email"]
-
-    if incident.technician_id:
-        tech = _get_user_by_id_sync(incident.technician_id)
-        if tech:
-            technician_first_name = tech["first_name"]
-            technician_last_name = tech["last_name"]
-            technician_email = tech["email"]
-
-    if incident.before_photo_id:
-        file_repo = SqlFileRepository()
-        before_file = file_repo.get_by_id(incident.before_photo_id)
-        if before_file:
-            before_photo_url = before_file.url
-
-    if incident.after_photo_id:
-        file_repo = SqlFileRepository()
-        after_file = file_repo.get_by_id(incident.after_photo_id)
-        if after_file:
-            after_photo_url = after_file.url
 
     return IncidentResponse(
         id=incident.id,
@@ -155,15 +95,36 @@ def _incident_to_response(incident: Incident) -> IncidentResponse:
         after_photo_id=incident.after_photo_id,
         created_at=incident.created_at,
         updated_at=incident.updated_at,
-        category_name=category_name,
-        student_first_name=student_first_name,
-        student_last_name=student_last_name,
-        student_email=student_email,
-        technician_first_name=technician_first_name,
-        technician_last_name=technician_last_name,
-        technician_email=technician_email,
-        before_photo_url=before_photo_url,
-        after_photo_url=after_photo_url,
+        category_name=incident_with_details.category_name,
+        student_first_name=incident_with_details.student_first_name,
+        student_last_name=incident_with_details.student_last_name,
+        student_email=incident_with_details.student_email,
+        technician_first_name=incident_with_details.technician_first_name,
+        technician_last_name=incident_with_details.technician_last_name,
+        technician_email=incident_with_details.technician_email,
+        before_photo_url=incident_with_details.before_photo_url,
+        after_photo_url=incident_with_details.after_photo_url,
+    )
+
+
+def _incident_to_response(incident: Incident) -> IncidentResponse:
+    """Convierte Incident a IncidentResponse sin detalles."""
+    location = incident.location
+    return IncidentResponse(
+        id=incident.id,
+        student_id=incident.student_id,
+        technician_id=incident.technician_id,
+        category_id=incident.category_id,
+        description=incident.description,
+        campus_place=location.campus_place if location else None,
+        latitude=location.latitude if location else None,
+        longitude=location.longitude if location else None,
+        status=incident.status,
+        priority=incident.priority,
+        before_photo_id=incident.before_photo_id,
+        after_photo_id=incident.after_photo_id,
+        created_at=incident.created_at,
+        updated_at=incident.updated_at,
     )
 
 
@@ -255,8 +216,8 @@ def list_incidents(
 )
 def get_incident(incident_id: UUID) -> IncidentResponse:
     service = get_incident_service()
-    incident = service.get_incident(incident_id)
-    if incident is None:
+    incident_with_details = service.get_incident_with_details(incident_id)
+    if incident_with_details is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -264,7 +225,7 @@ def get_incident(incident_id: UUID) -> IncidentResponse:
                 "error_code": "INCIDENT_NOT_FOUND",
             },
         )
-    return _incident_to_response(incident)
+    return _incident_with_details_to_response(incident_with_details)
 
 
 @router.post(
