@@ -120,16 +120,6 @@ class IncidentResponse(BaseModel):
     after_photo_id: UUID | None
     created_at: datetime
     updated_at: datetime | None
-    # Campos adicionales para detalle completo
-    category_name: str | None = None
-    student_first_name: str | None = None
-    student_last_name: str | None = None
-    student_email: str | None = None
-    technician_first_name: str | None = None
-    technician_last_name: str | None = None
-    technician_email: str | None = None
-    before_photo_url: str | None = None
-    after_photo_url: str | None = None
 
 
 class PaginatedIncidentsResponse(BaseModel):
