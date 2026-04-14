@@ -3,7 +3,8 @@
 from sqlalchemy import select
 
 from app.application.ports import UserRepositoryPort
-from app.domain.entities import User, UserRole
+from app.domain.entities import User
+from app.domain.entities.user import UserRole
 from app.infrastructure.db import get_session
 from app.infrastructure.models.user_model import UserModel
 
