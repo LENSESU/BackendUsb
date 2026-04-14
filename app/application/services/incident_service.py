@@ -1,6 +1,5 @@
 """Caso de uso: operaciones sobre Incidentes."""
 
-from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
@@ -19,22 +18,6 @@ from app.domain.entities.incident import (
 )
 
 
-@dataclass
-class IncidentWithDetails:
-    """Incidente con información detallada de relaciones."""
-
-    incident: Incident
-    category_name: str | None = None
-    student_first_name: str | None = None
-    student_last_name: str | None = None
-    student_email: str | None = None
-    technician_first_name: str | None = None
-    technician_last_name: str | None = None
-    technician_email: str | None = None
-    before_photo_url: str | None = None
-    after_photo_url: str | None = None
-
-
 class IncidentService:
     """Servicio de aplicación para Incidentes. Orquesta dominio y puertos."""
 
@@ -42,76 +25,12 @@ class IncidentService:
         self,
         repository: IncidentRepositoryPort,
         category_repository: IncidentCategoryRepositoryPort | None = None,
-        user_repository=None,
-        file_repository=None,
     ) -> None:
         self._repository = repository
         self._category_repository = category_repository
-        self._user_repository = user_repository
-        self._file_repository = file_repository
 
     def get_incident(self, incident_id: UUID) -> Incident | None:
         return self._repository.get_by_id(incident_id)
-
-    def get_incident_with_details(
-        self,
-        incident_id: UUID,
-    ) -> IncidentWithDetails | None:
-        """Obtiene un incidente con información detallada de sus relaciones."""
-        incident = self._repository.get_by_id(incident_id)
-        if incident is None:
-            return None
-
-        category_name = None
-        if incident.category_id and self._category_repository:
-            category = self._category_repository.find_by_id(str(incident.category_id))
-            if category:
-                category_name = category.name
-
-        student_first_name = None
-        student_last_name = None
-        student_email = None
-        if self._user_repository:
-            student = self._user_repository.get_by_id(incident.student_id)
-            if student:
-                student_first_name = student.first_name
-                student_last_name = student.last_name
-                student_email = student.email
-
-        technician_first_name = None
-        technician_last_name = None
-        technician_email = None
-        if incident.technician_id and self._user_repository:
-            tech = self._user_repository.get_by_id(incident.technician_id)
-            if tech:
-                technician_first_name = tech.first_name
-                technician_last_name = tech.last_name
-                technician_email = tech.email
-
-        before_photo_url = None
-        if incident.before_photo_id and self._file_repository:
-            before_file = self._file_repository.get_by_id(incident.before_photo_id)
-            if before_file:
-                before_photo_url = before_file.url
-
-        after_photo_url = None
-        if incident.after_photo_id and self._file_repository:
-            after_file = self._file_repository.get_by_id(incident.after_photo_id)
-            if after_file:
-                after_photo_url = after_file.url
-
-        return IncidentWithDetails(
-            incident=incident,
-            category_name=category_name,
-            student_first_name=student_first_name,
-            student_last_name=student_last_name,
-            student_email=student_email,
-            technician_first_name=technician_first_name,
-            technician_last_name=technician_last_name,
-            technician_email=technician_email,
-            before_photo_url=before_photo_url,
-            after_photo_url=after_photo_url,
-        )
 
     def list_incidents(self) -> list[Incident]:
         return self._repository.list_all()
