@@ -9,6 +9,7 @@ from app.api.dependencies.auth import (
     get_current_user_id,
     require_role,
 )
+from app.api.dependencies.incident import get_incident_service
 from app.api.dependencies.storage import get_incident_evidence_service
 from app.api.dependencies.technician import get_technician_service
 from app.api.schemas import (
@@ -21,9 +22,7 @@ from app.api.schemas import (
     PaginatedAdminIncidentsResponse,
     PaginatedIncidentsResponse,
 )
-from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
-from app.application.services.incident_service import IncidentService
 from app.application.services.technician_service import TechnicianService
 from app.domain.entities.incident import Incident
 
@@ -43,36 +42,6 @@ def _reraise_service_unprocessable(exc: HTTPException) -> None:
             "error_code": "INCIDENT_CATEGORY_INVALID",
         },
     ) from exc
-
-
-_repository: IncidentRepositoryPort | None = None
-
-
-def get_incident_service() -> IncidentService:
-    """Obtiene el servicio de incidentes con repositorio SQL y categorías.
-
-    El repositorio se cachea en módulo; ``_repository = None`` en tests lo reinicia.
-    """
-    global _repository
-    from app.infrastructure.adapters.incident_category_repository import (
-        SqlAlchemyIncidentCategoryRepository,
-    )
-    from app.infrastructure.adapters.postgres_user_repository import (
-        PostgresUserRepository,
-    )
-    from app.infrastructure.adapters.sql_file_repository import SqlFileRepository
-    from app.infrastructure.adapters.sql_incident_repository import (
-        SqlIncidentRepository,
-    )
-
-    if _repository is None:
-        _repository = SqlIncidentRepository()
-    return IncidentService(
-        repository=_repository,
-        category_repository=SqlAlchemyIncidentCategoryRepository(),
-        user_repository=PostgresUserRepository(),
-        file_repository=SqlFileRepository(),
-    )
 
 
 def _incident_with_details_to_response(incident_with_details) -> IncidentResponse:
