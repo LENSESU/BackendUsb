@@ -35,7 +35,7 @@ class IncidentPriority(StrEnum):
     BAJA = "Baja"
 
 
-# Mapeo de nombre de categoría 
+# Mapeo de nombre de categoría
 _CATEGORY_PRIORITY_MAP: dict[str, str] = {
     "seguridad": IncidentPriority.ALTA,
     "eléctrico": IncidentPriority.ALTA,
