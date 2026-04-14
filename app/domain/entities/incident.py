@@ -27,6 +27,35 @@ class IncidentStatus(StrEnum):
     RESUELTO = "Resuelto"
 
 
+class IncidentPriority(StrEnum):
+    """Niveles de prioridad de un incidente."""
+
+    ALTA = "Alta"
+    MEDIA = "Media"
+    BAJA = "Baja"
+
+
+# Mapeo de nombre de categoría 
+_CATEGORY_PRIORITY_MAP: dict[str, str] = {
+    "seguridad": IncidentPriority.ALTA,
+    "eléctrico": IncidentPriority.ALTA,
+    "electrico": IncidentPriority.ALTA,
+    "infraestructura": IncidentPriority.MEDIA,
+    "aseo": IncidentPriority.BAJA,
+    "otro": IncidentPriority.BAJA,
+}
+
+
+def calculate_priority_from_category(category_name: str) -> str:
+    """Retorna la prioridad correspondiente al nombre de la categoría.
+
+    Si el nombre no está en el mapa de reglas de negocio se devuelve
+    ``IncidentPriority.MEDIA`` como valor seguro por defecto.
+    """
+    key = category_name.strip().lower()
+    return _CATEGORY_PRIORITY_MAP.get(key, IncidentPriority.MEDIA)
+
+
 def incident_status_as_str(value: str | IncidentStatus) -> str:
     """Normaliza un estado recibido (enum o cadena) al valor almacenado."""
     return value.value if isinstance(value, IncidentStatus) else value

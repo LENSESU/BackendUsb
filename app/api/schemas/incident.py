@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.entities.incident import IncidentStatus
+from app.domain.entities.incident import IncidentPriority, IncidentStatus
 
 
 class Campus(StrEnum):
@@ -65,7 +65,7 @@ class IncidentCreate(BaseModel):
     latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
     longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
     estado: IncidentStatus | None = Field(default=None, alias="status")
-    prioridad: str | None = Field(default=None, max_length=20, alias="priority")
+    prioridad: IncidentPriority | None = Field(default=None, alias="priority")
     foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
 
 
@@ -93,7 +93,7 @@ class IncidentUpdate(BaseModel):
     latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
     longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
     estado: IncidentStatus | None = Field(default=None, alias="status")
-    prioridad: str | None = Field(default=None, max_length=20, alias="priority")
+    prioridad: IncidentPriority | None = Field(default=None, alias="priority")
     foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
     foto_despues_id: UUID | None = Field(default=None, alias="after_photo_id")
 
