@@ -3,6 +3,8 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 
 from app.api.dependencies.auth import (
     get_current_role_name,
@@ -25,7 +27,13 @@ from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.incident_service import IncidentService
 from app.application.services.technician_service import TechnicianService
+from app.core.config import settings
 from app.domain.entities.incident import Incident
+from app.infrastructure.adapters.incident_category_repository import (
+    SqlAlchemyIncidentCategoryRepository,
+)
+from app.infrastructure.adapters.sql_file_repository import SqlFileRepository
+from app.infrastructure.database.models import UserModel
 
 router = APIRouter()
 
@@ -69,8 +77,69 @@ def get_incident_service() -> IncidentService:
     )
 
 
+def _get_user_by_id_sync(user_id: UUID) -> dict | None:
+    """Obtiene datos básicos de un usuario por su ID (síncrono)."""
+    engine = create_engine(settings.database_url_sync)
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
+    try:
+        stmt = select(UserModel).where(UserModel.id == user_id)
+        model = db.scalar(stmt)
+        if model:
+            return {
+                "first_name": model.first_name,
+                "last_name": model.last_name,
+                "email": model.email,
+            }
+        return None
+    finally:
+        db.close()
+
+
 def _incident_to_response(incident: Incident) -> IncidentResponse:
     location = incident.location
+
+    category_name = None
+    student_first_name = None
+    student_last_name = None
+    student_email = None
+    technician_first_name = None
+    technician_last_name = None
+    technician_email = None
+    before_photo_url = None
+    after_photo_url = None
+
+    category_repo = SqlAlchemyIncidentCategoryRepository()
+    if incident.category_id:
+        category = category_repo.find_by_id(str(incident.category_id))
+        if category:
+            category_name = category.name
+
+    student = _get_user_by_id_sync(incident.student_id)
+    if student:
+        student_first_name = student["first_name"]
+        student_last_name = student["last_name"]
+        student_email = student["email"]
+
+    if incident.technician_id:
+        tech = _get_user_by_id_sync(incident.technician_id)
+        if tech:
+            technician_first_name = tech["first_name"]
+            technician_last_name = tech["last_name"]
+            technician_email = tech["email"]
+
+    if incident.before_photo_id:
+        file_repo = SqlFileRepository()
+        before_file = file_repo.get_by_id(incident.before_photo_id)
+        if before_file:
+            before_photo_url = before_file.url
+
+    if incident.after_photo_id:
+        file_repo = SqlFileRepository()
+        after_file = file_repo.get_by_id(incident.after_photo_id)
+        if after_file:
+            after_photo_url = after_file.url
+
     return IncidentResponse(
         id=incident.id,
         student_id=incident.student_id,
@@ -86,6 +155,15 @@ def _incident_to_response(incident: Incident) -> IncidentResponse:
         after_photo_id=incident.after_photo_id,
         created_at=incident.created_at,
         updated_at=incident.updated_at,
+        category_name=category_name,
+        student_first_name=student_first_name,
+        student_last_name=student_last_name,
+        student_email=student_email,
+        technician_first_name=technician_first_name,
+        technician_last_name=technician_last_name,
+        technician_email=technician_email,
+        before_photo_url=before_photo_url,
+        after_photo_url=after_photo_url,
     )
 
 
