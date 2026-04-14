@@ -38,6 +38,7 @@ ITEM_FIELDS = {
     "created_at",
     "location",
     "reported_by",
+    "reporter_email",
 }
 
 PAGINATED_FIELDS = {"page", "limit", "total", "total_pages", "items"}
@@ -207,6 +208,17 @@ class TestAdminInboxItemFields:
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
         assert resp.json()["items"][0]["technician_id"] == str(expected_tech)
+
+    def test_reporter_email_field_is_present(self):
+        """reporter_email existe en cada item (None en repo in-memory sin usuarios)."""
+        import app.api.routes.incidents as incidents_mod
+
+        _seed_incident(incidents_mod._repository)
+
+        token = _make_token(ADMIN_ID, "Administrator")
+        resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
+        item = resp.json()["items"][0]
+        assert "reporter_email" in item
 
     def test_ordered_most_recent_first(self):
         """Los items llegan del mas reciente al mas antiguo (orden del repositorio)."""

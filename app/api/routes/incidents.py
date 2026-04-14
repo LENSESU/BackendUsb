@@ -77,7 +77,6 @@ def _incident_with_details_to_response(incident_with_details) -> IncidentRespons
 
 
 def _incident_to_response(incident: Incident) -> IncidentResponse:
-    """Convierte Incident a IncidentResponse sin detalles."""
     location = incident.location
     return IncidentResponse(
         id=incident.id,
@@ -125,6 +124,7 @@ def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
         created_at=incident.created_at,
         location=loc.campus_place if loc else None,
         reported_by=incident.student_id,
+        reporter_email=incident.reporter_email,
     )
 
 
@@ -185,8 +185,8 @@ def list_incidents(
 )
 def get_incident(incident_id: UUID) -> IncidentResponse:
     service = get_incident_service()
-    incident_with_details = service.get_incident_with_details(incident_id)
-    if incident_with_details is None:
+    incident = service.get_incident(incident_id)
+    if incident is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -194,7 +194,7 @@ def get_incident(incident_id: UUID) -> IncidentResponse:
                 "error_code": "INCIDENT_NOT_FOUND",
             },
         )
-    return _incident_with_details_to_response(incident_with_details)
+    return _incident_to_response(incident)
 
 
 @router.post(
