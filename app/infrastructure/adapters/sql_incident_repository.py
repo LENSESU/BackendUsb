@@ -139,10 +139,10 @@ class SqlIncidentRepository(IncidentRepositoryPort):
             return True
         finally:
             db.close()
-            
+
     @abstractmethod
     def update_status(self, incident_id: UUID, new_status: str) -> Incident | None:
-  
+
         db = _get_session()
         try:
             stmt = select(IncidentModel).where(IncidentModel.id == incident_id)

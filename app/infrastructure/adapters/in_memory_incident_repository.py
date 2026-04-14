@@ -45,7 +45,7 @@ class InMemoryIncidentRepository(IncidentRepositoryPort):
         incident = self._store.get(incident_id)
         if incident is None:
             return None
-        
+
         updated = replace(incident, status=new_status)
         self._store[incident_id] = updated
         return updated
