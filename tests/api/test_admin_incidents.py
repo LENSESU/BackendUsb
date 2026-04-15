@@ -78,12 +78,14 @@ def _seed_incident(repo, student_id=None, created_at=None, technician_id=None):
 @pytest.fixture(autouse=True)
 def _clean():
     """Inyecta un repositorio in-memory limpio y reinicia la blacklist entre tests."""
-    import app.api.routes.incidents as incidents_mod
+    import app.api.dependencies.incident as incident_deps
 
-    incidents_mod._repository = InMemoryIncidentRepository()
+    incident_deps._repository = InMemoryIncidentRepository()
+    incident_deps._category_repository = None
     clear_blacklist()
     yield
-    incidents_mod._repository = None
+    incident_deps._repository = None
+    incident_deps._category_repository = None
     clear_blacklist()
 
 
@@ -145,10 +147,10 @@ class TestAdminInboxPaginatedShape:
         assert body["limit"] == 10
 
     def test_total_reflects_incident_count(self):
-        import app.api.routes.incidents as incidents_mod
+        import app.api.dependencies.incident as incident_deps
 
         for _ in range(3):
-            _seed_incident(incidents_mod._repository)
+            _seed_incident(incident_deps._repository)
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
@@ -156,10 +158,10 @@ class TestAdminInboxPaginatedShape:
 
     def test_pagination_slices_correctly(self):
         """page=2&limit=2 con 3 incidentes devuelve 1 item."""
-        import app.api.routes.incidents as incidents_mod
+        import app.api.dependencies.incident as incident_deps
 
         for _ in range(3):
-            _seed_incident(incidents_mod._repository)
+            _seed_incident(incident_deps._repository)
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get(
@@ -179,9 +181,9 @@ class TestAdminInboxPaginatedShape:
 class TestAdminInboxItemFields:
     def test_item_fields(self):
         """Cada item expone exactamente los campos de la bandeja."""
-        import app.api.routes.incidents as incidents_mod
+        import app.api.dependencies.incident as incident_deps
 
-        _seed_incident(incidents_mod._repository)
+        _seed_incident(incident_deps._repository)
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
@@ -189,10 +191,10 @@ class TestAdminInboxItemFields:
 
     def test_reported_by_matches_student(self):
         """reported_by coincide con el usuario que reporto el incidente."""
-        import app.api.routes.incidents as incidents_mod
+        import app.api.dependencies.incident as incident_deps
 
         expected_student = uuid4()
-        _seed_incident(incidents_mod._repository, student_id=expected_student)
+        _seed_incident(incident_deps._repository, student_id=expected_student)
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
@@ -200,10 +202,10 @@ class TestAdminInboxItemFields:
 
     def test_item_includes_assigned_technician(self):
         """La bandeja admin refleja el técnico asignado cuando existe."""
-        import app.api.routes.incidents as incidents_mod
+        import app.api.dependencies.incident as incident_deps
 
         expected_tech = uuid4()
-        _seed_incident(incidents_mod._repository, technician_id=expected_tech)
+        _seed_incident(incident_deps._repository, technician_id=expected_tech)
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
@@ -211,9 +213,9 @@ class TestAdminInboxItemFields:
 
     def test_reporter_email_field_is_present(self):
         """reporter_email existe en cada item (None en repo in-memory sin usuarios)."""
-        import app.api.routes.incidents as incidents_mod
+        import app.api.dependencies.incident as incident_deps
 
-        _seed_incident(incidents_mod._repository)
+        _seed_incident(incident_deps._repository)
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
@@ -222,14 +224,111 @@ class TestAdminInboxItemFields:
 
     def test_ordered_most_recent_first(self):
         """Los items llegan del mas reciente al mas antiguo (orden del repositorio)."""
-        import app.api.routes.incidents as incidents_mod
+        import app.api.dependencies.incident as incident_deps
 
-        repo = incidents_mod._repository
+        repo = incident_deps._repository
         _seed_incident(repo, created_at=datetime(2026, 4, 9, tzinfo=UTC))
         _seed_incident(repo, created_at=datetime(2026, 4, 11, tzinfo=UTC))
         _seed_incident(repo, created_at=datetime(2026, 4, 10, tzinfo=UTC))
 
         token = _make_token(ADMIN_ID, "Administrator")
         resp = client.get("/api/v1/incidents/admin-inbox", headers=_auth(token))
+        dates = [item["created_at"] for item in resp.json()["items"]]
+        assert dates == sorted(dates, reverse=True)
+
+
+# ── #194: Ordenamiento por prioridad ─────────────────────────────────────────
+
+
+class TestAdminInboxPriorityOrdering:
+    """Valida que la bandeja admin puede ordenar por prioridad (#194)."""
+
+    def test_order_by_priority_returns_alta_first(self):
+        """order_by=priority ordena Alta > Media > Baja."""
+        import app.api.dependencies.incident as incident_deps
+
+        repo = incident_deps._repository
+        _seed_incident(repo)  # default priority None
+        # Seed con prioridades explicitas
+        from app.domain.entities.incident import Incident
+
+        for prio in ("Baja", "Alta", "Media"):
+            repo.save(
+                Incident(
+                    id=uuid4(),
+                    student_id=STUDENT_ID,
+                    technician_id=None,
+                    category_id=CATEGORY_ID,
+                    description=f"Incidente prioridad {prio}",
+                    priority=prio,
+                    created_at=datetime.now(UTC),
+                )
+            )
+
+        token = _make_token(ADMIN_ID, "Administrator")
+        resp = client.get(
+            "/api/v1/incidents/admin-inbox?order_by=priority",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        priorities = [
+            item["priority"]
+            for item in resp.json()["items"]
+            if item["priority"] is not None
+        ]
+        assert priorities == ["Alta", "Media", "Baja"]
+
+    def test_order_by_priority_null_goes_last(self):
+        """Incidentes sin prioridad quedan al final al ordenar."""
+        import app.api.dependencies.incident as incident_deps
+
+        repo = incident_deps._repository
+        from app.domain.entities.incident import Incident
+
+        repo.save(
+            Incident(
+                id=uuid4(),
+                student_id=STUDENT_ID,
+                technician_id=None,
+                category_id=CATEGORY_ID,
+                description="Sin prioridad",
+                priority=None,
+                created_at=datetime.now(UTC),
+            )
+        )
+        repo.save(
+            Incident(
+                id=uuid4(),
+                student_id=STUDENT_ID,
+                technician_id=None,
+                category_id=CATEGORY_ID,
+                description="Con prioridad alta",
+                priority="Alta",
+                created_at=datetime.now(UTC),
+            )
+        )
+
+        token = _make_token(ADMIN_ID, "Administrator")
+        resp = client.get(
+            "/api/v1/incidents/admin-inbox?order_by=priority",
+            headers=_auth(token),
+        )
+        items = resp.json()["items"]
+        assert items[0]["priority"] == "Alta"
+        assert items[1]["priority"] is None
+
+    def test_default_order_is_created_at_desc(self):
+        """Sin order_by, el orden por defecto sigue siendo created_at desc."""
+        import app.api.dependencies.incident as incident_deps
+
+        repo = incident_deps._repository
+        _seed_incident(repo, created_at=datetime(2026, 1, 1, tzinfo=UTC))
+        _seed_incident(repo, created_at=datetime(2026, 6, 1, tzinfo=UTC))
+
+        token = _make_token(ADMIN_ID, "Administrator")
+        resp = client.get(
+            "/api/v1/incidents/admin-inbox",
+            headers=_auth(token),
+        )
         dates = [item["created_at"] for item in resp.json()["items"]]
         assert dates == sorted(dates, reverse=True)
