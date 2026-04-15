@@ -129,11 +129,14 @@ def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
 def list_incidents_admin_inbox(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
+    order_by: str | None = Query(default=None, pattern="^status$"),
 ) -> PaginatedAdminIncidentsResponse:
     """Bandeja del administrador: lista paginada de todos los incidentes,
     ordenados del más reciente al más antiguo (ordenamiento en base de datos)."""
     service = get_incident_service()
     incidents = service.list_incidents()
+    if order_by == "status":
+        incidents = sorted(incidents, key=lambda i: i.status)
     total = len(incidents)
     total_pages = (total + limit - 1) // limit if total > 0 else 0
     start = (page - 1) * limit
