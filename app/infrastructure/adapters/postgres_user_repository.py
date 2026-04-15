@@ -3,7 +3,8 @@
 from sqlalchemy import select
 
 from app.application.ports import UserRepositoryPort
-from app.domain.entities import User, UserRole
+from app.domain.entities import User
+from app.domain.entities.role import Role
 from app.infrastructure.db import get_session
 from app.infrastructure.models.user_model import UserModel
 
@@ -23,7 +24,7 @@ class PostgresUserRepository(UserRepositoryPort):
                 email=row.email,
                 password_hash=row.password_hash,
                 name=row.name,
-                role=UserRole(row.role),
+                role=Role(row.role),
             )
 
     async def save(self, user: User) -> User:
@@ -36,8 +37,8 @@ class PostgresUserRepository(UserRepositoryPort):
                 instance = UserModel(
                     email=user.email,
                     password_hash=user.password_hash,
-                    name=user.name,
-                    role=user.role.value,
+                    name=user.first_name + " " + user.last_name,
+                    role=user.role_id,
                 )
                 session.add(instance)
                 await session.flush()  # para obtener el id autogenerado
@@ -45,8 +46,8 @@ class PostgresUserRepository(UserRepositoryPort):
             else:
                 instance.email = user.email
                 instance.password_hash = user.password_hash
-                instance.name = user.name
-                instance.role = user.role.value
+                instance.name = (user.first_name + " " + user.last_name,)
+                instance.role = user.role_id
 
             await session.commit()
             return user
