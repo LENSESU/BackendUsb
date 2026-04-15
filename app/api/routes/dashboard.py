@@ -3,7 +3,7 @@
 import asyncio
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
 from app.api.dependencies.auth import get_current_role_name, require_role
@@ -35,6 +35,7 @@ async def get_dashboard(
     incident_category_service: IncidentCategoryService = Depends(
         get_incident_category_service
     ),
+    order_by: str | None = Query(default=None, pattern="^status$"),
 ) -> DashboardResponse:
     """Retorna información consolidada para el dashboard."""
     try:
@@ -59,6 +60,9 @@ async def get_dashboard(
         filtered_incidents = [
             i for i in incidents if i.created_at is not None and i.id is not None
         ]
+        if order_by == "status":
+            filtered_incidents = sorted(filtered_incidents, key=lambda i: i.status)
+
         category_tasks = [
             asyncio.to_thread(incident_category_service.get_by_id, str(i.category_id))
             for i in filtered_incidents
