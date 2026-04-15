@@ -11,7 +11,9 @@ from app.application.ports.incident_category_repository import (
 from app.domain.entities.incident import (
     Incident,
     IncidentLocation,
+    IncidentPriority,
     IncidentStatus,
+    calculate_priority_from_category,
     incident_status_as_str,
     is_known_incident_status,
     validate_incident_status_transition,
@@ -65,6 +67,7 @@ class IncidentService:
         status: str | None = None,
     ) -> Incident:
 
+        category = None
         if self._category_repository is not None:
             category = self._category_repository.find_by_id(str(category_id))
             if category is None:
@@ -72,6 +75,28 @@ class IncidentService:
                     status_code=422,
                     detail=f"La categoría con id '{category_id}' no existe.",
                 )
+
+        # Resolución automática de prioridad
+        if priority is not None:
+            try:
+                IncidentPriority(priority)
+                resolved_priority = priority
+            except ValueError:
+                allowed = ", ".join(p.value for p in IncidentPriority)
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "message": (
+                            f"Prioridad no válida: {priority!r}. "
+                            f"Valores permitidos: {allowed}."
+                        ),
+                        "error_code": "INCIDENT_PRIORITY_INVALID",
+                    },
+                )
+        elif category is not None:
+            resolved_priority = calculate_priority_from_category(category.name)
+        else:
+            resolved_priority = IncidentPriority.MEDIA
 
         location = None
         if campus_place is not None or latitude is not None or longitude is not None:
@@ -117,7 +142,7 @@ class IncidentService:
             category_id=category_id,
             description=description.strip(),
             status=resolved_status,
-            priority=priority,
+            priority=resolved_priority,
             before_photo_id=before_photo_id,
             after_photo_id=None,
             created_at=None,
