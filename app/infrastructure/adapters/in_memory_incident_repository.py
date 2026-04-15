@@ -41,6 +41,10 @@ class InMemoryIncidentRepository(IncidentRepositoryPort):
 
     def save(self, incident: Incident) -> Incident:
         """Guarda o sobrescribe un incidente por su ID."""
+        if incident.created_at is None:
+            from datetime import UTC, datetime
+
+            incident.created_at = datetime.now(UTC)
         self._store[incident.id] = incident
         return incident
 

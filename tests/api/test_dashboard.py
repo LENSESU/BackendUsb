@@ -77,9 +77,10 @@ def _clean() -> None:
 
     app.dependency_overrides[get_suggestion_service] = _override_suggestion_service
 
-    import app.api.routes.incidents as incidents_mod
+    import app.api.dependencies.incident as incident_deps
 
-    incidents_mod._repository = incident_repo
+    incident_deps._repository = incident_repo
+    incident_deps._category_repository = None
 
     now = datetime.now(UTC)
     # 6 incidentes del usuario actual (el dashboard debe devolver solo 5)
@@ -134,7 +135,8 @@ def _clean() -> None:
     yield
 
     app.dependency_overrides.pop(get_suggestion_service, None)
-    incidents_mod._repository = None
+    incident_deps._repository = None
+    incident_deps._category_repository = None
     clear_blacklist()
 
 
@@ -160,9 +162,9 @@ def test_dashboard_requires_authentication() -> None:
 
 
 def test_dashboard_for_technician_returns_assigned_incidents_only() -> None:
-    import app.api.routes.incidents as incidents_mod
+    import app.api.dependencies.incident as incident_deps
 
-    incident_repo = incidents_mod._repository
+    incident_repo = incident_deps._repository
     now = datetime.now(UTC)
 
     incident_repo.save(

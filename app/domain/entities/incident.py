@@ -45,6 +45,12 @@ _CATEGORY_PRIORITY_MAP: dict[str, str] = {
     "otro": IncidentPriority.BAJA,
 }
 
+PRIORITY_SORT_WEIGHT: dict[str | None, int] = {
+    IncidentPriority.ALTA: 0,
+    IncidentPriority.MEDIA: 1,
+    IncidentPriority.BAJA: 2,
+}
+
 
 def calculate_priority_from_category(category_name: str) -> str:
     """Retorna la prioridad correspondiente al nombre de la categoría.
