@@ -1,14 +1,16 @@
 """Implementación de UserRepositoryPort usando PostgreSQL con SQLAlchemy async."""
 
 from uuid import UUID
+
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
+
 from app.application.ports import UserRepositoryPort
 from app.application.ports.user_repository import UserBasicData
 from app.core.config import settings
 from app.domain.entities import User
-from app.infrastructure.db import get_session
 from app.infrastructure.database.models import UserModel
+from app.infrastructure.db import get_session
 
 
 def _get_session_sync():

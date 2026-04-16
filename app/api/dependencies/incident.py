@@ -9,8 +9,8 @@ from app.application.services.incident_service import IncidentService
 from app.infrastructure.adapters.incident_category_repository import (
     SqlAlchemyIncidentCategoryRepository,
 )
-from app.infrastructure.adapters.sql_user_repository import SqlUserRepository
 from app.infrastructure.adapters.sql_incident_repository import SqlIncidentRepository
+from app.infrastructure.adapters.sql_user_repository import SqlUserRepository
 
 _UNSET = object()
 
@@ -40,11 +40,7 @@ def get_incident_service() -> IncidentService:
         else _category_repository
     )
 
-    user_repo = (
-        SqlUserRepository()
-        if _user_repository is _UNSET
-        else _user_repository
-    )
+    user_repo = SqlUserRepository() if _user_repository is _UNSET else _user_repository
 
     return IncidentService(
         repository=_repository,
