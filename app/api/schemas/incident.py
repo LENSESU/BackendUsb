@@ -122,6 +122,17 @@ class IncidentResponse(BaseModel):
     updated_at: datetime | None
 
 
+class IncidentDetailResponse(IncidentResponse):
+    """Respuesta detallada de un incidente con información de estudiante y técnico."""
+
+    student_first_name: str | None = None
+    student_last_name: str | None = None
+    student_email: str | None = None
+    technician_first_name: str | None = None
+    technician_last_name: str | None = None
+    technician_email: str | None = None
+
+
 class PaginatedIncidentsResponse(BaseModel):
     """Respuesta paginada para listado de incidentes."""
 

@@ -9,21 +9,21 @@ from app.api.dependencies.auth import (
     get_current_user_id,
     require_role,
 )
+from app.api.dependencies.incident import get_incident_service
 from app.api.dependencies.storage import get_incident_evidence_service
 from app.api.dependencies.technician import get_technician_service
 from app.api.schemas import (
     AdminIncidentSummary,
     AssignTechnicianRequest,
     IncidentCreate,
+    IncidentDetailResponse,
     IncidentEvidenceUploadResponse,
     IncidentResponse,
     IncidentUpdate,
     PaginatedAdminIncidentsResponse,
     PaginatedIncidentsResponse,
 )
-from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
-from app.application.services.incident_service import IncidentService
 from app.application.services.technician_service import TechnicianService
 from app.domain.entities.incident import Incident
 
@@ -43,30 +43,6 @@ def _reraise_service_unprocessable(exc: HTTPException) -> None:
             "error_code": "INCIDENT_CATEGORY_INVALID",
         },
     ) from exc
-
-
-_repository: IncidentRepositoryPort | None = None
-
-
-def get_incident_service() -> IncidentService:
-    """Obtiene el servicio de incidentes con repositorio SQL y categorías.
-
-    El repositorio se cachea en módulo; ``_repository = None`` en tests lo reinicia.
-    """
-    global _repository
-    from app.infrastructure.adapters.incident_category_repository import (
-        SqlAlchemyIncidentCategoryRepository,
-    )
-    from app.infrastructure.adapters.sql_incident_repository import (
-        SqlIncidentRepository,
-    )
-
-    if _repository is None:
-        _repository = SqlIncidentRepository()
-    return IncidentService(
-        repository=_repository,
-        category_repository=SqlAlchemyIncidentCategoryRepository(),
-    )
 
 
 def _incident_to_response(incident: Incident) -> IncidentResponse:
@@ -173,13 +149,13 @@ def list_incidents(
 
 @router.get(
     "/{incident_id}",
-    response_model=IncidentResponse,
+    response_model=IncidentDetailResponse,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
-def get_incident(incident_id: UUID) -> IncidentResponse:
+def get_incident(incident_id: UUID) -> IncidentDetailResponse:
     service = get_incident_service()
-    incident = service.get_incident(incident_id)
-    if incident is None:
+    incident_with_details = service.get_incident_with_details(incident_id)
+    if incident_with_details is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -187,7 +163,32 @@ def get_incident(incident_id: UUID) -> IncidentResponse:
                 "error_code": "INCIDENT_NOT_FOUND",
             },
         )
-    return _incident_to_response(incident)
+
+    incident = incident_with_details.incident
+    location = incident.location
+
+    return IncidentDetailResponse(
+        id=incident.id,
+        student_id=incident.student_id,
+        technician_id=incident.technician_id,
+        category_id=incident.category_id,
+        description=incident.description,
+        campus_place=location.campus_place if location else None,
+        latitude=location.latitude if location else None,
+        longitude=location.longitude if location else None,
+        status=incident.status,
+        priority=incident.priority,
+        before_photo_id=incident.before_photo_id,
+        after_photo_id=incident.after_photo_id,
+        created_at=incident.created_at,
+        updated_at=incident.updated_at,
+        student_first_name=incident_with_details.student_first_name,
+        student_last_name=incident_with_details.student_last_name,
+        student_email=incident_with_details.student_email,
+        technician_first_name=incident_with_details.technician_first_name,
+        technician_last_name=incident_with_details.technician_last_name,
+        technician_email=incident_with_details.technician_email,
+    )
 
 
 @router.post(

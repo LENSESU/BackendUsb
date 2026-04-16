@@ -1,5 +1,6 @@
 """Caso de uso: operaciones sobre Incidentes."""
 
+from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
@@ -18,6 +19,19 @@ from app.domain.entities.incident import (
 )
 
 
+@dataclass
+class IncidentWithDetails:
+    """Incidente con información detallada de relaciones."""
+
+    incident: Incident
+    student_first_name: str | None = None
+    student_last_name: str | None = None
+    student_email: str | None = None
+    technician_first_name: str | None = None
+    technician_last_name: str | None = None
+    technician_email: str | None = None
+
+
 class IncidentService:
     """Servicio de aplicación para Incidentes. Orquesta dominio y puertos."""
 
@@ -25,12 +39,53 @@ class IncidentService:
         self,
         repository: IncidentRepositoryPort,
         category_repository: IncidentCategoryRepositoryPort | None = None,
+        user_repository=None,
     ) -> None:
         self._repository = repository
         self._category_repository = category_repository
+        self._user_repository = user_repository
 
     def get_incident(self, incident_id: UUID) -> Incident | None:
         return self._repository.get_by_id(incident_id)
+
+    def get_incident_with_details(
+        self,
+        incident_id: UUID,
+    ) -> IncidentWithDetails | None:
+        """Obtiene un incidente con información detallada de sus relaciones."""
+        incident = self._repository.get_by_id(incident_id)
+        if incident is None:
+            return None
+
+        student_first_name = None
+        student_last_name = None
+        student_email = None
+        if self._user_repository:
+            student = self._user_repository.get_by_id(incident.student_id)
+            if student:
+                student_first_name = student.first_name
+                student_last_name = student.last_name
+                student_email = student.email
+
+        technician_first_name = None
+        technician_last_name = None
+        technician_email = None
+        if incident.technician_id and self._user_repository:
+            tech = self._user_repository.get_by_id(incident.technician_id)
+            if tech:
+                technician_first_name = tech.first_name
+                technician_last_name = tech.last_name
+                technician_email = tech.email
+
+        return IncidentWithDetails(
+            incident=incident,
+            student_first_name=student_first_name,
+            student_last_name=student_last_name,
+            student_email=student_email,
+            technician_first_name=technician_first_name,
+            technician_last_name=technician_last_name,
+            technician_email=technician_email,
+        )
 
     def list_incidents(self) -> list[Incident]:
         return self._repository.list_all()

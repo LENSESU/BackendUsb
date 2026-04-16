@@ -1,11 +1,23 @@
 """Implementación de UserRepositoryPort usando PostgreSQL con SQLAlchemy async."""
 
-from sqlalchemy import select
+from uuid import UUID
+
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 
 from app.application.ports import UserRepositoryPort
-from app.domain.entities import User, UserRole
+from app.application.ports.user_repository import UserBasicData
+from app.core.config import settings
+from app.domain.entities import User
 from app.infrastructure.db import get_session
 from app.infrastructure.models.user_model import UserModel
+
+
+def _get_session_sync():
+    """Crea una sesión síncrona."""
+    engine = create_engine(settings.database_url_sync)
+    SessionLocal = sessionmaker(bind=engine)
+    return SessionLocal()
 
 
 class PostgresUserRepository(UserRepositoryPort):
@@ -22,8 +34,9 @@ class PostgresUserRepository(UserRepositoryPort):
                 id=row.id,
                 email=row.email,
                 password_hash=row.password_hash,
-                name=row.name,
-                role=UserRole(row.role),
+                first_name=row.name.split()[0] if row.name else "",
+                last_name=row.name.split()[-1] if row.name else "",
+                role_id=UUID(int=0),  # Placeholder - role_id es UUID, no str
             )
 
     async def save(self, user: User) -> User:
@@ -36,8 +49,8 @@ class PostgresUserRepository(UserRepositoryPort):
                 instance = UserModel(
                     email=user.email,
                     password_hash=user.password_hash,
-                    name=user.name,
-                    role=user.role.value,
+                    name=f"{user.first_name} {user.last_name}",
+                    role="STUDENT",  # Placeholder
                 )
                 session.add(instance)
                 await session.flush()  # para obtener el id autogenerado
@@ -45,8 +58,25 @@ class PostgresUserRepository(UserRepositoryPort):
             else:
                 instance.email = user.email
                 instance.password_hash = user.password_hash
-                instance.name = user.name
-                instance.role = user.role.value
+                instance.name = f"{user.first_name} {user.last_name}"
 
             await session.commit()
             return user
+
+    def get_by_id(self, user_id: UUID) -> UserBasicData | None:
+        """Obtiene datos básicos de un usuario por su ID (síncrono)."""
+        db = _get_session_sync()
+        try:
+            stmt = select(UserModel).where(UserModel.id == user_id)
+            model = db.scalar(stmt)
+            if model:
+                name_parts = model.name.split() if model.name else ["", ""]
+                return UserBasicData(
+                    id=model.id,
+                    first_name=name_parts[0] if name_parts else "",
+                    last_name=name_parts[-1] if len(name_parts) > 1 else "",
+                    email=model.email,
+                )
+            return None
+        finally:
+            db.close()
