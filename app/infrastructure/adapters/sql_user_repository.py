@@ -1,16 +1,14 @@
 """Implementación de UserRepositoryPort usando PostgreSQL con SQLAlchemy async."""
 
 from uuid import UUID
-
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
-
 from app.application.ports import UserRepositoryPort
 from app.application.ports.user_repository import UserBasicData
 from app.core.config import settings
 from app.domain.entities import User
 from app.infrastructure.db import get_session
-from app.infrastructure.models.user_model import UserModel
+from app.infrastructure.database.models import UserModel
 
 
 def _get_session_sync():
@@ -20,7 +18,7 @@ def _get_session_sync():
     return SessionLocal()
 
 
-class PostgresUserRepository(UserRepositoryPort):
+class SqlUserRepository(UserRepositoryPort):
     """Repositorio de usuarios en PostgreSQL."""
 
     async def get_by_email(self, email: str) -> User | None:
@@ -34,9 +32,11 @@ class PostgresUserRepository(UserRepositoryPort):
                 id=row.id,
                 email=row.email,
                 password_hash=row.password_hash,
-                first_name=row.name.split()[0] if row.name else "",
-                last_name=row.name.split()[-1] if row.name else "",
-                role_id=UUID(int=0),  # Placeholder - role_id es UUID, no str
+                first_name=row.first_name,
+                last_name=row.last_name,
+                role_id=row.role_id,
+                is_active=row.is_active,
+                created_at=row.created_at,
             )
 
     async def save(self, user: User) -> User:
@@ -44,22 +44,23 @@ class PostgresUserRepository(UserRepositoryPort):
             instance: UserModel | None = None
             if user.id is not None:
                 instance = await session.get(UserModel, user.id)
-
             if instance is None:
                 instance = UserModel(
                     email=user.email,
                     password_hash=user.password_hash,
-                    name=f"{user.first_name} {user.last_name}",
-                    role="STUDENT",  # Placeholder
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    role_id=user.role_id,
                 )
                 session.add(instance)
-                await session.flush()  # para obtener el id autogenerado
+                await session.flush()
                 user.id = instance.id
             else:
                 instance.email = user.email
                 instance.password_hash = user.password_hash
-                instance.name = f"{user.first_name} {user.last_name}"
-
+                instance.first_name = user.first_name
+                instance.last_name = user.last_name
+                instance.role_id = user.role_id
             await session.commit()
             return user
 
@@ -70,11 +71,10 @@ class PostgresUserRepository(UserRepositoryPort):
             stmt = select(UserModel).where(UserModel.id == user_id)
             model = db.scalar(stmt)
             if model:
-                name_parts = model.name.split() if model.name else ["", ""]
                 return UserBasicData(
                     id=model.id,
-                    first_name=name_parts[0] if name_parts else "",
-                    last_name=name_parts[-1] if len(name_parts) > 1 else "",
+                    first_name=model.first_name,
+                    last_name=model.last_name,
                     email=model.email,
                 )
             return None
