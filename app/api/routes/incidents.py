@@ -25,9 +25,11 @@ from app.api.schemas import (
 )
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.technician_service import TechnicianService
-from app.domain.entities.incident import Incident
+from app.domain.entities.incident import PRIORITY_SORT_WEIGHT, Incident
 
 router = APIRouter()
+
+_DEFAULT_PRIORITY_WEIGHT = max(PRIORITY_SORT_WEIGHT.values()) + 1
 
 
 def _reraise_service_unprocessable(exc: HTTPException) -> None:
@@ -105,11 +107,21 @@ def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
 def list_incidents_admin_inbox(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
+    order_by: str | None = Query(default=None, pattern="^(status|priority)$"),
 ) -> PaginatedAdminIncidentsResponse:
     """Bandeja del administrador: lista paginada de todos los incidentes,
     ordenados del más reciente al más antiguo (ordenamiento en base de datos)."""
     service = get_incident_service()
     incidents = service.list_incidents()
+    if order_by == "status":
+        incidents = sorted(incidents, key=lambda i: i.status)
+    elif order_by == "priority":
+        incidents = sorted(
+            incidents,
+            key=lambda i: PRIORITY_SORT_WEIGHT.get(
+                i.priority, _DEFAULT_PRIORITY_WEIGHT
+            ),
+        )
     total = len(incidents)
     total_pages = (total + limit - 1) // limit if total > 0 else 0
     start = (page - 1) * limit
@@ -131,9 +143,19 @@ def list_incidents_admin_inbox(
 def list_incidents(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
+    order_by: str | None = Query(default=None, pattern="^(status|priority)$"),
 ) -> PaginatedIncidentsResponse:
     service = get_incident_service()
     incidents = service.list_incidents()
+    if order_by == "status":
+        incidents = sorted(incidents, key=lambda i: i.status)
+    elif order_by == "priority":
+        incidents = sorted(
+            incidents,
+            key=lambda i: PRIORITY_SORT_WEIGHT.get(
+                i.priority, _DEFAULT_PRIORITY_WEIGHT
+            ),
+        )
     total = len(incidents)
     total_pages = (total + limit - 1) // limit if total > 0 else 0
     start = (page - 1) * limit

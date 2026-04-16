@@ -23,6 +23,9 @@ from fastapi.testclient import TestClient
 
 from app.core.security import create_access_token
 from app.core.token_blacklist import clear_blacklist
+from app.infrastructure.adapters.in_memory_incident_repository import (
+    InMemoryIncidentRepository,
+)
 from app.main import app
 
 client = TestClient(app)
@@ -69,12 +72,14 @@ def _valid_payload() -> dict:
 def _clean():
     """Limpia blacklist y repositorio in-memory entre tests."""
     clear_blacklist()
-    import app.api.routes.incidents as incidents_mod
+    import app.api.dependencies.incident as incident_deps
 
-    incidents_mod._repository = None
+    incident_deps._repository = InMemoryIncidentRepository()
+    incident_deps._category_repository = None
     yield
     clear_blacklist()
-    incidents_mod._repository = None
+    incident_deps._repository = None
+    incident_deps._category_repository = None
 
 
 # ── #108 + #107: Creación exitosa con metadatos automáticos ──────────────────
@@ -154,7 +159,7 @@ class TestIncidentCreation:
         """Se pueden enviar campos opcionales (location, priority)."""
         token = _make_token(STUDENT_USER_ID, "Student")
         payload = _valid_payload()
-        payload["campus_place"] = "Edificio MYS, Piso 2"
+        payload["campus_place"] = "Biblioteca"
         payload["latitude"] = 10.409
         payload["longitude"] = -66.883
         payload["priority"] = "Alta"
@@ -165,7 +170,7 @@ class TestIncidentCreation:
         )
         assert resp.status_code == 201
         body = resp.json()
-        assert body["campus_place"] == "Edificio MYS, Piso 2"
+        assert body["campus_place"] == "Biblioteca"
         assert body["priority"] == "Alta"
 
 
@@ -203,16 +208,65 @@ class TestAutoMetadata:
         assert body["student_id"] == str(ADMIN_USER_ID)
 
 
+# ── #193: Prioridad persistida ───────────────────────────────────────────────
+
+
+class TestPriorityPersistence:
+    """Valida que la prioridad queda persistida al crear un incidente (#193)."""
+
+    def test_priority_defaults_to_media_without_category_repo(self):
+        """Sin category_repository, la prioridad por defecto es Media."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        resp = client.post(
+            "/api/v1/incidents/",
+            json=_valid_payload(),
+            headers=_auth(token),
+        )
+        assert resp.status_code == 201
+        assert resp.json()["priority"] == "Media"
+
+    def test_explicit_priority_is_persisted(self):
+        """Una prioridad explícita enviada en el payload se persiste."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        payload = _valid_payload()
+        payload["priority"] = "Alta"
+        resp = client.post(
+            "/api/v1/incidents/",
+            json=payload,
+            headers=_auth(token),
+        )
+        assert resp.status_code == 201
+        assert resp.json()["priority"] == "Alta"
+
+    def test_priority_is_returned_in_get(self):
+        """La prioridad persiste y se retorna al consultar el incidente."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        payload = _valid_payload()
+        payload["priority"] = "Baja"
+        create_resp = client.post(
+            "/api/v1/incidents/",
+            json=payload,
+            headers=_auth(token),
+        )
+        incident_id = create_resp.json()["id"]
+        get_resp = client.get(
+            f"/api/v1/incidents/{incident_id}",
+            headers=_auth(token),
+        )
+        assert get_resp.status_code == 200
+        assert get_resp.json()["priority"] == "Baja"
+
+
 # ── Autenticación requerida ──────────────────────────────────────────────────
 
 
 class TestIncidentAuth:
     """Valida que el endpoint requiere autenticación."""
 
-    def test_create_without_token_returns_403(self):
-        """Sin token, el endpoint rechaza con 403."""
+    def test_create_without_token_returns_401(self):
+        """Sin token, el endpoint rechaza con 401."""
         resp = client.post("/api/v1/incidents/", json=_valid_payload())
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
     def test_create_with_invalid_token_returns_401(self):
         """Token inválido → 401."""
