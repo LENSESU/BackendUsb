@@ -33,5 +33,5 @@ class SmtpEmailSender(EmailSenderPort):
             username=settings.mail_username or None,
             password=settings.mail_password or None,
             use_tls=False,
-            start_tls=False,
+            start_tls=settings.mail_start_tls,
         )
