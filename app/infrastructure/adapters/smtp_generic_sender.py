@@ -1,9 +1,8 @@
+import aiosmtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 from string import Template
-
-import aiosmtplib
 
 from app.application.ports.email_sender import EmailSenderPort
 from app.core.config import settings
@@ -26,12 +25,16 @@ class SmtpEmailSender(EmailSenderPort):
         message["To"] = to
         message.attach(MIMEText(html, "html"))
 
-        await aiosmtplib.send(
-            message,
+        async with aiosmtplib.SMTP(
             hostname=settings.mail_host,
             port=settings.mail_port,
-            username=settings.mail_username or None,
-            password=settings.mail_password or None,
-            use_tls=False,
-            start_tls=settings.mail_start_tls,
-        )
+            use_tls=False,          # conexión inicial en plano
+        ) as smtp:
+            if settings.mail_start_tls:
+                await smtp.starttls()  # upgrade a TLS
+            if settings.mail_username:
+                await smtp.login(      # auth canal cifrado
+                    settings.mail_username,
+                    settings.mail_password,
+                )
+            await smtp.send_message(message)
