@@ -379,10 +379,13 @@ async def register(
     stmt = select(UserModel).where(UserModel.email == data.email)
     existing_user = db.scalar(stmt)
     if existing_user is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="El email ya está registrado",
-        )
+        if existing_user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="El email ya está registrado",
+            )
+        db.delete(existing_user)
+        db.commit()
 
     role_id = data.role_id
     if role_id is None:
