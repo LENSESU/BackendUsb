@@ -324,3 +324,19 @@ def require_role(*allowed_role_names: str) -> Callable:
         return role_name
 
     return _check_role
+
+
+# ---------------------------------------------------------------------------
+# Dependencia de servicio de autenticación
+# ---------------------------------------------------------------------------
+from app.application.services.auth_service import AuthService
+from app.infrastructure.adapters.sql_user_repository import SqlUserRepository
+
+def get_auth_service() -> AuthService:
+    """
+    Construye AuthService con el repositorio SQL de usuarios.
+    
+    Equivalente a get_incident_service() — sin estado compartido
+    porque AuthService no lo necesita.
+    """
+    return AuthService(user_repository=SqlUserRepository())

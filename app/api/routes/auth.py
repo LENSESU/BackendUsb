@@ -1,22 +1,58 @@
-"""Rutas de autenticación: login, logout, refresh, validación.
+"""Rutas de autenticación: login, logout, refresh, validación, registro y OTP.
 
-Modificaciones para #61 (Proteger endpoints del backend):
-  - ``login()``:  el payload del JWT ahora incluye el claim ``role_name``
-    (ej. "Administrator", "Student", "Technician") resuelto desde la tabla
-    ``roles``.  Esto permite que ``require_role()`` valide permisos sin
-    consultas extra a la BD en cada petición.
-  - ``refresh_access_token()``: mismo cambio — el nuevo access token
-    también lleva ``role_name`` para mantener consistencia.
-  - Se añadió la importación de ``RoleModel``.
+Responsabilidades de este módulo
+---------------------------------
+El router es exclusivamente una capa HTTP: traduce requests a llamadas de
+servicio y errores de dominio a respuestas HTTP.  Toda la lógica de negocio
+(validación de credenciales, ciclo de vida del usuario, emisión de tokens)
+vive en ``AuthService``.
 
-Ningún endpoint de este módulo fue eliminado ni renombrado.
+Flujo de cada endpoint
+-----------------------
+- ``POST /login``       → valida formato, delega en ``AuthService.authenticate``.
+- ``POST /logout``      → invalida el token en la blacklist.
+- ``GET  /me``          → decodifica el token y retorna claims básicos.
+- ``POST /refresh``     → valida blacklist + decodifica refresh token,
+                          delega en ``AuthService.refresh_tokens``.
+- ``POST /validate``    → comprueba validez del token sin renovarlo.
+- ``POST /register``    → delega en ``AuthService.register_pending_user``,
+                          luego coordina con ``OtpService``.
+                          Si el envío OTP falla hace rollback vía
+                          ``AuthService.delete_user``.
+- ``POST /verify-otp``  → verifica código OTP, activa cuenta y emite tokens
+                          vía ``AuthService.activate_user_and_issue_tokens``.
+- ``POST /resend-otp``  → reenvía OTP al email del usuario.
+
+Códigos de error de dominio (ValueError) que maneja este módulo
+---------------------------------------------------------------
+``EMAIL_PASSWORD_INCORRECT``      → 401
+``USER_INACTIVE``                 → 403  (login) / 401 (refresh)
+``REFRESH_TOKEN_EXPIRED``         → 401
+``REFRESH_TOKEN_INVALID``         → 401
+``USER_NOT_FOUND``                → 401 (refresh) / 404 (otp)
+``EMAIL_ALREADY_REGISTERED``      → 409
+``STUDENT_ROLE_NOT_CONFIGURED``   → 500
+``ROLE_NOT_FOUND``                → 400
+
+Nota sobre ``User.id`` y el guard ``if user.id is None``
+---------------------------------------------------------
+La entidad de dominio ``User`` declara ``id: UUID | None`` para representar
+usuarios aún no persistidos (antes de hacer ``save_sync``).  Tras la llamada
+a ``save_sync`` el repositorio asigna el UUID generado por la BD, pero el
+type checker no puede inferir esa garantía de forma estática.  Por ello,
+en cualquier punto donde ``user.id`` se pasa a una función que espera ``UUID``
+(no ``UUID | None``) se añade un guard explícito que, en el caso improbable
+de que el repositorio falle en asignar el id, retorna un error claro en lugar
+de propagar un ``TypeError`` críptico.  La solución estructural definitiva
+sería separar la entidad en ``PendingUser`` (sin id) y ``User`` (con id
+garantizado), pero eso requiere una refactorización mayor del dominio.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+import re
 
-from app.api.dependencies.auth import get_current_token
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.api.dependencies.auth import get_auth_service, get_current_token
 from app.api.dependencies.otp import get_otp_service
 from app.api.schemas.auth import (
     LoginRequest,
@@ -32,52 +68,45 @@ from app.api.schemas.otp import (
     ResendOtpRequest,
     VerifyOtpRequest,
 )
+from app.application.services.auth_service import AuthService, TokenPair
 from app.application.services.otp_service import OtpService
-from app.core.config import settings
 from app.core.security import (
     TokenExpiredError,
     TokenInvalidError,
-    create_access_token,
-    create_refresh_token,
     decode_access_token,
     decode_refresh_token,
     hash_password,
     validate_token,
-    verify_password,
 )
 from app.core.token_blacklist import add_token_to_blacklist, is_token_blacklisted
-from app.infrastructure.database.models import RoleModel, UserModel
 
 router = APIRouter()
 
+# Expresión regular para validación básica de formato de email.
+# No pretende cubrir el estándar RFC 5321 completo — solo rechaza
+# casos claramente inválidos antes de consultar la BD.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-def get_db_session() -> Session:
+
+# ---------------------------------------------------------------------------
+# Helpers privados
+# ---------------------------------------------------------------------------
+
+
+def _validate_login_fields(email: str, password: str) -> None:
+    """Valida presencia y formato de las credenciales de login.
+
+    Se ejecuta antes de cualquier consulta a la BD para devolver errores
+    descriptivos al cliente sin coste de red.
+
+    Args:
+        email:    Email ya normalizado (strip aplicado).
+        password: Contraseña ya normalizada (strip aplicado).
+
+    Raises:
+        HTTPException 400: Si algún campo está vacío o el email tiene
+                           formato inválido.
     """
-    Obtiene una sesión de base de datos.
-
-    TODO: Implementar dependency injection con generador para manejo apropiado
-    de sesiones (abrir/cerrar automáticamente).
-    """
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-
-    from app.core.config import settings
-
-    engine = create_engine(settings.database_url_sync)
-    SessionLocal = sessionmaker(bind=engine)
-    db = SessionLocal()
-    try:
-        return db
-    finally:
-        db.close()
-
-
-@router.post("/login", response_model=TokenResponse)
-def login(credentials: LoginRequest) -> TokenResponse:
-    # Validar campos obligatorios y formato
-    email = (credentials.email or "").strip()
-    password = (credentials.password or "").strip()
-
     if not email and not password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -93,101 +122,110 @@ def login(credentials: LoginRequest) -> TokenResponse:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La contraseña es obligatoria",
         )
-
-    import re
-
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+    if not _EMAIL_RE.match(email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El formato del correo electrónico no es válido",
         )
 
-    db = get_db_session()
-    stmt = select(UserModel).where(UserModel.email == email)
-    user = db.scalar(stmt)
 
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email o contraseña incorrectos",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not verify_password(password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email o contraseña incorrectos",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Verificar que el usuario esté activo
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuario inactivo",
-        )
-
-    # Datos del usuario para el token
-    token_data = {
-        "sub": str(user.id),
-        "email": user.email,
-        "role_id": str(user.role_id),
-    }
-
-    # [NUEVO – #61] Resolver nombre del rol para incluirlo en el JWT.
-    # Esto permite que require_role() valide RBAC sin queries extra por request.
-    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
-    role = db.scalar(stmt_role)
-    if role:
-        token_data["role_name"] = role.name
-
-    # Crear access token
-    access_token = create_access_token(data=token_data)
-
-    # Crear refresh token si está habilitado
-    refresh_token = None
-    if settings.use_refresh_tokens:
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
-
+def _pair_to_response(pair: TokenPair) -> TokenResponse:
+    """Convierte un TokenPair al schema de respuesta HTTP."""
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=settings.access_token_expire_minutes * 60,  # en segundos
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
+        expires_in=pair.expires_in,
     )
+
+
+def _decode_refresh_or_401(token: str) -> dict:
+    """Decodifica un refresh token o lanza 401 si expiró o es inválido."""
+    try:
+        return decode_refresh_token(token)
+    except TokenExpiredError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Refresh token ha expirado. Inicie sesión nuevamente.",
+                "error_code": "REFRESH_TOKEN_EXPIRED",
+                "redirect_to_login": True,
+            },
+        )
+    except TokenInvalidError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Refresh token inválido. Inicie sesión nuevamente.",
+                "error_code": "REFRESH_TOKEN_INVALID",
+                "redirect_to_login": True,
+            },
+        )
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.post("/login", response_model=TokenResponse)
+def login(
+    credentials: LoginRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> TokenResponse:
+    """Inicia sesión con email y contraseña.
+
+    Retorna un access token JWT y, si está habilitado, un refresh token.
+    El access token debe enviarse en el header `Authorization: Bearer <token>`
+    en todas las peticiones protegidas.
+
+    - **400** — campo vacío o email con formato inválido.
+    - **401** — credenciales incorrectas.
+    - **403** — cuenta desactivada.
+    """
+    email = (credentials.email or "").strip()
+    password = (credentials.password or "").strip()
+    _validate_login_fields(email, password)
+
+    try:
+        pair = auth_service.authenticate(email, password)
+    except ValueError as e:
+        code = str(e)
+        if code == "EMAIL_PASSWORD_INCORRECT":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email o contraseña incorrectos",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if code == "USER_INACTIVE":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Usuario inactivo",
+            )
+        raise
+
+    return _pair_to_response(pair)
 
 
 @router.post("/logout", response_model=LogoutResponse)
 def logout(token: str = Depends(get_current_token)) -> LogoutResponse:
+    """Cierra la sesión invalidando el token actual.
+
+    El token queda revocado de inmediato y no puede reutilizarse,
+    aunque no haya expirado aún.  Requiere `Authorization: Bearer <token>`.
     """
-    Cierra la sesión del usuario invalidando su token.
-
-    El token se agrega a la blacklist para evitar su reutilización.
-
-    Args:
-        token: Token JWT del usuario autenticado
-
-    Returns:
-        Mensaje de confirmación de cierre de sesión
-    """
-    # Agregar token a la blacklist
     add_token_to_blacklist(token)
-
     return LogoutResponse(message="Sesión cerrada exitosamente")
 
 
 @router.get("/me")
 def get_current_user_info(token: str = Depends(get_current_token)) -> dict:
-    """
-    Obtiene información del usuario autenticado.
+    """Retorna los datos básicos del usuario autenticado.
 
-    Endpoint de utilidad para verificar que el token es válido
-    y obtener datos del usuario actual.
+    Extrae la información del token sin consultar la base de datos.
+    Útil para que el cliente verifique el estado de la sesión.
+    Requiere `Authorization: Bearer <token>`.
 
-    Args:
-        token: Token JWT del usuario autenticado
-
-    Returns:
-        Información del usuario extraída del token
+    - **401** — token inválido o expirado.
     """
     try:
         payload = decode_access_token(token, validate_type=True)
@@ -219,124 +257,74 @@ def get_current_user_info(token: str = Depends(get_current_token)) -> dict:
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh_access_token(request: RefreshTokenRequest) -> TokenResponse:
+def refresh_access_token(
+    request: RefreshTokenRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> TokenResponse:
+    """Renueva el access token usando un refresh token válido.
+
+    El refresh token anterior queda invalidado al completarse la operación
+    (rotación de tokens). El nuevo par de tokens reemplaza al anterior.
+
+    - **401** — refresh token revocado, expirado, inválido,
+      o usuario no encontrado / desactivado.
     """
-    Renueva un access token usando un refresh token válido.
-
-    Permite al cliente obtener un nuevo access token sin re-autenticarse,
-    siempre que el refresh token sea válido y no haya expirado.
-
-    Args:
-        request: Refresh token del usuario
-
-    Returns:
-        Nuevo access token (y opcionalmente nuevo refresh token)
-
-    Raises:
-        HTTPException 401: Si el refresh token es inválido o expirado
-        HTTPException 404: Si el usuario no existe
-    """
-    # Verificar que el refresh token no esté en la blacklist
     if is_token_blacklisted(request.refresh_token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "message": "Refresh token ha sido revocado.Inicie sesión nuevamente.",
+                "message": "Refresh token ha sido revocado. Inicie sesión nuevamente.",
                 "error_code": "REFRESH_TOKEN_REVOKED",
                 "redirect_to_login": True,
             },
         )
 
-    # Decodificar el refresh token
-    try:
-        payload = decode_refresh_token(request.refresh_token)
-    except TokenExpiredError:
+    # La decodificación puede lanzar TokenExpiredError / TokenInvalidError —
+    # _decode_refresh_or_401 los traduce a HTTP 401 antes de llegar al servicio.
+    payload = _decode_refresh_or_401(request.refresh_token)
+
+    user_id: str | None = payload.get("sub")
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "message": "Refresh token ha expirado. Inicie sesión nuevamente.",
-                "error_code": "REFRESH_TOKEN_EXPIRED",
-                "redirect_to_login": True,
-            },
-        )
-    except TokenInvalidError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "message": "Refresh token inválido. Inicie sesión nuevamente.",
+                "message": "Refresh token no contiene ID de usuario.",
                 "error_code": "REFRESH_TOKEN_INVALID",
                 "redirect_to_login": True,
             },
         )
 
-    user_id = payload.get("sub")
-    if not user_id:
+    try:
+        pair = auth_service.refresh_tokens(user_id)
+    except ValueError as e:
+        code = str(e)
+        _REFRESH_ERROR_MAP = {
+            "USER_NOT_FOUND": "Usuario no encontrado.",
+            "USER_INACTIVE":  "Usuario inactivo.",
+        }
+        message = _REFRESH_ERROR_MAP.get(code, "Error inesperado al renovar sesión.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token no contiene ID de usuario",
+            detail={
+                "message": message,
+                "error_code": code,
+                "redirect_to_login": True,
+            },
         )
 
-    # Verificar que el usuario existe y está activo
-    db = get_db_session()
-    stmt = select(UserModel).where(UserModel.id == user_id)
-    user = db.scalar(stmt)
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado",
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuario inactivo",
-        )
-
-    # Crear nuevo access token
-    token_data = {
-        "sub": str(user.id),
-        "email": user.email,
-        "role_id": str(user.role_id),
-    }
-
-    # [NUEVO – #61] Incluir role_name en el token renovado (igual que en login).
-    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
-    role_obj = db.scalar(stmt_role)
-    if role_obj:
-        token_data["role_name"] = role_obj.name
-
-    new_access_token = create_access_token(data=token_data)
-
-    # Opcionalmente crear nuevo refresh token (rotación de tokens)
-    new_refresh_token = None
-    if settings.use_refresh_tokens:
-        new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
-        # Invalidar el refresh token anterior (rotación)
-        add_token_to_blacklist(request.refresh_token)
-
-    return TokenResponse(
-        access_token=new_access_token,
-        refresh_token=new_refresh_token,
-        expires_in=settings.access_token_expire_minutes * 60,
-    )
+    # Rotación: invalidar refresh token anterior una vez confirmado el éxito.
+    add_token_to_blacklist(request.refresh_token)
+    return _pair_to_response(pair)
 
 
 @router.post("/validate", response_model=TokenValidationResponse)
 def validate_access_token(request: TokenValidationRequest) -> TokenValidationResponse:
+    """Comprueba si un access token es válido y no ha expirado.
+
+    No renueva el token ni requiere autenticación previa. Retorna el estado
+    del token junto con la causa si no es utilizable (`expired`, `revoked`,
+    `invalid`). Útil para que el cliente decida si debe refrescar la sesión.
     """
-    Valida si un token es válido y no ha expirado.
-
-    Útil para que el frontend verifique el estado del token antes de hacer
-    peticiones o para decidir si debe refrescar el token.
-
-    Args:
-        request: Token a validar
-
-    Returns:
-        Estado de validación del token
-    """
-    # Verificar blacklist
     if is_token_blacklisted(request.token):
         return TokenValidationResponse(
             valid=False,
@@ -345,18 +333,12 @@ def validate_access_token(request: TokenValidationRequest) -> TokenValidationRes
             message="Token ha sido revocado",
         )
 
-    # Validar token
     is_valid, error_message = validate_token(request.token)
 
     if is_valid:
-        return TokenValidationResponse(
-            valid=True,
-            message="Token es válido",
-        )
+        return TokenValidationResponse(valid=True, message="Token es válido")
 
-    # Determinar si está expirado o es inválido
     is_expired = "expirado" in error_message.lower() if error_message else False
-
     return TokenValidationResponse(
         valid=False,
         expired=is_expired,
@@ -372,58 +354,68 @@ def validate_access_token(request: TokenValidationRequest) -> TokenValidationRes
 )
 async def register(
     data: RegisterRequest,
+    auth_service: AuthService = Depends(get_auth_service),
     otp_service: OtpService = Depends(get_otp_service),
 ) -> OtpSentResponse:
-    db = get_db_session()
+    """Registra un nuevo usuario y envía un código de verificación por email.
 
-    stmt = select(UserModel).where(UserModel.email == data.email)
-    existing_user = db.scalar(stmt)
-    if existing_user is not None:
-        if existing_user.is_active:
+    La cuenta queda inactiva hasta completar la verificación en `/verify-otp`.
+    Si no se indica rol, se asigna **Student** por defecto.
+
+    - **409** — el email ya está registrado y activo.
+    - **400** — el rol indicado no existe.
+    - **500** — error interno de configuración o persistencia.
+    - **502** — no se pudo enviar el correo de verificación.
+    """
+    try:
+        user = auth_service.register_pending_user(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            email=data.email,
+            password_hash=hash_password(data.password),
+            role_id=data.role_id,
+        )
+    except ValueError as e:
+        code = str(e)
+        if code == "EMAIL_ALREADY_REGISTERED":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="El email ya está registrado",
             )
-        db.delete(existing_user)
-        db.commit()
-
-    role_id = data.role_id
-    if role_id is None:
-        student_role = db.scalar(select(RoleModel).where(RoleModel.name == "Student"))
-        if student_role is None:
+        if code == "STUDENT_ROLE_NOT_CONFIGURED":
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="No existe el rol Student configurado en el sistema",
             )
-        role_id = student_role.id
-    else:
-        role = db.scalar(select(RoleModel).where(RoleModel.id == role_id))
-        if role is None:
+        if code == "ROLE_NOT_FOUND":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El rol indicado no existe",
             )
+        raise
 
-    user = UserModel(
-        first_name=data.first_name.strip(),
-        last_name=data.last_name.strip(),
-        email=data.email,
-        password_hash=hash_password(data.password),
-        role_id=role_id,
-        is_active=False,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    # Guard: User.id es UUID | None en el dominio para representar entidades
+    # aún no persistidas.  Tras save_sync el repositorio debe haber asignado
+    # el UUID generado por la BD.  Si por algún motivo no lo hizo (bug en el
+    # adaptador), fallamos aquí con un 500 claro en lugar de propagar un
+    # TypeError críptico al intentar pasar None donde se espera UUID.
+    if user.id is None:
+        auth_service.delete_user(user)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno al registrar el usuario",
+        )
 
     try:
         await otp_service.generate_and_send(user_id=user.id, email=user.email)
-    except Exception:
-        db.delete(user)
-        db.commit()
+    except Exception as e:
+        # El envío falló: eliminar el usuario para no dejar un registro
+        # huérfano con is_active=False que bloquee futuros re-registros.
+        auth_service.delete_user(user)
+        print(f"[ERROR] /register — fallo al enviar OTP a {user.email}: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="No se pudo enviar el correo de verificación.Intenta de nuevo.",
+            detail="No se pudo enviar el correo de verificación. Intenta de nuevo.",
         )
 
     return OtpSentResponse()
@@ -432,96 +424,83 @@ async def register(
 @router.post("/verify-otp", response_model=TokenResponse)
 def verify_otp(
     data: VerifyOtpRequest,
+    auth_service: AuthService = Depends(get_auth_service),
     otp_service: OtpService = Depends(get_otp_service),
 ) -> TokenResponse:
+    """Verifica el código OTP y activa la cuenta del usuario.
+
+    Si el código es válido, la cuenta queda activa y se retornan tokens JWT
+    listos para usar, equivalentes a los de un login exitoso.
+
+    - **404** — el email no existe.
+    - **400** — código inválido o expirado.
+    - **500** — error interno al activar la cuenta.
     """
-    Verifica el OTP recibido por email y activa la cuenta del usuario.
-
-    Si el OTP es válido, activa el usuario y retorna tokens JWT listos
-    para usar, igual que /login. Si el OTP expiró o es incorrecto, retorna 400.
-
-    Args:
-        data: Email del usuario y código OTP
-
-    Returns:
-        Tokens JWT (access + refresh)
-
-    Raises:
-        HTTPException 404: Si el email no existe
-        HTTPException 400: Si el OTP es inválido o expiró
-    """
-    db = get_db_session()
-
-    # Buscar usuario por email
-    stmt = select(UserModel).where(UserModel.email == data.email)
-    user = db.scalar(stmt)
+    user = auth_service.get_user_by_email(data.email)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado",
         )
 
-    is_valid = otp_service.verify(user_id=user.id, code=data.code)
-    if not is_valid:
+    # Guard: User.id es UUID | None en el dominio para representar entidades
+    # aún no persistidas.  Un usuario recuperado de la BD siempre tiene id,
+    # pero el type checker no puede inferirlo a partir de UUID | None.
+    # El guard debe ir ANTES de cualquier llamada que espere UUID (como
+    # otp_service.verify) para que el análisis de flujo estreche el tipo
+    # de user.id a UUID en las líneas siguientes.
+    if user.id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno al verificar el usuario",
+        )
+
+    if not otp_service.verify(user_id=user.id, code=data.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Código inválido o expirado",
         )
 
-    # Activar usuario
-    user.is_active = True
-    db.commit()
-    db.refresh(user)
+    try:
+        pair = auth_service.activate_user_and_issue_tokens(user)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al activar la cuenta del usuario",
+        )
 
-    # Emitir tokens igual que /login
-    token_data = {
-        "sub": str(user.id),
-        "email": user.email,
-        "role_id": str(user.role_id),
-    }
-
-    stmt_role = select(RoleModel).where(RoleModel.id == user.role_id)
-    role = db.scalar(stmt_role)
-    if role:
-        token_data["role_name"] = role.name
-
-    access_token = create_access_token(data=token_data)
-    refresh_token = None
-    if settings.use_refresh_tokens:
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
-
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=settings.access_token_expire_minutes * 60,
-    )
+    return _pair_to_response(pair)
 
 
 @router.post("/resend-otp", response_model=OtpSentResponse)
 async def resend_otp(
     data: ResendOtpRequest,
+    auth_service: AuthService = Depends(get_auth_service),
     otp_service: OtpService = Depends(get_otp_service),
 ) -> OtpSentResponse:
+    """Reenvía el código de verificación al correo del usuario.
+
+    Invalida el código anterior y genera uno nuevo. Solo es posible si
+    ha transcurrido el tiempo mínimo entre reenvíos (`otp_resend_cooldown`).
+
+    - **404** — el email no existe.
+    - **400** — no hay código activo para el usuario.
+    - **429** — debe esperar antes de solicitar un nuevo código.
     """
-    Reenvía el OTP al correo del usuario invalidando el anterior.
-
-    Solo es posible si han pasado al menos otp_resend_cooldown_seconds
-    desde el último envío. Si el cooldown no ha pasado, retorna 429
-    con los segundos restantes.
-
-    Raises:
-        HTTPException 404: Si el email no existe
-        HTTPException 400: Si no hay OTP activo para el usuario
-        HTTPException 429: Si el cooldown no ha pasado aún
-    """
-    db = get_db_session()
-
-    stmt = select(UserModel).where(UserModel.email == data.email)
-    user = db.scalar(stmt)
+    user = auth_service.get_user_by_email(data.email)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado",
+        )
+
+    # Guard: misma razón que en /register y /verify-otp.  Un usuario
+    # recuperado de la BD siempre tendrá id, pero el type checker no puede
+    # inferirlo a partir de UUID | None.
+    if user.id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno al verificar el usuario",
         )
 
     try:
