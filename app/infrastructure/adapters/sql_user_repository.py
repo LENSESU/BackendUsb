@@ -2,23 +2,18 @@
 
 from uuid import UUID
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from app.infrastructure.db import SyncSessionLocal, get_session
 
 from app.application.ports import UserRepositoryPort
 from app.application.ports.user_repository import UserBasicData
-from app.core.config import settings
 from app.domain.entities import User
 from app.infrastructure.database.models import UserModel
-from app.infrastructure.db import get_session
 
 
-def _get_session_sync():
-    """Crea una sesión síncrona."""
-    engine = create_engine(settings.database_url_sync)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
-
+def _get_session() -> Session:
+    return SyncSessionLocal()
 
 class SqlUserRepository(UserRepositoryPort):
     """Repositorio de usuarios en PostgreSQL."""
@@ -68,7 +63,7 @@ class SqlUserRepository(UserRepositoryPort):
 
     def get_by_id(self, user_id: UUID) -> UserBasicData | None:
         """Obtiene datos básicos de un usuario por su ID (síncrono)."""
-        db = _get_session_sync()
+        db = _get_session()
         try:
             stmt = select(UserModel).where(UserModel.id == user_id)
             model = db.scalar(stmt)
