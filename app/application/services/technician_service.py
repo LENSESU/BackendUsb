@@ -68,3 +68,21 @@ class TechnicianService:
                 "error_code": "TECHNICIAN_NOT_ASSIGNABLE",
             },
         )
+    
+    def get_technician_by_id(self, technician_id: UUID) -> User:
+        """
+        Retorna un técnico por su ID.
+
+        Raises:
+            HTTPException 404: Si el técnico no existe o no tiene rol de técnico.
+        """
+        technician = self._technicians.find_by_id(str(technician_id))
+        if technician is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": "Técnico no encontrado",
+                    "error_code": "TECHNICIAN_NOT_FOUND",
+                },
+            )
+        return technician
