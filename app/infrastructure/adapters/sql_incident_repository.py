@@ -3,19 +3,17 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.application.ports.incident_repository import IncidentRepositoryPort
-from app.core.config import settings
 from app.domain.entities.incident import Incident, IncidentLocation
 from app.infrastructure.database.models import IncidentModel, UserModel
+from app.infrastructure.db import SyncSessionLocal
 
 
 def _get_session() -> Session:
-    engine = create_engine(settings.database_url_sync)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    return SyncSessionLocal()
 
 
 def _model_to_entity(
