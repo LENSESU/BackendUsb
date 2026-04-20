@@ -331,8 +331,6 @@ def require_role(*allowed_role_names: str) -> Callable:
 # ---------------------------------------------------------------------------
 # Dependencia de servicio de autenticación
 # ---------------------------------------------------------------------------
-from app.application.services.auth_service import AuthService
-from app.infrastructure.adapters.sql_user_repository import SqlUserRepository
 
 
 def get_auth_service() -> AuthService:
