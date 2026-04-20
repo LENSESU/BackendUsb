@@ -4,7 +4,7 @@ Archivo NUEVO creado para validar los cambios de las issues:
 
 - **#61 – Proteger endpoints del backend:**
   Clase ``TestEndpointsRequireAuth`` (6 tests):
-    * Sin token → 403 para GET list, GET by id, POST, DELETE.
+    * Sin token → 401 para GET list, GET by id, POST, DELETE.
     * Token inválido → 401.
     * Token revocado (blacklisted) → 401.
 
@@ -83,21 +83,21 @@ def _clean():
 class TestEndpointsRequireAuth:
     """Todos los endpoints de /items deben rechazar peticiones sin token."""
 
-    def test_list_items_no_token_returns_403(self):
+    def test_list_items_no_token_returns_401(self):
         r = client.get("/api/v1/items/")
-        assert r.status_code == 403
+        assert r.status_code == 401
 
-    def test_get_item_no_token_returns_403(self):
+    def test_get_item_no_token_returns_401(self):
         r = client.get(f"/api/v1/items/{uuid4()}")
-        assert r.status_code == 403
+        assert r.status_code == 401
 
-    def test_create_item_no_token_returns_403(self):
+    def test_create_item_no_token_returns_401(self):
         r = client.post("/api/v1/items/", json={"name": "test"})
-        assert r.status_code == 403
+        assert r.status_code == 401
 
-    def test_delete_item_no_token_returns_403(self):
+    def test_delete_item_no_token_returns_401(self):
         r = client.delete(f"/api/v1/items/{uuid4()}")
-        assert r.status_code == 403
+        assert r.status_code == 401
 
     def test_invalid_token_returns_401(self):
         headers = _auth("not.a.valid.jwt")
@@ -205,14 +205,16 @@ class TestCrossAccessValidation:
         other_token = _make_token(STUDENT2_USER_ID, "Student")
         r = client.delete(f"/api/v1/items/{item['id']}", headers=_auth(other_token))
         assert r.status_code == 403
-        assert r.json()["error_code"] == "ITEM_CROSS_ACCESS_DENIED"
+        detail = r.json()["detail"]
+        assert detail["error_code"] == "ITEM_CROSS_ACCESS_DENIED"
 
     def test_non_owner_technician_cannot_delete(self):
         item = self._create_item_as(STUDENT_USER_ID, "Student")
         tech_token = _make_token(TECH_USER_ID, "Technician")
         r = client.delete(f"/api/v1/items/{item['id']}", headers=_auth(tech_token))
         assert r.status_code == 403
-        assert r.json()["error_code"] == "ITEM_CROSS_ACCESS_DENIED"
+        detail = r.json()["detail"]
+        assert detail["error_code"] == "ITEM_CROSS_ACCESS_DENIED"
 
     def test_admin_can_delete_any_item(self):
         item = self._create_item_as(STUDENT_USER_ID, "Student")

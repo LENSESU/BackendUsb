@@ -76,10 +76,11 @@ def _clean():
 
     incident_deps._repository = InMemoryIncidentRepository()
     incident_deps._category_repository = None
+    # Evita SqlUserRepository en GET con detalles (no hay Postgres en tests locales).
+    incident_deps._user_repository = None
     yield
     clear_blacklist()
-    incident_deps._repository = None
-    incident_deps._category_repository = None
+    incident_deps.reset_incident_dependencies()
 
 
 # ── #108 + #107: Creación exitosa con metadatos automáticos ──────────────────

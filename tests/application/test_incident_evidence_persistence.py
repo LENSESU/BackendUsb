@@ -8,7 +8,12 @@ Se usan dobles de prueba en memoria para no depender de la base de datos real
 ni de Google Cloud Storage.
 """
 
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
+
+import pytest
 
 from app.application.ports.file_repository import FileRepositoryPort
 from app.application.ports.file_storage import FileStoragePort, StoredFileResult
@@ -73,64 +78,80 @@ class FakeStorage(FileStoragePort):
         return StoredFileResult(object_name=object_name, file_url=url)
 
 
-async def test_upload_evidence_persists_file_and_links_incident(mocker) -> None:
+def test_upload_evidence_persists_file_and_links_incident(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """La evidencia se sube, se guarda su URL y se asocia al incidente."""
-    # Preparar incidente existente en el repositorio en memoria.
-    incident_repo = InMemoryIncidentRepository()
-    file_repo = InMemoryFileRepository()
-    storage = FakeStorage()
 
-    incident_id = uuid4()
-    incident = Incident(
-        id=incident_id,
-        student_id=uuid4(),
-        technician_id=None,
-        category_id=uuid4(),
-        description="Incidente de prueba",
-        status="Nuevo",
-        priority=None,
-        before_photo_id=None,
-        after_photo_id=None,
-        created_at=None,
-        updated_at=None,
-        location=None,
-    )
-    incident_repo.save(incident)
+    async def _run() -> None:
+        # Preparar incidente existente en el repositorio en memoria.
+        incident_repo = InMemoryIncidentRepository()
+        file_repo = InMemoryFileRepository()
+        storage = FakeStorage()
 
-    service = IncidentEvidenceService(
-        storage=storage,
-        incident_repository=incident_repo,
-        file_repository=file_repo,
-    )
+        incident_id = uuid4()
+        incident = Incident(
+            id=incident_id,
+            student_id=uuid4(),
+            technician_id=None,
+            category_id=uuid4(),
+            description="Incidente de prueba",
+            status="Nuevo",
+            priority=None,
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=None,
+            updated_at=None,
+            location=None,
+        )
+        incident_repo.save(incident)
 
-    # Simular un UploadFile con contenido pequeño.
-    upload_file = mocker.Mock()
-    upload_file.filename = "evidencia.jpg"
-    upload_file.content_type = "image/jpeg"
-    upload_file.read = mocker.AsyncMock(return_value=b"fake-bytes")
+        service = IncidentEvidenceService(
+            storage=storage,
+            incident_repository=incident_repo,
+            file_repository=file_repo,
+        )
 
-    # Evitar que la validación de tamaño/formato lea realmente el archivo.
-    from app.application.services.file_validation_service import FileValidationService
+        # Simular un UploadFile con contenido pequeño.
+        upload_file = SimpleNamespace(
+            filename="evidencia.jpg",
+            content_type="image/jpeg",
+            read=AsyncMock(return_value=b"fake-bytes"),
+        )
 
-    mocker.patch.object(
-        FileValidationService,
-        "validate_incident_evidence_image",
-        new=mocker.AsyncMock(return_value=None),
-    )
+        # Evitar que la validación de tamaño/formato lea realmente el archivo.
+        from app.application.services.file_validation_service import (
+            FileValidationService,
+        )
 
-    stored = await service.upload_evidence(incident_id=incident_id, file=upload_file)
+        async def _noop_validate(cls, file: object) -> None:
+            """Sustituye la validación real durante la prueba."""
+            return None
 
-    # La URL devuelta por el storage debe coincidir con la usada para crear el archivo.
-    assert stored.file_url is not None
-    assert len(file_repo.created_files) == 1
-    (created_file_id, (created_url, created_type, _)) = next(
-        iter(file_repo.created_files.items())
-    )
-    assert created_url == stored.file_url
-    assert created_type == "image/jpeg"
+        monkeypatch.setattr(
+            FileValidationService,
+            "validate_incident_evidence_image",
+            classmethod(_noop_validate),
+        )
 
-    # El incidente debe quedar enlazado al archivo mediante before_photo_id.
-    updated_incident = incident_repo.get_by_id(incident_id)
-    assert updated_incident is not None
-    assert updated_incident.before_photo_id == created_file_id
+        stored = await service.upload_evidence(
+            incident_id=incident_id,
+            file=upload_file,
+        )
+
+        # La URL del storage debe coincidir con la usada al crear el archivo.
+        assert stored.file_url is not None
+        assert len(file_repo.created_files) == 1
+        created_file_id, (created_url, created_type, _) = next(
+            iter(file_repo.created_files.items())
+        )
+        assert created_url == stored.file_url
+        assert created_type == "image/jpeg"
+
+        # El incidente debe quedar enlazado al archivo mediante before_photo_id.
+        updated_incident = incident_repo.get_by_id(incident_id)
+        assert updated_incident is not None
+        assert updated_incident.before_photo_id == created_file_id
+
+    asyncio.run(_run())
 

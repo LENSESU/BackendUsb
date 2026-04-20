@@ -47,7 +47,10 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
     def list_popular(self, limit: int) -> list[Suggestion]:
         ordered = sorted(
             self._by_id.values(),
-            key=lambda s: (s.total_votes, s.created_at or datetime.min.replace(tzinfo=UTC)),
+            key=lambda s: (
+                s.total_votes,
+                s.created_at or datetime.min.replace(tzinfo=UTC),
+            ),
             reverse=True,
         )
         return ordered[:limit]
@@ -127,7 +130,7 @@ class TestSuggestionCrud:
         assert resp.status_code == 201
         assert resp.json()["total_votos"] == 5
 
-    def test_title_too_long_returns_400(self) -> None:
+    def test_title_too_long_returns_422(self) -> None:
         token = _make_token(STUDENT_USER_ID, "Student")
         p = _valid_create_payload()
         p["titulo"] = "x" * 201
@@ -136,9 +139,9 @@ class TestSuggestionCrud:
             json=p,
             headers=_auth(token),
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_negative_total_votos_returns_400(self) -> None:
+    def test_negative_total_votos_returns_422(self) -> None:
         token = _make_token(STUDENT_USER_ID, "Student")
         p = _valid_create_payload()
         p["total_votos"] = -1
@@ -147,7 +150,7 @@ class TestSuggestionCrud:
             json=p,
             headers=_auth(token),
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_empty_title_content_returns_400(self) -> None:
         token = _make_token(STUDENT_USER_ID, "Student")
@@ -198,8 +201,8 @@ class TestSuggestionCrud:
             headers=_auth(token),
         )
         assert null_votes.status_code == 400
-        body = null_votes.json()
-        assert body.get("error_code") == "SUGGESTION_VALIDATION_ERROR"
+        detail = null_votes.json()["detail"]
+        assert detail["error_code"] == "SUGGESTION_VALIDATION_ERROR"
 
         deleted = client.delete(
             f"/api/v1/suggestions/{sid}",
@@ -252,4 +255,4 @@ class TestSuggestionCrud:
             "/api/v1/suggestions/popular?limit=0",
             headers=_auth(token),
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
