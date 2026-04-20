@@ -300,7 +300,7 @@ def refresh_access_token(
         code = str(e)
         _REFRESH_ERROR_MAP = {
             "USER_NOT_FOUND": "Usuario no encontrado.",
-            "USER_INACTIVE":  "Usuario inactivo.",
+            "USER_INACTIVE": "Usuario inactivo.",
         }
         message = _REFRESH_ERROR_MAP.get(code, "Error inesperado al renovar sesión.")
         raise HTTPException(

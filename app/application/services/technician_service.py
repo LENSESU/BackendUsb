@@ -68,7 +68,7 @@ class TechnicianService:
                 "error_code": "TECHNICIAN_NOT_ASSIGNABLE",
             },
         )
-    
+
     def get_technician_by_id(self, technician_id: UUID) -> User:
         """
         Retorna un técnico por su ID.

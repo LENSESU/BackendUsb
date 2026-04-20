@@ -3,13 +3,13 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import  select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.infrastructure.db import SyncSessionLocal
 
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.domain.entities.incident import Incident, IncidentLocation
 from app.infrastructure.database.models import IncidentModel, UserModel
+from app.infrastructure.db import SyncSessionLocal
 
 
 def _get_session() -> Session:

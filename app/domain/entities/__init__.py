@@ -1,5 +1,5 @@
 from app.domain.entities.item import Item
-from app.domain.entities.user import User
 from app.domain.entities.role import Role
+from app.domain.entities.user import User
 
 __all__ = ["Item", "Role", "User"]

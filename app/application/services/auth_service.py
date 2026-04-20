@@ -109,7 +109,6 @@ class AuthService:
         user.is_active = True
         self._users.save_sync(user)
         return self._build_token_pair(user)
-    
 
     def register_pending_user(
         self,
@@ -180,7 +179,7 @@ class AuthService:
             is_active=False,
         )
         return self._users.save_sync(user)
-    
+
     def get_user_by_email(self, email: str) -> User | None:
         """Localiza un usuario por email. Fachada sobre el repositorio."""
         return self._users.get_by_email_sync(email)

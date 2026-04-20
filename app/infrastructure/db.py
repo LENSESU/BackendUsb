@@ -4,11 +4,9 @@ import os
 from collections.abc import AsyncIterator, Generator
 from contextlib import asynccontextmanager
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase,  Session, sessionmaker
 from sqlalchemy import create_engine
-
-from app.infrastructure.database.base import Base
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 # Construimos la URL de la base de datos a partir de variables de entorno,
 # con valores por defecto compatibles con el docker-compose.yml.
@@ -55,7 +53,7 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 # ---------------------------------------------------------------------------
 sync_engine = create_engine(
     DATABASE_URL_SYNC,
-    pool_pre_ping=True,   # descarta conexiones muertas automáticamente
+    pool_pre_ping=True,  # descarta conexiones muertas automáticamente
     pool_size=10,
     max_overflow=20,
 )

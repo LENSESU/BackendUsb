@@ -3,10 +3,10 @@
 from uuid import UUID
 
 from sqlalchemy.orm import Session
-from app.infrastructure.db import SyncSessionLocal
 
 from app.application.ports.file_repository import FileRepositoryPort
 from app.infrastructure.database.models import FileModel
+from app.infrastructure.db import SyncSessionLocal
 
 
 def _get_session() -> Session:

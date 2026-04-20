@@ -5,12 +5,12 @@ from uuid import UUID
 
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
-from app.infrastructure.db import SyncSessionLocal
 
 from app.application.ports.technician_repository import TechnicianRepositoryPort
 from app.domain.entities.incident import IncidentStatus
 from app.domain.entities.user import User
 from app.infrastructure.database.models import IncidentModel, RoleModel, UserModel
+from app.infrastructure.db import SyncSessionLocal
 
 TECHNICIAN_ROLE_NAME = "Technician"
 

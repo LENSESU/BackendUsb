@@ -102,9 +102,7 @@ class SqlUserRepository(UserRepositoryPort):
         try:
             instance: UserModel | None = None
             if user.id is not None:
-                instance = db.scalar(
-                    select(UserModel).where(UserModel.id == user.id)
-                )
+                instance = db.scalar(select(UserModel).where(UserModel.id == user.id))
             if instance is None:
                 instance = UserModel(
                     email=user.email,

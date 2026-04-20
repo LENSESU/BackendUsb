@@ -4,15 +4,16 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.infrastructure.db import SyncSessionLocal
 
 from app.application.ports.suggestion_repository import SuggestionRepositoryPort
 from app.domain.entities.suggestion import Suggestion
 from app.infrastructure.database.models import SuggestionModel
+from app.infrastructure.db import SyncSessionLocal
 
 
 def _get_session() -> Session:
     return SyncSessionLocal()
+
 
 def _model_to_entity(model: SuggestionModel) -> Suggestion:
     return Suggestion(
