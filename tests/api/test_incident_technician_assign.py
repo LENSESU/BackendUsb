@@ -67,14 +67,22 @@ class InMemoryTechnicianRepository(TechnicianRepositoryPort):
         return None
 
     def assign_technician_to_incident(
-        self, technician_id: str, incident_id: str
+        self,
+        technician_id: str,
+        incident_id: str,
+        assigned_by_admin_id: str | None = None,
     ) -> User | None:
         inc_uuid = UUID(incident_id)
         tech_uuid = UUID(technician_id)
         incident = self._incidents.get_by_id(inc_uuid)
         if incident is None or tech_uuid not in self._assignable:
             return None
-        updated = replace(incident, technician_id=tech_uuid)
+        admin_uuid = UUID(assigned_by_admin_id) if assigned_by_admin_id else None
+        updated = replace(
+            incident,
+            technician_id=tech_uuid,
+            assigned_by_admin_id=admin_uuid,
+        )
         self._incidents.save(updated)
         return User(
             id=tech_uuid,

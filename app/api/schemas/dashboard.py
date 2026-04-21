@@ -33,3 +33,12 @@ class DashboardResponse(BaseModel):
     user: DashboardUser
     recentIncidents: list[DashboardIncident]
     suggestions: list[DashboardSuggestion]
+
+
+class TechnicianAssignmentIncident(BaseModel):
+    id: UUID
+    categoria: str | None = None
+    location: str | None = None
+    status: str
+    created_at: datetime
+    assigned_by_admin: str | None = None

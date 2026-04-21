@@ -24,7 +24,10 @@ class TechnicianRepositoryPort(ABC):
 
     @abstractmethod
     def assign_technician_to_incident(
-        self, technician_id: str, incident_id: str
+        self,
+        technician_id: str,
+        incident_id: str,
+        assigned_by_admin_id: str | None = None,
     ) -> User | None:
         """Asigna un técnico activo a un incidente; retorna el técnico o
         None si falla."""

@@ -16,11 +16,66 @@ from app.api.schemas.dashboard import (
     DashboardResponse,
     DashboardSuggestion,
     DashboardUser,
+    TechnicianAssignmentIncident,
 )
 from app.application.services.incident_category_service import IncidentCategoryService
 from app.application.services.suggestion_service import SuggestionService
 
 router = APIRouter()
+
+
+@router.get(
+    "/technician/assignments",
+    response_model=list[TechnicianAssignmentIncident],
+    dependencies=[Depends(require_role("Technician"))],
+)
+async def get_technician_assignments_dashboard(
+    current_user: dict = Depends(get_current_user_info),
+    incident_category_service: IncidentCategoryService = Depends(
+        get_incident_category_service
+    ),
+) -> list[TechnicianAssignmentIncident]:
+    """Retorna todos los incidentes asignados al técnico autenticado."""
+    technician_id = UUID(str(current_user.get("user_id")))
+    incident_service = get_incident_service()
+    incidents = await asyncio.to_thread(incident_service.list_incidents)
+    technician_incidents = [
+        i
+        for i in incidents
+        if i.technician_id == technician_id
+        and i.id is not None
+        and i.created_at is not None
+    ]
+
+    category_tasks = [
+        asyncio.to_thread(
+            incident_category_service.get_by_id,
+            str(i.category_id),
+        )
+        for i in technician_incidents
+    ]
+    categories_raw = (
+        await asyncio.gather(*category_tasks, return_exceptions=True)
+        if category_tasks
+        else []
+    )
+    categories = [c if not isinstance(c, Exception) else None for c in categories_raw]
+
+    return [
+        TechnicianAssignmentIncident(
+            id=incident.id,
+            categoria=(categories[idx].name if categories[idx] else None),
+            location=(
+                incident.location.campus_place
+                if incident.location is not None
+                else None
+            ),
+            status=incident.status,
+            created_at=incident.created_at,
+            assigned_by_admin=incident.assigned_by_admin_name,
+        )
+        for idx, incident in enumerate(technician_incidents)
+    ]
 
 
 @router.get(

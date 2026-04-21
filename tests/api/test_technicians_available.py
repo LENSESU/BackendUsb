@@ -55,7 +55,10 @@ class InMemoryTechnicianRepositoryListOnly(TechnicianRepositoryPort):
         return None
 
     def assign_technician_to_incident(
-        self, technician_id: str, incident_id: str
+        self,
+        technician_id: str,
+        incident_id: str,
+        assigned_by_admin_id: str | None = None,
     ) -> User | None:
         return None
 
@@ -115,7 +118,7 @@ def test_list_available_technicians_empty_list() -> None:
 
     app.dependency_overrides[get_technician_service] = _override
 
-    token = _make_token(USER_ID, "Student")
+    token = _make_token(USER_ID, "Technician")
     response = client.get(
         "/api/v1/technicians/available",
         headers=_auth(token),

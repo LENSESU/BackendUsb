@@ -131,6 +131,7 @@ class Incident:
     technician_id: UUID | None
     category_id: UUID
     description: str
+    assigned_by_admin_id: UUID | None = None
     before_photo_id: UUID | None = None
     status: str = IncidentStatus.NUEVO.value
     priority: str | None = None
@@ -139,6 +140,7 @@ class Incident:
     updated_at: datetime | None = None
     location: IncidentLocation | None = None
     reporter_email: str | None = None
+    assigned_by_admin_name: str | None = None
 
     def __post_init__(self) -> None:
         if not self.description or not self.description.strip():

@@ -67,15 +67,21 @@ class SqlTechnicianRepository(TechnicianRepositoryPort):
             db.close()
 
     def assign_technician_to_incident(
-        self, technician_id: str, incident_id: str
+        self,
+        technician_id: str,
+        incident_id: str,
+        assigned_by_admin_id: str | None = None,
     ) -> User | None:
         """Asigna técnico al incidente si ambos existen y el usuario es
-        técnico activo."""
+        técnico activo. Opcionalmente registra quién realizó la asignación."""
         db = _get_session()
         try:
             try:
                 tech_uuid = UUID(technician_id)
                 inc_uuid = UUID(incident_id)
+                admin_uuid = (
+                    UUID(assigned_by_admin_id) if assigned_by_admin_id else None
+                )
             except ValueError:
                 return None
 
@@ -95,6 +101,7 @@ class SqlTechnicianRepository(TechnicianRepositoryPort):
                 return None
 
             incident.technician_id = tech_uuid
+            incident.assigned_by_admin_id = admin_uuid
             incident.updated_at = datetime.now(UTC)
             db.commit()
             db.refresh(tech)

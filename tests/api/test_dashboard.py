@@ -211,3 +211,73 @@ def test_dashboard_for_technician_returns_assigned_incidents_only() -> None:
         == "Incidente asignado al tecnico autenticado"
     )
     assert body["recentIncidents"][0]["technician_id"] == str(TECHNICIAN_USER_ID)
+
+
+def test_technician_assignments_dashboard_returns_required_fields() -> None:
+    import app.api.dependencies.incident as incident_deps
+
+    incident_repo = incident_deps._repository
+    now = datetime.now(UTC)
+    incident_repo.save(
+        Incident(
+            id=uuid4(),
+            student_id=STUDENT_USER_ID,
+            technician_id=TECHNICIAN_USER_ID,
+            category_id=uuid4(),
+            description="Incidente para dashboard técnico",
+            status="En_proceso",
+            priority="Alta",
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=now,
+            updated_at=None,
+            location=None,
+            assigned_by_admin_id=uuid4(),
+            assigned_by_admin_name="Admin Prueba",
+        )
+    )
+    incident_repo.save(
+        Incident(
+            id=uuid4(),
+            student_id=STUDENT_USER_ID,
+            technician_id=uuid4(),
+            category_id=uuid4(),
+            description="Incidente de otro técnico",
+            status="En_proceso",
+            priority="Media",
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=now + timedelta(minutes=1),
+            updated_at=None,
+            location=None,
+        )
+    )
+
+    token = _make_token(TECHNICIAN_USER_ID, "Technician")
+    response = client.get(
+        "/api/v1/dashboard/technician/assignments",
+        headers=_auth(token),
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    item = payload[0]
+    assert set(item.keys()) == {
+        "id",
+        "categoria",
+        "location",
+        "status",
+        "created_at",
+        "assigned_by_admin",
+    }
+    assert item["status"] == "En_proceso"
+    assert item["assigned_by_admin"] == "Admin Prueba"
+
+
+def test_technician_assignments_dashboard_forbidden_for_student() -> None:
+    token = _make_token(STUDENT_USER_ID, "Student")
+    response = client.get(
+        "/api/v1/dashboard/technician/assignments",
+        headers=_auth(token),
+    )
+    assert response.status_code == 403
