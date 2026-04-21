@@ -253,11 +253,16 @@ def assign_technician_to_incident(
     incident_id: UUID,
     payload: AssignTechnicianRequest,
     technician_service: TechnicianService = Depends(get_technician_service),
+    current_user_id: UUID = Depends(get_current_user_id),
+    current_role: str = Depends(get_current_role_name),
 ) -> IncidentResponse:
     """Asocia un técnico activo con rol adecuado a un incidente existente."""
     incident = technician_service.assign_technician_to_incident(
         incident_id=incident_id,
         technician_id=payload.tecnico_id,
+        assigned_by_admin_id=(
+            current_user_id if current_role == "Administrator" else None
+        ),
     )
     return _incident_to_response(incident)
 

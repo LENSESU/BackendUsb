@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.domain.entities.incident import Incident, IncidentLocation
@@ -17,7 +17,9 @@ def _get_session() -> Session:
 
 
 def _model_to_entity(
-    model: IncidentModel, reporter_email: str | None = None
+    model: IncidentModel,
+    reporter_email: str | None = None,
+    assigned_by_admin_name: str | None = None,
 ) -> Incident:
     """Convierte IncidentModel a entidad de dominio Incident."""
     location = None
@@ -45,6 +47,8 @@ def _model_to_entity(
         updated_at=model.updated_at,
         location=location,
         reporter_email=reporter_email,
+        assigned_by_admin_id=model.assigned_by_admin_id,
+        assigned_by_admin_name=assigned_by_admin_name,
     )
 
 
@@ -60,6 +64,7 @@ def _entity_to_model(
     if existing is not None:
         existing.student_id = incident.student_id
         existing.technician_id = incident.technician_id
+        existing.assigned_by_admin_id = incident.assigned_by_admin_id
         existing.category_id = incident.category_id
         existing.description = incident.description
         existing.campus_place = campus_place
@@ -76,6 +81,7 @@ def _entity_to_model(
         id=incident.id,
         student_id=incident.student_id,
         technician_id=incident.technician_id,
+        assigned_by_admin_id=incident.assigned_by_admin_id,
         category_id=incident.category_id,
         description=incident.description,
         campus_place=campus_place,
@@ -103,13 +109,38 @@ class SqlIncidentRepository(IncidentRepositoryPort):
     def list_all(self) -> list[Incident]:
         db = _get_session()
         try:
+            reporter_user = aliased(UserModel)
+            assigner_user = aliased(UserModel)
             stmt = (
-                select(IncidentModel, UserModel.email)
-                .outerjoin(UserModel, IncidentModel.student_id == UserModel.id)
+                select(
+                    IncidentModel,
+                    reporter_user.email,
+                    assigner_user.first_name,
+                    assigner_user.last_name,
+                )
+                .outerjoin(reporter_user, IncidentModel.student_id == reporter_user.id)
+                .outerjoin(
+                    assigner_user,
+                    IncidentModel.assigned_by_admin_id == assigner_user.id,
+                )
                 .order_by(IncidentModel.created_at.desc())
             )
             rows = db.execute(stmt).all()
-            return [_model_to_entity(row[0], row[1]) for row in rows]
+            incidents: list[Incident] = []
+            for incident_model, reporter_email, assigner_first, assigner_last in rows:
+                assigner_name = None
+                if assigner_first or assigner_last:
+                    assigner_name = " ".join(
+                        p for p in (assigner_first, assigner_last) if p
+                    )
+                incidents.append(
+                    _model_to_entity(
+                        incident_model,
+                        reporter_email,
+                        assigner_name,
+                    )
+                )
+            return incidents
         finally:
             db.close()
 

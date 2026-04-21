@@ -29,6 +29,7 @@ class TechnicianService:
         self,
         incident_id: UUID,
         technician_id: UUID,
+        assigned_by_admin_id: UUID | None = None,
     ) -> Incident:
         """
         Asocia un técnico activo con rol adecuado a un incidente existente.
@@ -37,7 +38,9 @@ class TechnicianService:
             HTTPException 404: Incidente inexistente o técnico no válido/inactivo.
         """
         assigned = self._technicians.assign_technician_to_incident(
-            str(technician_id), str(incident_id)
+            str(technician_id),
+            str(incident_id),
+            str(assigned_by_admin_id) if assigned_by_admin_id else None,
         )
         if assigned is not None:
             updated = self._incidents.get_by_id(incident_id)

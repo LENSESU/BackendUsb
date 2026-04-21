@@ -137,6 +137,10 @@ class IncidentModel(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    assigned_by_admin_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("incident_categories.id", ondelete="RESTRICT"),
         nullable=False,
