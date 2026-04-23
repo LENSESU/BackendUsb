@@ -25,7 +25,11 @@ from app.api.schemas import (
 )
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.technician_service import TechnicianService
-from app.domain.entities.incident import PRIORITY_SORT_WEIGHT, Incident
+from app.domain.entities.incident import (
+    PRIORITY_SORT_WEIGHT,
+    EvidencePhotoType,
+    Incident,
+)
 
 router = APIRouter()
 
@@ -367,23 +371,80 @@ def delete_incident(
     "/{incident_id}/evidence",
     response_model=IncidentEvidenceUploadResponse,
     status_code=201,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
 )
 async def upload_incident_evidence(
     incident_id: UUID,
     photo: UploadFile = File(...),
+    photo_type: EvidencePhotoType = Query(
+        default=EvidencePhotoType.BEFORE,
+        description=(
+            "Tipo de evidencia: 'before' para la foto inicial (reporte), "
+            "'after' para la foto final (cierre del incidente)."
+        ),
+    ),
     evidence_service: IncidentEvidenceService = Depends(get_incident_evidence_service),
+    current_user_id: UUID = Depends(get_current_user_id),
+    current_role: str = Depends(get_current_role_name),
 ) -> IncidentEvidenceUploadResponse:
-    """Valida y carga una evidencia fotográfica para un incidente."""
+    """Valida y carga una evidencia fotográfica para un incidente.
+
+    - ``photo_type=before``: foto inicial cargada por el estudiante al reportar.
+    - ``photo_type=after``: foto final de cierre (HU-E5-028). Solo puede subirla
+      el técnico asignado al incidente o un Administrator, y solo cuando el
+      incidente está en estado ``En_proceso`` o ``Resuelto``.
+    """
+    if photo_type == EvidencePhotoType.AFTER:
+        if current_role == "Student":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "message": (
+                        "Solo el técnico asignado o un administrador puede subir "
+                        "la foto de evidencia final."
+                    ),
+                    "error_code": "INCIDENT_AFTER_PHOTO_FORBIDDEN",
+                },
+            )
+        if current_role == "Technician":
+            service = get_incident_service()
+            existing = service.get_incident(incident_id)
+            if existing is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail={
+                        "message": "Incidente no encontrado",
+                        "error_code": "INCIDENT_NOT_FOUND",
+                    },
+                )
+            if existing.technician_id != current_user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "message": (
+                            "Solo el técnico asignado puede subir la foto final "
+                            "del incidente."
+                        ),
+                        "error_code": "INCIDENT_AFTER_PHOTO_NOT_ASSIGNED",
+                    },
+                )
+
     stored_file = await evidence_service.upload_evidence(
         incident_id=incident_id,
         file=photo,
+        photo_type=photo_type,
     )
 
+    message = (
+        "Foto de evidencia final cargada correctamente"
+        if photo_type == EvidencePhotoType.AFTER
+        else "Evidencia fotográfica cargada correctamente"
+    )
     return IncidentEvidenceUploadResponse(
         incident_id=incident_id,
         filename=photo.filename or "",
         content_type=(photo.content_type or "").lower(),
         storage_object_name=stored_file.object_name,
         file_url=stored_file.file_url,
-        message="Evidencia fotográfica cargada correctamente",
+        message=message,
     )

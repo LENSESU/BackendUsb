@@ -35,6 +35,13 @@ class IncidentPriority(StrEnum):
     BAJA = "Baja"
 
 
+class EvidencePhotoType(StrEnum):
+    """Tipo de foto de evidencia asociada a un incidente."""
+
+    BEFORE = "before"
+    AFTER = "after"
+
+
 # Mapeo de nombre de categoría
 _CATEGORY_PRIORITY_MAP: dict[str, str] = {
     "seguridad": IncidentPriority.ALTA,
