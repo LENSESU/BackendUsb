@@ -19,6 +19,7 @@ from app.api.schemas import (
     IncidentDetailResponse,
     IncidentEvidenceUploadResponse,
     IncidentResponse,
+    IncidentStatusUpdate,
     IncidentUpdate,
     PaginatedAdminIncidentsResponse,
     PaginatedIncidentsResponse,
@@ -80,7 +81,6 @@ def _incident_patch_kwargs(payload: IncidentUpdate) -> dict:
         "lugar_campus": "campus_place",
         "latitud": "latitude",
         "longitud": "longitude",
-        "estado": "status",
         "prioridad": "priority",
         "foto_antes_id": "before_photo_id",
         "foto_despues_id": "after_photo_id",
@@ -269,6 +269,56 @@ def assign_technician_to_incident(
         ),
     )
     return _incident_to_response(incident)
+
+
+@router.patch(
+    "/{incident_id}/status",
+    response_model=IncidentResponse,
+    dependencies=[Depends(require_role("Administrator", "Technician"))],
+)
+def update_incident_status(
+    incident_id: UUID,
+    payload: IncidentStatusUpdate,
+    current_user_id: UUID = Depends(get_current_user_id),
+    current_role: str = Depends(get_current_role_name),
+) -> IncidentResponse:
+    """Transiciona el estado de un incidente (Nuevo → En_proceso → Resuelto).
+
+    Solo Technician (asignado) y Administrator pueden cambiar el estado.
+    """
+    service = get_incident_service()
+    existing = service.get_incident(incident_id)
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
+        )
+    if current_role == "Technician" and existing.technician_id != current_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": (
+                    "Solo el técnico asignado puede cambiar el estado del incidente"
+                ),
+                "error_code": "INCIDENT_STATUS_NOT_ASSIGNED",
+            },
+        )
+    try:
+        updated = service.update_incident(incident_id, status=payload.estado.value)
+    except HTTPException as e:
+        _reraise_service_unprocessable(e)
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
+        )
+    return _incident_to_response(updated)
 
 
 @router.patch(
