@@ -82,7 +82,7 @@ class AssignTechnicianRequest(BaseModel):
 
 
 class IncidentUpdate(BaseModel):
-    """Payload para actualizar un incidente."""
+    """Payload para actualizar campos de un incidente (excluye estado)."""
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -92,10 +92,17 @@ class IncidentUpdate(BaseModel):
     lugar_campus: Campus | None = Field(default=None, alias="campus_place")
     latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
     longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
-    estado: IncidentStatus | None = Field(default=None, alias="status")
     prioridad: IncidentPriority | None = Field(default=None, alias="priority")
     foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
     foto_despues_id: UUID | None = Field(default=None, alias="after_photo_id")
+
+
+class IncidentStatusUpdate(BaseModel):
+    """Payload para la transición de estado de un incidente."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    estado: IncidentStatus = Field(..., alias="status")
 
 
 class IncidentResponse(BaseModel):
