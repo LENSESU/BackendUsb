@@ -60,6 +60,10 @@ class InMemoryFileRepository(FileRepositoryPort):
         self.created_files[file_id] = (url, file_type, uploaded_by_user_id)
         return file_id
 
+    def get_by_id(self, file_id: UUID) -> str | None:
+        file_data = self.created_files.get(file_id)
+        return file_data[0] if file_data else None
+
 
 class FakeStorage(FileStoragePort):
     """Adaptador de almacenamiento simulado que siempre devuelve una URL."""
@@ -147,6 +151,7 @@ def test_upload_evidence_persists_file_and_links_incident(
         )
         assert created_url == stored.file_url
         assert created_type == "image/jpeg"
+        assert file_repo.get_by_id(created_file_id) == stored.file_url
 
         # El incidente debe quedar enlazado al archivo mediante before_photo_id.
         updated_incident = incident_repo.get_by_id(incident_id)

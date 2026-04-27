@@ -125,6 +125,8 @@ class IncidentResponse(BaseModel):
     priority: str | None
     before_photo_id: UUID | None
     after_photo_id: UUID | None
+    before_photo_url: str | None = None
+    after_photo_url: str | None = None
     created_at: datetime
     updated_at: datetime | None
 

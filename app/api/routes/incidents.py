@@ -10,7 +10,10 @@ from app.api.dependencies.auth import (
     require_role,
 )
 from app.api.dependencies.incident import get_incident_service
-from app.api.dependencies.storage import get_incident_evidence_service
+from app.api.dependencies.storage import (
+    get_file_repository,
+    get_incident_evidence_service,
+)
 from app.api.dependencies.technician import get_technician_service
 from app.api.schemas import (
     AdminIncidentSummary,
@@ -54,6 +57,16 @@ def _reraise_service_unprocessable(exc: HTTPException) -> None:
 
 def _incident_to_response(incident: Incident) -> IncidentResponse:
     location = incident.location
+    file_repo = get_file_repository()
+
+    before_photo_url = None
+    if incident.before_photo_id:
+        before_photo_url = file_repo.get_by_id(incident.before_photo_id)
+
+    after_photo_url = None
+    if incident.after_photo_id:
+        after_photo_url = file_repo.get_by_id(incident.after_photo_id)
+
     return IncidentResponse(
         id=incident.id,
         student_id=incident.student_id,
@@ -67,6 +80,8 @@ def _incident_to_response(incident: Incident) -> IncidentResponse:
         priority=incident.priority,
         before_photo_id=incident.before_photo_id,
         after_photo_id=incident.after_photo_id,
+        before_photo_url=before_photo_url,
+        after_photo_url=after_photo_url,
         created_at=incident.created_at,
         updated_at=incident.updated_at,
     )
@@ -192,6 +207,15 @@ def get_incident(incident_id: UUID) -> IncidentDetailResponse:
 
     incident = incident_with_details.incident
     location = incident.location
+    file_repo = get_file_repository()
+
+    before_photo_url = None
+    if incident.before_photo_id:
+        before_photo_url = file_repo.get_by_id(incident.before_photo_id)
+
+    after_photo_url = None
+    if incident.after_photo_id:
+        after_photo_url = file_repo.get_by_id(incident.after_photo_id)
 
     return IncidentDetailResponse(
         id=incident.id,
@@ -206,6 +230,8 @@ def get_incident(incident_id: UUID) -> IncidentDetailResponse:
         priority=incident.priority,
         before_photo_id=incident.before_photo_id,
         after_photo_id=incident.after_photo_id,
+        before_photo_url=before_photo_url,
+        after_photo_url=after_photo_url,
         created_at=incident.created_at,
         updated_at=incident.updated_at,
         student_first_name=incident_with_details.student_first_name,

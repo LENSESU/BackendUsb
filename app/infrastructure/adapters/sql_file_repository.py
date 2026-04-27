@@ -36,3 +36,11 @@ class SqlFileRepository(FileRepositoryPort):
             return file_model.id
         finally:
             db.close()
+
+    def get_by_id(self, file_id: UUID) -> str | None:
+        db = _get_session()
+        try:
+            file_model = db.query(FileModel).filter(FileModel.id == file_id).first()
+            return file_model.url if file_model else None
+        finally:
+            db.close()
