@@ -1,14 +1,11 @@
 """Configuración de la aplicación mediante variables de entorno."""
-
 from functools import lru_cache
 from typing import Literal
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Configuración cargada desde entorno y .env."""
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -24,32 +21,47 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
 
     @property
-    def database_url_sync(self) -> str:
-        """URL de conexión PostgreSQL síncrona (Alembic, migraciones)."""
+    def _base_database_url(self) -> str:
+        """URL base sin driver específico."""
         if self.database_url:
-            return self.database_url
+            # Normalizar a postgresql:// base
+            return (
+                self.database_url
+                .replace("postgresql+asyncpg://", "postgresql://")
+                .replace("postgresql+psycopg2://", "postgresql://")
+            )
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @property
+    def database_url_sync(self) -> str:
+        """URL síncrona para Alembic (psycopg2)."""
+        return self._base_database_url
+
+    @property
+    def database_url_async(self) -> str:
+        """URL asíncrona para SQLAlchemy runtime (asyncpg)."""
+        return self._base_database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
     # Entorno
     environment: Literal["development", "staging", "production"] = "development"
 
     # Si es False, no se ejecutan migraciones al arranque (útil en tests sin BD)
     run_migrations_on_startup: bool = True
+
     # Si es True, ejecuta el seed de usuarios al arrancar la app
     seed_users_on_startup: bool = False
 
     # Autenticación JWT
     jwt_secret_key: str = "dev-secret-key-CHANGE-IN-PRODUCTION"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60  # 1 hora
-    refresh_token_expire_days: int = 7  # 7 días
-    # Si es True, el login devuelve también refresh_token
+    access_token_expire_minutes: int = 60
+    refresh_token_expire_days: int = 7
     use_refresh_tokens: bool = True
 
-    # SMTP Server (Local) - OTP
+    # SMTP
     mail_host: str = "localhost"
     mail_port: int = 1025
     mail_from: str = "noreply@app.local"
@@ -76,5 +88,4 @@ def get_settings() -> Settings:
     return Settings()
 
 
-# Instancia global para uso en app y Alembic
 settings = get_settings()
