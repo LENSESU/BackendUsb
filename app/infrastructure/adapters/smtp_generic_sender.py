@@ -29,12 +29,12 @@ class SmtpEmailSender(EmailSenderPort):
         async with aiosmtplib.SMTP(
             hostname=settings.mail_host,
             port=settings.mail_port,
-            use_tls=False,  # conexión inicial en plano
+            use_tls=settings.mail_port == 465,  # SSL directo solo en 465
         ) as smtp:
-            if settings.mail_start_tls:
-                await smtp.starttls()  # upgrade a TLS
+            if settings.mail_start_tls and settings.mail_port != 465:
+                await smtp.starttls()  # STARTTLS solo en 587
             if settings.mail_username:
-                await smtp.login(  # auth canal cifrado
+                await smtp.login(
                     settings.mail_username,
                     settings.mail_password,
                 )
