@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     mail_use_tls: bool = False
     mail_username: str = ""
     mail_password: str = ""
+    resend_api_key: str = ""
     otp_expire_minutes: int = 2
     otp_resend_cooldown_seconds: int = 15
 

@@ -19,6 +19,7 @@ psycopg2-binary==2.9.10
 # email
 aiosmtplib==5.1.0
 google-cloud-storage==2.19.0
+resend==2.29.0
 
 # testing
 pytest==8.3.3
