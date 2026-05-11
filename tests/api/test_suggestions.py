@@ -1,13 +1,19 @@
 """Tests del CRUD de sugerencias."""
 
 from datetime import UTC, datetime
+from io import BytesIO
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.storage import get_incident_evidence_service
 from app.api.dependencies.suggestion import get_suggestion_service
+from app.application.ports.file_repository import FileRepositoryPort
+from app.application.ports.file_storage import FileStoragePort, StoredFileResult
+from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.ports.suggestion_repository import SuggestionRepositoryPort
+from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.suggestion_service import SuggestionService
 from app.core.security import create_access_token
 from app.core.token_blacklist import clear_blacklist
@@ -70,6 +76,30 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
             total_votes=suggestion.total_votes,
             institutional_comment=suggestion.institutional_comment,
             created_at=created_at,
+            tags=suggestion.tags or [],
+        )
+        self._by_id[stored.id] = stored
+        return stored
+
+    def save_with_tags(
+        self, suggestion: Suggestion, tag_names: list[str] | None = None
+    ) -> Suggestion:
+        """Guarda sugerencia con etiquetas (mock en memoria)."""
+        if suggestion.id is None:
+            msg = "La sugerencia debe tener id antes de guardar"
+            raise ValueError(msg)
+        now = datetime.now(UTC)
+        created_at = suggestion.created_at or now
+        stored = Suggestion(
+            id=suggestion.id,
+            student_id=suggestion.student_id,
+            title=suggestion.title,
+            content=suggestion.content,
+            photo_id=suggestion.photo_id,
+            total_votes=suggestion.total_votes,
+            institutional_comment=suggestion.institutional_comment,
+            created_at=created_at,
+            tags=tag_names or [],
         )
         self._by_id[stored.id] = stored
         return stored
@@ -81,34 +111,109 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
         return True
 
 
+# Mocks para el servicio de almacenamiento
+class MockFileRepository(FileRepositoryPort):
+    """Mock del repositorio de archivos."""
+
+    def __init__(self) -> None:
+        self._files: dict[UUID, str] = {}
+
+    def create_file(self, *, url: str, file_type: str | None, uploaded_by_user_id: UUID | None) -> UUID:
+        file_id = uuid4()
+        self._files[file_id] = url  # Almacena la URL directamente
+        return file_id
+
+    def get_by_id(self, file_id: UUID) -> str | None:
+        return self._files.get(file_id)  # Retorna la URL como string
+
+
+class MockFileStorage(FileStoragePort):
+    """Mock del adaptador de almacenamiento (no usa GCS)."""
+
+    async def upload_incident_evidence(
+        self,
+        *,
+        incident_id: UUID,
+        filename: str,
+        content_type: str,
+        data: bytes,
+    ) -> StoredFileResult:
+        return StoredFileResult(
+            object_name=f"incidents/{incident_id}/{filename}",
+            file_url=f"https://mock-storage.example.com/incidents/{incident_id}/{filename}",
+        )
+
+    async def upload_file(
+        self,
+        *,
+        prefix: str,
+        filename: str,
+        content_type: str,
+        data: bytes,
+    ) -> StoredFileResult:
+        return StoredFileResult(
+            object_name=f"{prefix}/{filename}",
+            file_url=f"https://mock-storage.example.com/{prefix}/{filename}",
+        )
+
+
+class MockIncidentRepository(IncidentRepositoryPort):
+    """Mock del repositorio de incidentes (no es necesario para sugerencias)."""
+
+    def get_by_id(self, incident_id: UUID):
+        return None
+
+    def save(self, incident):
+        pass
+
+    def delete(self, incident_id: UUID) -> bool:
+        return False
+
+    def list_all(self) -> list:
+        return []
+
+
 @pytest.fixture(autouse=True)
 def _clean():
     clear_blacklist()
     repo = InMemorySuggestionRepository()
+    file_repo = MockFileRepository()
+    storage = MockFileStorage()
+    incident_repo = MockIncidentRepository()
 
-    def _override() -> SuggestionService:
+    def _override_suggestion_service() -> SuggestionService:
         return SuggestionService(repository=repo)
 
-    app.dependency_overrides[get_suggestion_service] = _override
+    def _override_evidence_service() -> IncidentEvidenceService:
+        return IncidentEvidenceService(
+            storage=storage,
+            incident_repository=incident_repo,
+            file_repository=file_repo,
+        )
+
+    app.dependency_overrides[get_suggestion_service] = _override_suggestion_service
+    app.dependency_overrides[get_incident_evidence_service] = _override_evidence_service
     yield
     app.dependency_overrides.pop(get_suggestion_service, None)
+    app.dependency_overrides.pop(get_incident_evidence_service, None)
     clear_blacklist()
 
 
-def _valid_create_payload() -> dict:
+def _valid_create_params() -> dict:
+    """Parámetros válidos para crear sugerencia (Form data)."""
     return {
-        "estudiante_id": str(STUDENT_USER_ID),
         "titulo": "Mejorar iluminación",
         "contenido": "Detalle de la sugerencia para el campus.",
     }
 
 
 class TestSuggestionCrud:
-    def test_create_returns_201_and_default_votes(self) -> None:
+    def test_create_without_photo_returns_201(self) -> None:
+        """Crea sugerencia sin foto."""
         token = _make_token(STUDENT_USER_ID, "Student")
         resp = client.post(
             "/api/v1/suggestions/",
-            json=_valid_create_payload(),
+            data=_valid_create_params(),
             headers=_auth(token),
         )
         assert resp.status_code == 201
@@ -117,51 +222,91 @@ class TestSuggestionCrud:
         assert body["total_votos"] == 0
         assert body["estudiante_id"] == str(STUDENT_USER_ID)
         assert body["id"] is not None
+        assert body["foto_url"] is None
 
-    def test_create_with_total_votos(self) -> None:
+    def test_create_with_tags_returns_201(self) -> None:
+        """Crea sugerencia con etiquetas separadas por coma."""
         token = _make_token(STUDENT_USER_ID, "Student")
-        p = _valid_create_payload()
-        p["total_votos"] = 5
+        data = _valid_create_params()
+        data["etiquetas"] = "iluminación,infraestructura,urgente"
         resp = client.post(
             "/api/v1/suggestions/",
-            json=p,
+            data=data,
             headers=_auth(token),
         )
         assert resp.status_code == 201
-        assert resp.json()["total_votos"] == 5
+        body = resp.json()
+        assert body["etiquetas"] == ["iluminación", "infraestructura", "urgente"]
 
-    def test_title_too_long_returns_422(self) -> None:
+    def test_create_with_photo_returns_201_and_has_photo_id(self) -> None:
+        """Crea sugerencia CON foto. El photo_id debe ser capturado."""
         token = _make_token(STUDENT_USER_ID, "Student")
-        p = _valid_create_payload()
-        p["titulo"] = "x" * 201
+        
+        # Crear una imagen JPEG válida en memoria
+        jpeg_bytes = (
+            b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00'
+            b'\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c'
+            b'\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c'
+            b'\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x0b\x08\x00'
+            b'\x01\x00\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01'
+            b'\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06'
+            b'\x07\x08\t\n\x0b\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02\x04\x03'
+            b'\x05\x05\x04\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11\x05\x12!1A\x06'
+            b'\x13Qa\x07"q\x142\x81\x91\xa1\x08#B\xb1\xc1\x15R\xd1\xf0$3br\x82\t'
+            b'\n\x16\x17\x18\x19\x1a%&\'()*456789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz'
+            b'\x83\x84\x85\x86\x87\x88\x89\x8a\x92\x93\x94\x95\x96\x97\x98\x99\x9a'
+            b'\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9'
+            b'\xba\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xd2\xd3\xd4\xd5\xd6\xd7\xd8'
+            b'\xd9\xda\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xf1\xf2\xf3\xf4\xf5'
+            b'\xf6\xf7\xf8\xf9\xfa\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xfb\xd3\xff'
+            b'\xd9'
+        )
+        
         resp = client.post(
             "/api/v1/suggestions/",
-            json=p,
+            data=_valid_create_params(),
+            files={"photo": ("test.jpg", BytesIO(jpeg_bytes), "image/jpeg")},
+            headers=_auth(token),
+        )
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["titulo"] == "Mejorar iluminación"
+        assert body["foto_url"] is not None  # ✅ Photo URL capturada correctamente
+        assert "https://" in body["foto_url"] or "http://" in body["foto_url"]  # Verifica que sea una URL válida
+
+    def test_create_title_too_long_returns_422(self) -> None:
+        """Valida longitud máxima de título (200 chars)."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        data = _valid_create_params()
+        data["titulo"] = "x" * 201
+        resp = client.post(
+            "/api/v1/suggestions/",
+            data=data,
             headers=_auth(token),
         )
         assert resp.status_code == 422
 
-    def test_negative_total_votos_returns_422(self) -> None:
+    def test_create_empty_content_returns_400(self) -> None:
+        """Valida que el contenido no esté vacío."""
         token = _make_token(STUDENT_USER_ID, "Student")
-        p = _valid_create_payload()
-        p["total_votos"] = -1
+        data = _valid_create_params()
+        data["contenido"] = "   "
         resp = client.post(
             "/api/v1/suggestions/",
-            json=p,
-            headers=_auth(token),
-        )
-        assert resp.status_code == 422
-
-    def test_empty_title_content_returns_400(self) -> None:
-        token = _make_token(STUDENT_USER_ID, "Student")
-        p = _valid_create_payload()
-        p["titulo"] = "   "
-        resp = client.post(
-            "/api/v1/suggestions/",
-            json=p,
+            data=data,
             headers=_auth(token),
         )
         assert resp.status_code == 400
+
+    def test_create_missing_titulo_returns_422(self) -> None:
+        """Valida que título es obligatorio."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        resp = client.post(
+            "/api/v1/suggestions/",
+            data={"contenido": "Solo contenido sin título"},
+            headers=_auth(token),
+        )
+        assert resp.status_code == 422
 
     def test_get_by_id_404(self) -> None:
         token = _make_token(STUDENT_USER_ID, "Student")
@@ -172,21 +317,26 @@ class TestSuggestionCrud:
         assert resp.status_code == 404
 
     def test_list_update_delete(self) -> None:
+        """Test completo: crear, listar, actualizar y eliminar."""
         token = _make_token(STUDENT_USER_ID, "Student")
+        
+        # Crear sugerencia
         create = client.post(
             "/api/v1/suggestions/",
-            json=_valid_create_payload(),
+            data=_valid_create_params(),
             headers=_auth(token),
         )
         assert create.status_code == 201
         sid = create.json()["id"]
 
+        # Listar
         listed = client.get("/api/v1/suggestions/", headers=_auth(token))
         assert listed.status_code == 200
         listed_body = listed.json()
         assert listed_body["total"] == 1
         assert len(listed_body["items"]) == 1
 
+        # Actualizar
         upd = client.patch(
             f"/api/v1/suggestions/{sid}",
             json={"titulo": "Nuevo título"},
@@ -195,6 +345,7 @@ class TestSuggestionCrud:
         assert upd.status_code == 200
         assert upd.json()["titulo"] == "Nuevo título"
 
+        # Intentar actualizar con votos nulos (debe fallar)
         null_votes = client.patch(
             f"/api/v1/suggestions/{sid}",
             json={"total_votos": None},
@@ -204,6 +355,7 @@ class TestSuggestionCrud:
         detail = null_votes.json()["detail"]
         assert detail["error_code"] == "SUGGESTION_VALIDATION_ERROR"
 
+        # Eliminar
         deleted = client.delete(
             f"/api/v1/suggestions/{sid}",
             headers=_auth(token),
@@ -217,26 +369,29 @@ class TestSuggestionCrud:
         assert missing.status_code == 404
 
     def test_popular_returns_sorted_and_limited(self) -> None:
+        """Test listado de sugerencias populares ordenadas por votos."""
         token = _make_token(STUDENT_USER_ID, "Student")
 
-        p1 = _valid_create_payload()
-        p1["titulo"] = "A"
-        p1["total_votos"] = 2
-        p2 = _valid_create_payload()
-        p2["titulo"] = "B"
-        p2["total_votos"] = 10
-        p3 = _valid_create_payload()
-        p3["titulo"] = "C"
-        p3["total_votos"] = 5
-
-        for payload in (p1, p2, p3):
+        # Crear 3 sugerencias (sin votos inicialmente)
+        suggestions = []
+        for i, titulo in enumerate(["A", "B", "C"]):
+            data = _valid_create_params()
+            data["titulo"] = titulo
             resp = client.post(
                 "/api/v1/suggestions/",
-                json=payload,
+                data=data,
                 headers=_auth(token),
             )
             assert resp.status_code == 201
+            suggestions.append(resp.json())
 
+        # Actualizar votos manualmente para simular popularidad
+        # B: 10 votos, C: 5 votos, A: 2 votos
+        client.patch(f"/api/v1/suggestions/{suggestions[0]['id']}", json={"total_votos": 2}, headers=_auth(token))
+        client.patch(f"/api/v1/suggestions/{suggestions[1]['id']}", json={"total_votos": 10}, headers=_auth(token))
+        client.patch(f"/api/v1/suggestions/{suggestions[2]['id']}", json={"total_votos": 5}, headers=_auth(token))
+
+        # Obtener populares (top 2)
         popular = client.get(
             "/api/v1/suggestions/popular?limit=2",
             headers=_auth(token),

@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class SuggestionCreate(BaseModel):
-    """Payload para crear una sugerencia."""
+    """Payload para crear una sugerencia con etiquetas opcionales."""
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -27,13 +27,17 @@ class SuggestionCreate(BaseModel):
         min_length=1,
         alias="content",
     )
+    etiquetas: list[str] | None = Field(
+        default=None,
+        description="Lista de nombres de etiquetas (se crean si no existen)",
+        alias="tags",
+    )
     total_votos: int | None = Field(
         default=None,
         ge=0,
         description="Si se omite, se inicializa en 0",
         alias="total_votes",
     )
-    foto_id: UUID | None = Field(default=None, alias="photo_id")
 
 
 class SuggestionUpdate(BaseModel):
@@ -64,9 +68,12 @@ class SuggestionResponse(BaseModel):
     titulo: str
     contenido: str
     total_votos: int
-    foto_id: UUID | None
+    foto_url: str | None
     comentario_institucional: str | None
     created_at: datetime
+    etiquetas: list[str] = Field(
+        default_factory=list, description="Nombres de las etiquetas asociadas"
+    )
 
 
 class SuggestionPopularResponse(BaseModel):

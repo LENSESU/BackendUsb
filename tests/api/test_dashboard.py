@@ -62,6 +62,14 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
         self._by_id[suggestion.id] = suggestion
         return suggestion
 
+    def save_with_tags(
+        self, suggestion: Suggestion, tag_names: list[str] | None = None
+    ) -> Suggestion:
+        """Mock implementation with tags."""
+        suggestion.tags = tag_names or []
+        self._by_id[suggestion.id] = suggestion
+        return suggestion
+
     def delete(self, suggestion_id: UUID) -> bool:
         return self._by_id.pop(suggestion_id, None) is not None
 

@@ -34,6 +34,7 @@ class SuggestionService:
         content: str,
         total_votes: int | None = None,
         photo_id: UUID | None = None,
+        tags: list[str] | None = None,
     ) -> Suggestion:
         votes = 0 if total_votes is None else total_votes
         suggestion = Suggestion(
@@ -43,7 +44,10 @@ class SuggestionService:
             content=content.strip(),
             photo_id=photo_id,
             total_votes=votes,
+            tags=tags or [],
         )
+        if tags:
+            return self._repository.save_with_tags(suggestion, tags)
         return self._repository.save(suggestion)
 
     def update(
