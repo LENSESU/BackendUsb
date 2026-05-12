@@ -96,6 +96,19 @@ class SqlSuggestionRepository(SuggestionRepositoryPort):
         finally:
             db.close()
 
+    def list_by_student(self, student_id: UUID) -> list[Suggestion]:
+        db = _get_session()
+        try:
+            stmt = (
+                select(SuggestionModel)
+                .where(SuggestionModel.student_id == student_id)
+                .order_by(SuggestionModel.created_at.desc())
+            )
+            rows = db.scalars(stmt).all()
+            return [_model_to_entity(m) for m in rows]
+        finally:
+            db.close()
+
     def list_popular(self, limit: int) -> list[Suggestion]:
         db = _get_session()
         try:

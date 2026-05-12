@@ -50,6 +50,13 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
     def list_all(self) -> list[Suggestion]:
         return list(self._by_id.values())
 
+    def list_by_student(self, student_id: UUID) -> list[Suggestion]:
+        return sorted(
+            [s for s in self._by_id.values() if s.student_id == student_id],
+            key=lambda s: s.created_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
+        )
+
     def list_popular(self, limit: int) -> list[Suggestion]:
         ordered = sorted(
             self._by_id.values(),
@@ -416,3 +423,100 @@ class TestSuggestionCrud:
             headers=_auth(token),
         )
         assert resp.status_code == 422
+
+
+class TestSuggestionMyHistory:
+    def test_me_returns_empty_list_when_student_has_no_suggestions(self) -> None:
+        token = _make_token(uuid4(), "Student")
+
+        resp = client.get("/api/v1/suggestions/me", headers=_auth(token))
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 0
+        assert body["total_pages"] == 0
+        assert body["items"] == []
+
+    def test_me_returns_only_authenticated_student_suggestions(self) -> None:
+        student_a = uuid4()
+        student_b = uuid4()
+        token_a = _make_token(student_a, "Student")
+        token_b = _make_token(student_b, "Student")
+
+        payload_a = {
+            "estudiante_id": str(student_a),
+            "titulo": "Sugerencia A",
+            "contenido": "Contenido A",
+        }
+        payload_b = {
+            "estudiante_id": str(student_b),
+            "titulo": "Sugerencia B",
+            "contenido": "Contenido B",
+        }
+
+        assert (
+            client.post(
+                "/api/v1/suggestions/",
+                json=payload_a,
+                headers=_auth(token_a),
+            ).status_code
+            == 201
+        )
+        assert (
+            client.post(
+                "/api/v1/suggestions/",
+                json=payload_b,
+                headers=_auth(token_b),
+            ).status_code
+            == 201
+        )
+
+        resp_a = client.get("/api/v1/suggestions/me", headers=_auth(token_a))
+        resp_b = client.get("/api/v1/suggestions/me", headers=_auth(token_b))
+
+        assert resp_a.status_code == 200
+        assert resp_b.status_code == 200
+        body_a = resp_a.json()
+        body_b = resp_b.json()
+
+        assert body_a["total"] == 1
+        assert body_b["total"] == 1
+        assert body_a["items"][0]["estudiante_id"] == str(student_a)
+        assert body_b["items"][0]["estudiante_id"] == str(student_b)
+
+    def test_me_without_token_returns_401(self) -> None:
+        resp = client.get("/api/v1/suggestions/me")
+        assert resp.status_code == 401
+
+    def test_me_with_non_student_role_returns_403(self) -> None:
+        admin_token = _make_token(uuid4(), "Administrator")
+        resp = client.get("/api/v1/suggestions/me", headers=_auth(admin_token))
+        assert resp.status_code == 403
+
+    def test_me_ignores_student_id_query_param(self) -> None:
+        student = uuid4()
+        other_student = uuid4()
+        token = _make_token(student, "Student")
+
+        assert (
+            client.post(
+                "/api/v1/suggestions/",
+                json={
+                    "estudiante_id": str(student),
+                    "titulo": "Propia",
+                    "contenido": "mia",
+                },
+                headers=_auth(token),
+            ).status_code
+            == 201
+        )
+
+        # Aunque se envíe un query param ajeno, la ruta /me debe usar el JWT.
+        resp = client.get(
+            f"/api/v1/suggestions/me?student_id={other_student}",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["items"][0]["estudiante_id"] == str(student)

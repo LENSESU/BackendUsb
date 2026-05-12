@@ -100,6 +100,31 @@ def list_suggestions(
 
 
 @router.get(
+    "/me",
+    response_model=PaginatedSuggestionsResponse,
+    dependencies=[Depends(require_role("Student"))],
+)
+def list_my_suggestions(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+    current_user_id: UUID = Depends(get_current_user_id),
+    service: SuggestionService = Depends(get_suggestion_service),
+) -> PaginatedSuggestionsResponse:
+    suggestions = service.list_by_student(current_user_id)
+    total = len(suggestions)
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    start = (page - 1) * limit
+    end = start + limit
+    return PaginatedSuggestionsResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=[_to_response(s) for s in suggestions[start:end]],
+    )
+
+
+@router.get(
     "/popular",
     response_model=PaginatedPopularSuggestionsResponse,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],

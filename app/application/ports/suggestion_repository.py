@@ -20,6 +20,11 @@ class SuggestionRepositoryPort(ABC):
         ...
 
     @abstractmethod
+    def list_by_student(self, student_id: UUID) -> list[Suggestion]:
+        """Lista las sugerencias creadas por un estudiante."""
+        ...
+
+    @abstractmethod
     def list_popular(self, limit: int) -> list[Suggestion]:
         """Lista sugerencias populares por votos descendente."""
         ...
