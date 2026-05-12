@@ -50,6 +50,13 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
     def list_all(self) -> list[Suggestion]:
         return list(self._by_id.values())
 
+    def list_by_student(self, student_id: UUID) -> list[Suggestion]:
+        return sorted(
+            [s for s in self._by_id.values() if s.student_id == student_id],
+            key=lambda s: s.created_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
+        )
+
     def list_popular(self, limit: int) -> list[Suggestion]:
         ordered = sorted(
             self._by_id.values(),

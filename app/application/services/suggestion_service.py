@@ -20,6 +20,9 @@ class SuggestionService:
     def list_all(self) -> list[Suggestion]:
         return self._repository.list_all()
 
+    def list_by_student(self, student_id: UUID) -> list[Suggestion]:
+        return self._repository.list_by_student(student_id)
+
     def list_popular(self, limit: int = 5) -> list[Suggestion]:
         return self._repository.list_popular(limit=limit)
 
