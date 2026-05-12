@@ -192,3 +192,55 @@ class PaginatedAdminIncidentsResponse(BaseModel):
     total: int
     total_pages: int
     items: list[AdminIncidentSummary]
+
+
+class IncidentGeoMarker(BaseModel):
+    """Marcador geográfico optimizado para visualización en mapa interactivo.
+
+    Contiene solo los campos necesarios para cargar eficientemente marcadores
+    de incidentes en un mapa.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "category_name": "Infraestructura",
+                "status": "Nuevo",
+                "priority": "Alta",
+                "latitude": 3.3958,
+                "longitude": -76.5317,
+                "campus_place": "Central",
+                "created_at": "2026-04-16T10:30:00Z",
+            }
+        },
+    )
+
+    id: UUID = Field(..., description="ID único del incidente")
+    category_name: str = Field(..., description="Nombre de la categoría del incidente")
+    status: str = Field(..., description="Estado actual del incidente")
+    priority: str | None = Field(None, description="Nivel de prioridad del incidente")
+    latitude: float = Field(..., description="Coordenada de latitud", ge=-90, le=90)
+    longitude: float = Field(..., description="Coordenada de longitud", ge=-180, le=180)
+    campus_place: str | None = Field(
+        None, description="Lugar específico dentro del campus"
+    )
+    created_at: datetime = Field(..., description="Fecha de creación del incidente")
+
+
+class PaginatedIncidentsGeoResponse(BaseModel):
+    """Respuesta paginada para consulta geográfica de incidentes.
+
+    Optimizada para carga eficiente de marcadores en mapas interactivos.
+    """
+
+    page: int = Field(..., ge=1, description="Número de página actual")
+    limit: int = Field(
+        ..., ge=1, le=100, description="Cantidad de elementos por página"
+    )
+    total: int = Field(..., ge=0, description="Total de incidentes con coordenadas")
+    total_pages: int = Field(..., ge=0, description="Total de páginas")
+    items: list[IncidentGeoMarker] = Field(
+        ..., description="Lista de marcadores geográficos de incidentes"
+    )

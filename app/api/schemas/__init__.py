@@ -14,10 +14,12 @@ from app.api.schemas.incident import (
     IncidentCreate,
     IncidentDetailResponse,
     IncidentEvidenceUploadResponse,
+    IncidentGeoMarker,
     IncidentResponse,
     IncidentStatusUpdate,
     IncidentUpdate,
     PaginatedAdminIncidentsResponse,
+    PaginatedIncidentsGeoResponse,
     PaginatedIncidentsResponse,
 )
 from app.api.schemas.incident_category import (
@@ -44,6 +46,8 @@ __all__ = [
     "IncidentStatusUpdate",
     "IncidentUpdate",
     "PaginatedIncidentsResponse",
+    "IncidentGeoMarker",
+    "PaginatedIncidentsGeoResponse",
     "ItemCreate",
     "ItemResponse",
     "PaginatedItemsResponse",
