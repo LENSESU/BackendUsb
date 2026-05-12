@@ -426,6 +426,17 @@ class TestSuggestionCrud:
 
 
 class TestSuggestionMyHistory:
+    def test_me_returns_empty_list_when_student_has_no_suggestions(self) -> None:
+        token = _make_token(uuid4(), "Student")
+
+        resp = client.get("/api/v1/suggestions/me", headers=_auth(token))
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 0
+        assert body["total_pages"] == 0
+        assert body["items"] == []
+
     def test_me_returns_only_authenticated_student_suggestions(self) -> None:
         student_a = uuid4()
         student_b = uuid4()
