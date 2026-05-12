@@ -30,6 +30,13 @@ class SuggestionRepositoryPort(ABC):
         ...
 
     @abstractmethod
+    def save_with_tags(
+        self, suggestion: Suggestion, tag_names: list[str] | None = None
+    ) -> Suggestion:
+        """Guarda una sugerencia y asocia etiquetas (crea si no existen)."""
+        ...
+
+    @abstractmethod
     def delete(self, suggestion_id: UUID) -> bool:
         """Elimina una sugerencia por ID. Retorna True si existía."""
         ...

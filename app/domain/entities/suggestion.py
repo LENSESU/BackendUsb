@@ -15,6 +15,7 @@ class Suggestion:
     total_votes: int = 0
     institutional_comment: str | None = None
     created_at: datetime | None = None
+    tags: list[str] | None = None
 
     def __post_init__(self) -> None:
         if not self.title or not self.title.strip():
@@ -25,3 +26,6 @@ class Suggestion:
 
         if self.total_votes < 0:
             raise ValueError("El total de votos no puede ser negativo")
+
+        if self.tags is None:
+            self.tags = []

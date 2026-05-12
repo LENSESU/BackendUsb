@@ -113,3 +113,55 @@ class IncidentEvidenceService:
         self._incident_repository.save(incident)
 
         return stored_file
+
+    async def upload_file_with_validation(
+        self,
+        *,
+        prefix: str,
+        file: UploadFile,
+    ) -> tuple[UUID, str]:
+        """
+        Carga un archivo genérico (sugerencias, perfiles, etc) con validación de imagen.
+
+        Retorna:
+            (file_id, file_url) - IDs y URL del archivo almacenado
+        """
+        # Reutilizar validación de imagen (es la misma para todos los contextos)
+        await FileValidationService.validate_incident_evidence_image(file)
+        file_content = await file.read()
+
+        try:
+            stored_file = await self._storage.upload_file(
+                prefix=prefix,
+                filename=file.filename or "file.jpg",
+                content_type=(file.content_type or "application/octet-stream").lower(),
+                data=file_content,
+            )
+        except GoogleAPIError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(
+                    "No se pudo subir el archivo al almacenamiento de Google Cloud. "
+                    "Intente nuevamente más tarde."
+                ),
+            ) from exc
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Ocurrió un error inesperado al subir el archivo.",
+            ) from exc
+
+        if stored_file.file_url is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="El proveedor de almacenamiento no devolvió URL válida.",
+            )
+
+        # Crear registro en tabla files
+        file_id = self._file_repository.create_file(
+            url=stored_file.file_url,
+            file_type=(file.content_type or "").lower(),
+            uploaded_by_user_id=None,
+        )
+
+        return file_id, stored_file.file_url

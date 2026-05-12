@@ -51,6 +51,27 @@ class GoogleCloudStorageAdapter(FileStoragePort):
             data,
         )
 
+    async def upload_file(
+        self,
+        *,
+        prefix: str,
+        filename: str,
+        content_type: str,
+        data: bytes,
+    ) -> StoredFileResult:
+        """Carga un archivo genérico con prefijo customizable."""
+        extension = Path(filename).suffix.lower() or ".jpg"
+        now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        prefix_clean = prefix.strip("/")
+        object_name = f"{prefix_clean}/{now}-{uuid4().hex}{extension}"
+
+        return await run_in_threadpool(
+            self._upload_blocking,
+            object_name,
+            content_type,
+            data,
+        )
+
     def _upload_blocking(
         self,
         object_name: str,
