@@ -41,7 +41,11 @@ class SuggestionCreate(BaseModel):
 
 
 class SuggestionUpdate(BaseModel):
-    """Payload para actualizar una sugerencia (parcial)."""
+    """Payload para actualizar una sugerencia (parcial).
+    
+    Solo permite actualizar campos de texto. Para actualizar la foto,
+    usa el endpoint específico: PATCH /api/v1/suggestions/{suggestion_id}/photo
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -53,7 +57,6 @@ class SuggestionUpdate(BaseModel):
     )
     contenido: str | None = Field(default=None, min_length=1, alias="content")
     total_votos: int | None = Field(default=None, ge=0, alias="total_votes")
-    foto_id: UUID | None = Field(default=None, alias="photo_id")
     comentario_institucional: str | None = Field(
         default=None,
         alias="institutional_comment",

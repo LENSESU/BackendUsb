@@ -128,7 +128,7 @@ class MockFileRepository(FileRepositoryPort):
 
 
 class MockFileStorage(FileStoragePort):
-    """Mock del adaptador de almacenamiento (no usa GCS)."""
+    """Mock del adaptador de almacenamiento (simula Google Cloud Storage)."""
 
     async def upload_incident_evidence(
         self,
@@ -140,7 +140,7 @@ class MockFileStorage(FileStoragePort):
     ) -> StoredFileResult:
         return StoredFileResult(
             object_name=f"incidents/{incident_id}/{filename}",
-            file_url=f"https://mock-storage.example.com/incidents/{incident_id}/{filename}",
+            file_url=f"https://storage.googleapis.com/multimedia_incidents/incidents/{incident_id}/{filename}",
         )
 
     async def upload_file(
@@ -153,7 +153,7 @@ class MockFileStorage(FileStoragePort):
     ) -> StoredFileResult:
         return StoredFileResult(
             object_name=f"{prefix}/{filename}",
-            file_url=f"https://mock-storage.example.com/{prefix}/{filename}",
+            file_url=f"https://storage.googleapis.com/multimedia_incidents/{prefix}/{filename}",
         )
 
 
@@ -238,8 +238,8 @@ class TestSuggestionCrud:
         body = resp.json()
         assert body["etiquetas"] == ["iluminación", "infraestructura", "urgente"]
 
-    def test_create_with_photo_returns_201_and_has_photo_id(self) -> None:
-        """Crea sugerencia CON foto. El photo_id debe ser capturado."""
+    def test_create_with_photo_returns_201_and_has_photo_url(self) -> None:
+        """Crea sugerencia CON foto. Verifica que foto_url sea una URL válida de Google Cloud Storage."""
         token = _make_token(STUDENT_USER_ID, "Student")
         
         # Crear una imagen JPEG válida en memoria
@@ -271,8 +271,13 @@ class TestSuggestionCrud:
         assert resp.status_code == 201
         body = resp.json()
         assert body["titulo"] == "Mejorar iluminación"
-        assert body["foto_url"] is not None  # ✅ Photo URL capturada correctamente
-        assert "https://" in body["foto_url"] or "http://" in body["foto_url"]  # Verifica que sea una URL válida
+        
+        # Verificar que foto_url es una URL válida de Google Cloud Storage
+        foto_url = body["foto_url"]
+        assert foto_url is not None, "foto_url debe estar presente"
+        assert "https://storage.googleapis.com" in foto_url, f"Esperado URL de GCS en: {foto_url}"
+        assert "multimedia_incidents/suggestions" in foto_url, f"Esperado prefijo correcto en: {foto_url}"
+        assert foto_url.endswith((".jpg", ".jpeg", ".png")), f"Esperado extensión de imagen en: {foto_url}"
 
     def test_create_title_too_long_returns_422(self) -> None:
         """Valida longitud máxima de título (200 chars)."""

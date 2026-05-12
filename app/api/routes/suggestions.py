@@ -270,6 +270,17 @@ def update_suggestion(
     service: SuggestionService = Depends(get_suggestion_service),
     file_repository: FileRepositoryPort = Depends(get_file_repository),
 ) -> SuggestionResponse:
+    """Actualiza los campos textuales de una sugerencia.
+
+    **Parámetros (application/json):**
+    - `titulo`: Nuevo título (opcional, 1-200 caracteres)
+    - `contenido`: Nuevo contenido (opcional, mínimo 1 carácter)
+    - `comentario_institucional`: Respuesta del administrador (opcional)
+    - `total_votos`: Número de votos (opcional, no negativo)
+
+    **Nota:** Para actualizar la foto, usa el endpoint específico:
+    `PATCH /api/v1/suggestions/{suggestion_id}/photo`
+    """
     partial = payload.model_dump(exclude_unset=True)
     try:
         suggestion = service.update(suggestion_id, partial)
@@ -293,6 +304,79 @@ def update_suggestion(
     photo_url = None
     if suggestion.photo_id:
         photo_url = file_repository.get_by_id(suggestion.photo_id)
+    return _to_response(suggestion, photo_url=photo_url)
+
+
+@router.patch(
+    "/{suggestion_id}/photo",
+    response_model=SuggestionResponse,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+async def update_suggestion_photo(
+    suggestion_id: UUID,
+    photo: UploadFile = File(
+        ..., description="Imagen a reemplazar - Formatos: JPEG, PNG. Máximo 5MB"
+    ),
+    service: SuggestionService = Depends(get_suggestion_service),
+    evidence_service: IncidentEvidenceService = Depends(get_incident_evidence_service),
+    file_repository: FileRepositoryPort = Depends(get_file_repository),
+) -> SuggestionResponse:
+    """Actualiza SOLO la foto de una sugerencia existente.
+
+    **Parámetros (multipart/form-data):**
+    - `photo`: Archivo JPEG o PNG (máximo 5MB)
+
+    **Flujo:**
+    1. Valida que la sugerencia exista
+    2. Valida la nueva foto (JPEG/PNG, max 5MB)
+    3. Carga la foto a Google Cloud Storage
+    4. Reemplaza la foto anterior con la nueva
+    5. Retorna la sugerencia actualizada con nueva `foto_url`
+
+    **Nota:** Para actualizar campos de texto, usa:
+    `PATCH /api/v1/suggestions/{suggestion_id}`
+    """
+    # Verificar que la sugerencia existe
+    suggestion = service.get_by_id(suggestion_id)
+    if suggestion is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Sugerencia no encontrada",
+                "error_code": "SUGGESTION_NOT_FOUND",
+            },
+        )
+
+    # Cargar la nueva foto
+    try:
+        file_id, file_url = await evidence_service.upload_file_with_validation(
+            prefix=f"suggestions/{suggestion_id}",
+            file=photo,
+        )
+
+        # Actualizar la sugerencia con el nuevo photo_id
+        suggestion = service.update(
+            suggestion_id=suggestion_id,
+            partial={"foto_id": file_id},
+        )
+        if suggestion is None:
+            raise RuntimeError("No se pudo actualizar la sugerencia con la foto")
+
+    except HTTPException:
+        # Re-lanzar errores HTTP del servicio de almacenamiento
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": f"Error al procesar la foto: {str(e)}",
+                "error_code": "SUGGESTION_PHOTO_ERROR",
+            },
+        ) from e
+
+    # Obtener URL de la foto actualizada
+    photo_url = file_repository.get_by_id(file_id) if file_id else None
+
     return _to_response(suggestion, photo_url=photo_url)
 
 
