@@ -42,7 +42,7 @@ class SuggestionCreate(BaseModel):
 
 class SuggestionUpdate(BaseModel):
     """Payload para actualizar una sugerencia (parcial).
-    
+
     Solo permite actualizar campos de texto. Para actualizar la foto,
     usa el endpoint específico: PATCH /api/v1/suggestions/{suggestion_id}/photo
     """
