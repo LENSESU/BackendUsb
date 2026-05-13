@@ -80,11 +80,13 @@ class SuggestionResponse(BaseModel):
 
 
 class SuggestionPopularResponse(BaseModel):
-    """Respuesta compacta para ranking de sugerencias populares."""
+    """Respuesta para ranking de sugerencias populares."""
 
     id: UUID
     titulo: str
     total_votos: int
+    etiquetas: list[str] = Field(default_factory=list)
+    created_at: datetime
 
 
 class PaginatedSuggestionsResponse(BaseModel):

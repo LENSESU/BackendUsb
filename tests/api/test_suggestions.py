@@ -386,7 +386,7 @@ class TestSuggestionCrud:
 
         # Crear 3 sugerencias (sin votos inicialmente)
         suggestions = []
-        for i, titulo in enumerate(["A", "B", "C"]):
+        for titulo in ["A", "B", "C"]:
             data = _valid_create_params()
             data["titulo"] = titulo
             resp = client.post(
@@ -397,13 +397,23 @@ class TestSuggestionCrud:
             assert resp.status_code == 201
             suggestions.append(resp.json())
 
-        # Actualizar votos manualmente para simular popularidad
         # B: 10 votos, C: 5 votos, A: 2 votos
-        client.patch(f"/api/v1/suggestions/{suggestions[0]['id']}", json={"total_votos": 2}, headers=_auth(token))
-        client.patch(f"/api/v1/suggestions/{suggestions[1]['id']}", json={"total_votos": 10}, headers=_auth(token))
-        client.patch(f"/api/v1/suggestions/{suggestions[2]['id']}", json={"total_votos": 5}, headers=_auth(token))
+        client.patch(
+            f"/api/v1/suggestions/{suggestions[0]['id']}",
+            json={"total_votos": 2},
+            headers=_auth(token),
+        )
+        client.patch(
+            f"/api/v1/suggestions/{suggestions[1]['id']}",
+            json={"total_votos": 10},
+            headers=_auth(token),
+        )
+        client.patch(
+            f"/api/v1/suggestions/{suggestions[2]['id']}",
+            json={"total_votos": 5},
+            headers=_auth(token),
+        )
 
-        # Obtener populares (top 2)
         popular = client.get(
             "/api/v1/suggestions/popular?limit=2",
             headers=_auth(token),
@@ -411,10 +421,33 @@ class TestSuggestionCrud:
         assert popular.status_code == 200
         body = popular.json()
         assert len(body["items"]) == 2
-        assert body["items"][0]["titulo"] == "B"
-        assert body["items"][0]["total_votos"] == 10
-        assert body["items"][1]["titulo"] == "C"
-        assert body["items"][1]["total_votos"] == 5
+
+        top = body["items"][0]
+        assert top["titulo"] == "B"
+        assert top["total_votos"] == 10
+        assert "etiquetas" in top
+        assert isinstance(top["etiquetas"], list)
+        assert "created_at" in top
+
+        second = body["items"][1]
+        assert second["titulo"] == "C"
+        assert second["total_votos"] == 5
+
+    def test_popular_exposes_tags_and_date(self) -> None:
+        """Las sugerencias populares incluyen etiquetas y fecha de publicación."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+
+        data = _valid_create_params()
+        data["etiquetas"] = "sostenibilidad,bienestar"
+        resp = client.post("/api/v1/suggestions/", data=data, headers=_auth(token))
+        assert resp.status_code == 201
+
+        popular = client.get("/api/v1/suggestions/popular", headers=_auth(token))
+        assert popular.status_code == 200
+        item = popular.json()["items"][0]
+
+        assert item["etiquetas"] == ["sostenibilidad", "bienestar"]
+        assert item["created_at"] is not None
 
     def test_popular_rejects_invalid_limit(self) -> None:
         token = _make_token(STUDENT_USER_ID, "Student")

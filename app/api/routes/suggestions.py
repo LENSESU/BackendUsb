@@ -55,13 +55,15 @@ def _to_response(s: Suggestion, photo_url: str | None = None) -> SuggestionRespo
 
 
 def _to_popular_response(s: Suggestion) -> SuggestionPopularResponse:
-    if s.id is None:
-        msg = "La sugerencia persistida debe tener id"
+    if s.id is None or s.created_at is None:
+        msg = "La sugerencia persistida debe tener id y created_at"
         raise RuntimeError(msg)
     return SuggestionPopularResponse(
         id=s.id,
         titulo=s.title,
         total_votos=s.total_votes,
+        etiquetas=s.tags or [],
+        created_at=s.created_at,
     )
 
 
