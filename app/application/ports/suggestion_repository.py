@@ -30,6 +30,22 @@ class SuggestionRepositoryPort(ABC):
         ...
 
     @abstractmethod
+    def list_filtered(
+        self,
+        order_by: str = "fecha",
+        tags: list[str] | None = None,
+    ) -> list[Suggestion]:
+        """Lista sugerencias con ordenamiento y filtro por etiquetas opcional.
+
+        Args:
+            order_by: ``"fecha"`` (más reciente primero) o ``"popularidad"``
+                      (más votos primero).
+            tags: si se indica, sólo se devuelven sugerencias que posean al
+                  menos una de las etiquetas de la lista.
+        """
+        ...
+
+    @abstractmethod
     def save(self, suggestion: Suggestion) -> Suggestion:
         """Guarda o actualiza una sugerencia."""
         ...

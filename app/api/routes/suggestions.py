@@ -1,5 +1,6 @@
 """Rutas HTTP para sugerencias."""
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import (
@@ -75,10 +76,24 @@ def _to_popular_response(s: Suggestion) -> SuggestionPopularResponse:
 def list_suggestions(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
+    order_by: Literal["fecha", "popularidad"] = Query(
+        default="fecha",
+        description=(
+            "Ordenar por 'fecha' (más reciente primero) "
+            "o 'popularidad' (más votos primero)"
+        ),
+    ),
+    tags: list[str] | None = Query(
+        default=None,
+        description=(
+            "Filtrar por etiquetas. Se devuelven sugerencias "
+            "con al menos una etiqueta coincidente."
+        ),
+    ),
     service: SuggestionService = Depends(get_suggestion_service),
     file_repository: FileRepositoryPort = Depends(get_file_repository),
 ) -> PaginatedSuggestionsResponse:
-    suggestions = service.list_all()
+    suggestions = service.list_filtered(order_by=order_by, tags=tags)
     total = len(suggestions)
     total_pages = (total + limit - 1) // limit if total > 0 else 0
     start = (page - 1) * limit

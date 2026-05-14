@@ -65,6 +65,30 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
         )
         return ordered[:limit]
 
+    def list_filtered(
+        self,
+        order_by: str = "fecha",
+        tags: list[str] | None = None,
+    ) -> list[Suggestion]:
+        result = list(self._by_id.values())
+        if tags:
+            tag_set = {t.strip().lower() for t in tags if t.strip()}
+            result = [
+                s for s in result
+                if s.tags and any(t.lower() in tag_set for t in s.tags)
+            ]
+        if order_by == "popularidad":
+            result.sort(
+                key=lambda s: (s.total_votes, s.created_at or datetime.min.replace(tzinfo=UTC)),
+                reverse=True,
+            )
+        else:
+            result.sort(
+                key=lambda s: s.created_at or datetime.min.replace(tzinfo=UTC),
+                reverse=True,
+            )
+        return result
+
     def save(self, suggestion: Suggestion) -> Suggestion:
         self._by_id[suggestion.id] = suggestion
         return suggestion

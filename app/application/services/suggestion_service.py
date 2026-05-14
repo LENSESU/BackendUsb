@@ -26,6 +26,14 @@ class SuggestionService:
     def list_popular(self, limit: int = 5) -> list[Suggestion]:
         return self._repository.list_popular(limit=limit)
 
+    def list_filtered(
+        self,
+        order_by: str = "fecha",
+        tags: list[str] | None = None,
+    ) -> list[Suggestion]:
+        """Lista sugerencias con ordenamiento y filtro opcional por etiquetas."""
+        return self._repository.list_filtered(order_by=order_by, tags=tags)
+
     def get_top_suggestions(self, limit: int = 5) -> list[Suggestion]:
         """Alias semántico para dashboard: top sugerencias por votos."""
         return self.list_popular(limit=limit)
@@ -79,6 +87,7 @@ class SuggestionService:
             total_votes=total_votes,
             institutional_comment=institutional_comment,
             created_at=existing.created_at,
+            tags=existing.tags or [],
         )
         return self._repository.save(updated)
 

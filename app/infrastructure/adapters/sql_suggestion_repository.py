@@ -128,6 +128,44 @@ class SqlSuggestionRepository(SuggestionRepositoryPort):
         finally:
             db.close()
 
+    def list_filtered(
+        self,
+        order_by: str = "fecha",
+        tags: list[str] | None = None,
+    ) -> list[Suggestion]:
+        db = _get_session()
+        try:
+            stmt = select(SuggestionModel)
+
+            if tags:
+                normalised = [t.strip().lower() for t in tags if t.strip()]
+                if normalised:
+                    stmt = (
+                        stmt.join(
+                            SuggestionTagModel,
+                            SuggestionTagModel.suggestion_id == SuggestionModel.id,
+                        )
+                        .join(TagModel, TagModel.id == SuggestionTagModel.tag_id)
+                        .where(TagModel.name.in_(normalised))
+                        .distinct()
+                    )
+
+            if order_by == "popularidad":
+                stmt = stmt.order_by(
+                    SuggestionModel.total_votes.desc(),
+                    SuggestionModel.created_at.desc(),
+                )
+            else:
+                stmt = stmt.order_by(SuggestionModel.created_at.desc())
+
+            rows = db.scalars(stmt).all()
+            return [
+                _model_to_entity(m, _get_tag_names_for_suggestion(db, m.id))
+                for m in rows
+            ]
+        finally:
+            db.close()
+
     def save(self, suggestion: Suggestion) -> Suggestion:
         db = _get_session()
         try:

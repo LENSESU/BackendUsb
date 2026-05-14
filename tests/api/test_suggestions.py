@@ -68,6 +68,34 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
         )
         return ordered[:limit]
 
+    def list_filtered(
+        self,
+        order_by: str = "fecha",
+        tags: list[str] | None = None,
+    ) -> list[Suggestion]:
+        result = list(self._by_id.values())
+        if tags:
+            tag_set = {t.strip().lower() for t in tags if t.strip()}
+            result = [
+                s
+                for s in result
+                if s.tags and any(t.lower() in tag_set for t in s.tags)
+            ]
+        if order_by == "popularidad":
+            result.sort(
+                key=lambda s: (
+                    s.total_votes,
+                    s.created_at or datetime.min.replace(tzinfo=UTC),
+                ),
+                reverse=True,
+            )
+        else:
+            result.sort(
+                key=lambda s: s.created_at or datetime.min.replace(tzinfo=UTC),
+                reverse=True,
+            )
+        return result
+
     def save(self, suggestion: Suggestion) -> Suggestion:
         if suggestion.id is None:
             msg = "La sugerencia debe tener id antes de guardar"
@@ -553,3 +581,134 @@ class TestSuggestionMyHistory:
         body = resp.json()
         assert body["total"] == 1
         assert body["items"][0]["estudiante_id"] == str(student)
+
+
+class TestSuggestionFiltersAndSorting:
+    """Pruebas de filtrado por etiquetas y ordenamiento del listado."""
+
+    def _create(
+        self,
+        token: str,
+        titulo: str,
+        etiquetas: str | None = None,
+        votos: int = 0,
+    ) -> dict:
+        data: dict = {"titulo": titulo, "contenido": f"Contenido de {titulo}"}
+        if etiquetas:
+            data["etiquetas"] = etiquetas
+        resp = client.post("/api/v1/suggestions/", data=data, headers=_auth(token))
+        assert resp.status_code == 201
+        sid = resp.json()["id"]
+        if votos:
+            client.patch(
+                f"/api/v1/suggestions/{sid}",
+                json={"total_votos": votos},
+                headers=_auth(token),
+            )
+        return resp.json()
+
+    def test_order_by_fecha_default(self) -> None:
+        """Sin parámetros, el orden por defecto es fecha descendente."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        self._create(token, "Primera")
+        self._create(token, "Segunda")
+        self._create(token, "Tercera")
+
+        resp = client.get("/api/v1/suggestions/", headers=_auth(token))
+        assert resp.status_code == 200
+        titles = [i["titulo"] for i in resp.json()["items"]]
+        # Las más recientes aparecen primero
+        assert titles[0] == "Tercera"
+        assert titles[-1] == "Primera"
+
+    def test_order_by_popularidad(self) -> None:
+        """order_by=popularidad ordena por votos descendentes."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        self._create(token, "Poca popularidad", votos=2)
+        self._create(token, "Muy popular", votos=50)
+        self._create(token, "Media popularidad", votos=20)
+
+        resp = client.get(
+            "/api/v1/suggestions/?order_by=popularidad",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert items[0]["titulo"] == "Muy popular"
+        assert items[1]["titulo"] == "Media popularidad"
+        assert items[2]["titulo"] == "Poca popularidad"
+
+    def test_filter_by_single_tag(self) -> None:
+        """Filtrar por una etiqueta sólo devuelve sugerencias con esa etiqueta."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        self._create(
+            token, "Con infraestructura", etiquetas="infraestructura,seguridad"
+        )
+        self._create(token, "Con bienestar", etiquetas="bienestar")
+        self._create(token, "Sin etiquetas")
+
+        resp = client.get(
+            "/api/v1/suggestions/?tags=infraestructura",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["items"][0]["titulo"] == "Con infraestructura"
+
+    def test_filter_by_multiple_tags_returns_union(self) -> None:
+        """Varios ?tags devuelven sugerencias con AL MENOS una etiqueta coincidente."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        self._create(token, "Solo infra", etiquetas="infraestructura")
+        self._create(token, "Solo bienestar", etiquetas="bienestar")
+        self._create(token, "Sin etiquetas")
+
+        resp = client.get(
+            "/api/v1/suggestions/?tags=infraestructura&tags=bienestar",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        titles = {i["titulo"] for i in body["items"]}
+        assert titles == {"Solo infra", "Solo bienestar"}
+        assert body["total"] == 2
+
+    def test_filter_by_nonexistent_tag_returns_empty(self) -> None:
+        """Filtrar por una etiqueta inexistente devuelve lista vacía."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        self._create(token, "Sugerencia normal", etiquetas="infraestructura")
+
+        resp = client.get(
+            "/api/v1/suggestions/?tags=inexistente",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 0
+        assert body["items"] == []
+
+    def test_filter_and_order_combined(self) -> None:
+        """Filtrar por etiqueta y ordenar por popularidad funcionan juntos."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        self._create(token, "Infra baja", etiquetas="infraestructura", votos=1)
+        self._create(token, "Infra alta", etiquetas="infraestructura", votos=99)
+        self._create(token, "Otro tag", etiquetas="bienestar", votos=50)
+
+        resp = client.get(
+            "/api/v1/suggestions/?tags=infraestructura&order_by=popularidad",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert len(items) == 2
+        assert items[0]["titulo"] == "Infra alta"
+        assert items[1]["titulo"] == "Infra baja"
+
+    def test_invalid_order_by_returns_422(self) -> None:
+        """Un valor inválido de order_by devuelve 422."""
+        token = _make_token(STUDENT_USER_ID, "Student")
+        resp = client.get(
+            "/api/v1/suggestions/?order_by=invalido",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 422
