@@ -245,6 +245,7 @@ class PaginatedIncidentsGeoResponse(BaseModel):
         ..., description="Lista de marcadores geográficos de incidentes"
     )
 
+
 class CriticalZoneResponse(BaseModel):
     """Respuesta de una zona crítica del campus."""
 

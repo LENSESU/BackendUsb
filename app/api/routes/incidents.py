@@ -180,6 +180,7 @@ def list_incidents_admin_inbox(
         items=[_incident_to_admin_summary(i) for i in incidents[start:end]],
     )
 
+
 @router.get(
     "/critical-zones",
     response_model=list[CriticalZoneResponse],
@@ -191,6 +192,7 @@ def get_critical_zones() -> list[CriticalZoneResponse]:
     service = get_incident_service()
     zones = service.get_critical_zones()
     return [CriticalZoneResponse(**z) for z in zones]
+
 
 @router.get(
     "/",

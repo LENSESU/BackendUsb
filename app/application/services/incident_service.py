@@ -293,7 +293,7 @@ class IncidentService:
 
     def delete_incident(self, incident_id: UUID) -> bool:
         return self._repository.delete(incident_id)
-    
+
     def get_critical_zones(self) -> list[dict]:
         """Agrupa incidentes por zona y calcula criticidad según prioridad."""
         incidents = self._repository.list_all()
