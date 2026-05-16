@@ -293,3 +293,53 @@ class IncidentService:
 
     def delete_incident(self, incident_id: UUID) -> bool:
         return self._repository.delete(incident_id)
+    
+    def get_critical_zones(self) -> list[dict]:
+        """Agrupa incidentes por zona y calcula criticidad según prioridad."""
+        incidents = self._repository.list_all()
+
+        priority_score: dict[str | None, int] = {
+            IncidentPriority.ALTA: 3,
+            IncidentPriority.MEDIA: 2,
+            IncidentPriority.BAJA: 1,
+        }
+
+        zones: dict[str, dict] = {}
+        for incident in incidents:
+            loc = incident.location
+            if loc is None:
+                continue
+            if loc.campus_place:
+                zone_key = loc.campus_place.strip().lower()
+                zone_name = loc.campus_place.strip()
+            elif loc.latitude is not None and loc.longitude is not None:
+                zone_key = f"{round(loc.latitude, 3)},{round(loc.longitude, 3)}"
+                zone_name = zone_key
+            else:
+                continue
+
+            if zone_key not in zones:
+                zones[zone_key] = {
+                    "zone": zone_name,
+                    "latitude": loc.latitude,
+                    "longitude": loc.longitude,
+                    "incident_count": 0,
+                    "score": 0,
+                }
+
+            zones[zone_key]["incident_count"] += 1
+            zones[zone_key]["score"] += priority_score.get(incident.priority, 1)
+
+        result = []
+        for zone_data in zones.values():
+            score = zone_data["score"]
+            if score >= 9:
+                criticality = IncidentPriority.ALTA
+            elif score >= 4:
+                criticality = IncidentPriority.MEDIA
+            else:
+                criticality = IncidentPriority.BAJA
+            result.append({**zone_data, "criticality": criticality.value})
+
+        result.sort(key=lambda z: z["score"], reverse=True)
+        return result

@@ -19,6 +19,7 @@ from app.api.dependencies.technician import get_technician_service
 from app.api.schemas import (
     AdminIncidentSummary,
     AssignTechnicianRequest,
+    CriticalZoneResponse,
     IncidentCreate,
     IncidentDetailResponse,
     IncidentEvidenceUploadResponse,
@@ -179,6 +180,17 @@ def list_incidents_admin_inbox(
         items=[_incident_to_admin_summary(i) for i in incidents[start:end]],
     )
 
+@router.get(
+    "/critical-zones",
+    response_model=list[CriticalZoneResponse],
+    dependencies=[Depends(require_role("Administrator"))],
+)
+def get_critical_zones() -> list[CriticalZoneResponse]:
+    """Retorna zonas del campus agrupadas por concentración de incidentes,
+    ponderadas por prioridad y ordenadas de más a menos crítica."""
+    service = get_incident_service()
+    zones = service.get_critical_zones()
+    return [CriticalZoneResponse(**z) for z in zones]
 
 @router.get(
     "/",

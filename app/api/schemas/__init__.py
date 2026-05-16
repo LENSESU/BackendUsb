@@ -11,6 +11,7 @@ from app.api.schemas.dashboard import DashboardResponse
 from app.api.schemas.incident import (
     AdminIncidentSummary,
     AssignTechnicianRequest,
+    CriticalZoneResponse,
     IncidentCreate,
     IncidentDetailResponse,
     IncidentEvidenceUploadResponse,
@@ -68,4 +69,5 @@ __all__ = [
     "IncidentCategoryResponse",
     "IncidentCategoryUpdate",
     "DashboardResponse",
+    "CriticalZoneResponse",
 ]
