@@ -244,3 +244,14 @@ class PaginatedIncidentsGeoResponse(BaseModel):
     items: list[IncidentGeoMarker] = Field(
         ..., description="Lista de marcadores geográficos de incidentes"
     )
+
+
+class CriticalZoneResponse(BaseModel):
+    """Respuesta de una zona crítica del campus."""
+
+    zone: str = Field(..., description="Nombre o identificador de la zona")
+    latitude: float | None = Field(None, description="Latitud del centro de la zona")
+    longitude: float | None = Field(None, description="Longitud del centro de la zona")
+    incident_count: int = Field(..., description="Total de incidentes en la zona")
+    score: int = Field(..., description="Puntaje ponderado por prioridad")
+    criticality: str = Field(..., description="Nivel de criticidad: Alta, Media o Baja")
