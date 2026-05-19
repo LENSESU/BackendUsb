@@ -93,7 +93,7 @@ class SuggestionService:
 
     def delete(self, suggestion_id: UUID) -> bool:
         return self._repository.delete(suggestion_id)
-    
+
     def add_institutional_comment(
         self,
         suggestion_id: UUID,

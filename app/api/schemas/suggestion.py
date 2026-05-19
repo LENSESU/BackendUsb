@@ -108,6 +108,7 @@ class PaginatedPopularSuggestionsResponse(BaseModel):
     total_pages: int
     items: list[SuggestionPopularResponse]
 
+
 class InstitutionalCommentRequest(BaseModel):
     """Payload para agregar comentario institucional a una sugerencia."""
 
