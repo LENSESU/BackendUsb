@@ -24,6 +24,7 @@ from app.api.dependencies.storage import (
 )
 from app.api.dependencies.suggestion import get_suggestion_service
 from app.api.schemas.suggestion import (
+    InstitutionalCommentRequest,
     PaginatedPopularSuggestionsResponse,
     PaginatedSuggestionsResponse,
     SuggestionPopularResponse,
@@ -419,6 +420,37 @@ async def update_suggestion_photo(
     # Obtener URL de la foto actualizada
     photo_url = file_repository.get_by_id(file_id) if file_id else None
 
+    return _to_response(suggestion, photo_url=photo_url)
+
+
+@router.post(
+    "/{suggestion_id}/comment",
+    response_model=SuggestionResponse,
+    dependencies=[Depends(require_role("Administrator"))],
+)
+def add_institutional_comment(
+    suggestion_id: UUID,
+    payload: InstitutionalCommentRequest,
+    service: SuggestionService = Depends(get_suggestion_service),
+    file_repository: FileRepositoryPort = Depends(get_file_repository),
+) -> SuggestionResponse:
+    """Agrega o reemplaza el comentario institucional de una sugerencia.
+    Solo accesible para Administradores."""
+    suggestion = service.add_institutional_comment(
+        suggestion_id=suggestion_id,
+        comment=payload.comentario,
+    )
+    if suggestion is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Sugerencia no encontrada",
+                "error_code": "SUGGESTION_NOT_FOUND",
+            },
+        )
+    photo_url = None
+    if suggestion.photo_id:
+        photo_url = file_repository.get_by_id(suggestion.photo_id)
     return _to_response(suggestion, photo_url=photo_url)
 
 

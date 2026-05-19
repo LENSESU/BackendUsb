@@ -93,3 +93,25 @@ class SuggestionService:
 
     def delete(self, suggestion_id: UUID) -> bool:
         return self._repository.delete(suggestion_id)
+    
+    def add_institutional_comment(
+        self,
+        suggestion_id: UUID,
+        comment: str,
+    ) -> Suggestion | None:
+        """Agrega o reemplaza el comentario institucional de una sugerencia."""
+        existing = self._repository.get_by_id(suggestion_id)
+        if existing is None:
+            return None
+        updated = Suggestion(
+            id=existing.id,
+            student_id=existing.student_id,
+            title=existing.title,
+            content=existing.content,
+            photo_id=existing.photo_id,
+            total_votes=existing.total_votes,
+            institutional_comment=comment.strip(),
+            created_at=existing.created_at,
+            tags=existing.tags or [],
+        )
+        return self._repository.save(updated)

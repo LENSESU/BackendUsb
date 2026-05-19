@@ -30,6 +30,7 @@ from app.api.schemas.incident_category import (
 )
 from app.api.schemas.item import ItemCreate, ItemResponse, PaginatedItemsResponse
 from app.api.schemas.suggestion import (
+    InstitutionalCommentRequest,
     PaginatedPopularSuggestionsResponse,
     PaginatedSuggestionsResponse,
     SuggestionCreate,
@@ -70,4 +71,5 @@ __all__ = [
     "IncidentCategoryUpdate",
     "DashboardResponse",
     "CriticalZoneResponse",
+    "InstitutionalCommentRequest",
 ]
