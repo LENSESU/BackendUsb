@@ -107,3 +107,16 @@ class PaginatedPopularSuggestionsResponse(BaseModel):
     total: int
     total_pages: int
     items: list[SuggestionPopularResponse]
+
+
+class InstitutionalCommentRequest(BaseModel):
+    """Payload para agregar comentario institucional a una sugerencia."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    comentario: str = Field(
+        ...,
+        min_length=1,
+        description="Texto del comentario institucional oficial",
+        alias="comment",
+    )
