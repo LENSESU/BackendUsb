@@ -9,12 +9,11 @@ from app.application.ports.vote_repository import VoteRepositoryPort
 from app.core.config import settings
 from app.domain.entities.vote import Vote
 from app.infrastructure.database.models import VoteModel
+from app.infrastructure.db import SyncSessionLocal
 
 
 def _get_session() -> Session:
-    engine = create_engine(settings.database_url_sync)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    return SyncSessionLocal()
 
 
 def _model_to_entity(model: VoteModel) -> Vote:
