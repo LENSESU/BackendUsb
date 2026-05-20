@@ -11,7 +11,7 @@ from app.domain.entities.vote import Vote
 
 
 class VoteService:
-    """Orquesta el registro de votos garantizando unicidad por estudiante y sugerencia."""
+    """Orquesta el registro de votos garantizando unicidad por estudiante."""
 
     def __init__(
         self,

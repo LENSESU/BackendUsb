@@ -479,7 +479,7 @@ def vote_suggestion(
     current_user_id: UUID = Depends(get_current_user_id),
     vote_service: VoteService = Depends(_get_vote_service),
 ) -> VoteResponse:
-    """Registra el voto del usuario autenticado en una sugerencia. Un voto por usuario."""
+    """Registra el voto del usuario autenticado. Un voto por usuario por sugerencia."""
     vote = vote_service.cast_vote(
         student_id=current_user_id,
         suggestion_id=suggestion_id,

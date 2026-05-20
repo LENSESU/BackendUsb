@@ -25,7 +25,8 @@ class IncidentRepositoryPort(ABC):
         date_from: datetime | None = None,
         date_to: datetime | None = None,
     ) -> list[Incident]:
-        """Lista incidentes con filtros opcionales por estado, categoría, prioridad y rango de fechas."""
+        """Lista incidentes con filtros opcionales por estado, categoría,
+        prioridad y rango de fechas."""
         ...
 
     @abstractmethod

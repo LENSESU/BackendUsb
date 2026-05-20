@@ -45,9 +45,15 @@ class InMemoryIncidentRepository(IncidentRepositoryPort):
         if priority is not None:
             results = [i for i in results if i.priority == priority]
         if date_from is not None:
-            results = [i for i in results if i.created_at is not None and i.created_at >= date_from]
+            results = [
+                i for i in results
+                if i.created_at is not None and i.created_at >= date_from
+            ]
         if date_to is not None:
-            results = [i for i in results if i.created_at is not None and i.created_at <= date_to]
+            results = [
+                i for i in results
+                if i.created_at is not None and i.created_at <= date_to
+            ]
         return results
 
     def save(self, incident: Incident) -> Incident:
