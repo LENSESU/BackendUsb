@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.dependencies.auth import require_role
+from app.api.dependencies.auth import get_current_user_id, require_role
 from app.api.dependencies.suggestion import get_suggestion_service
 from app.api.schemas.suggestion import (
     PaginatedPopularSuggestionsResponse,
@@ -14,10 +14,24 @@ from app.api.schemas.suggestion import (
     SuggestionResponse,
     SuggestionUpdate,
 )
+from app.api.schemas.vote import VoteResponse
 from app.application.services.suggestion_service import SuggestionService
+from app.application.services.vote_service import VoteService
 from app.domain.entities.suggestion import Suggestion
 
 router = APIRouter()
+
+
+def _get_vote_service() -> VoteService:
+    from app.infrastructure.adapters.sql_suggestion_repository import (
+        SqlSuggestionRepository,
+    )
+    from app.infrastructure.adapters.sql_vote_repository import SqlVoteRepository
+
+    return VoteService(
+        vote_repository=SqlVoteRepository(),
+        suggestion_repository=SqlSuggestionRepository(),
+    )
 
 
 def _to_response(s: Suggestion) -> SuggestionResponse:
@@ -176,6 +190,30 @@ def update_suggestion(
             },
         )
     return _to_response(suggestion)
+
+
+@router.post(
+    "/{suggestion_id}/vote",
+    response_model=VoteResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def vote_suggestion(
+    suggestion_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id),
+    vote_service: VoteService = Depends(_get_vote_service),
+) -> VoteResponse:
+    """Registra el voto del usuario autenticado en una sugerencia. Un voto por usuario."""
+    vote = vote_service.cast_vote(
+        student_id=current_user_id,
+        suggestion_id=suggestion_id,
+    )
+    return VoteResponse(
+        id=vote.id,
+        student_id=vote.student_id,
+        suggestion_id=vote.suggestion_id,
+        created_at=vote.created_at,
+    )
 
 
 @router.delete(

@@ -1,5 +1,6 @@
 """Caso de uso: operaciones sobre Incidentes."""
 
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
@@ -32,8 +33,22 @@ class IncidentService:
     def get_incident(self, incident_id: UUID) -> Incident | None:
         return self._repository.get_by_id(incident_id)
 
-    def list_incidents(self) -> list[Incident]:
-        return self._repository.list_all()
+    def list_incidents(
+        self,
+        *,
+        status: str | None = None,
+        category_id: UUID | None = None,
+        priority: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list[Incident]:
+        return self._repository.list_all(
+            status=status,
+            category_id=category_id,
+            priority=priority,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
     def get_recent_incidents(self, student_id: UUID, limit: int = 5) -> list[Incident]:
         """Retorna incidentes recientes del estudiante autenticado."""

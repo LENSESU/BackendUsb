@@ -1,5 +1,6 @@
 """Rutas HTTP para incidentes."""
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -112,9 +113,20 @@ def _incident_patch_kwargs(payload: IncidentUpdate) -> dict:
 def list_incidents(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
+    estado: str | None = Query(default=None, description="Filtrar por estado: Nuevo, En_proceso, Resuelto"),
+    categoria_id: UUID | None = Query(default=None, description="Filtrar por ID de categoría"),
+    prioridad: str | None = Query(default=None, description="Filtrar por prioridad"),
+    fecha_inicio: datetime | None = Query(default=None, description="Filtrar desde esta fecha (ISO 8601)"),
+    fecha_fin: datetime | None = Query(default=None, description="Filtrar hasta esta fecha (ISO 8601)"),
 ) -> PaginatedIncidentsResponse:
     service = get_incident_service()
-    incidents = service.list_incidents()
+    incidents = service.list_incidents(
+        status=estado,
+        category_id=categoria_id,
+        priority=prioridad,
+        date_from=fecha_inicio,
+        date_to=fecha_fin,
+    )
     total = len(incidents)
     total_pages = (total + limit - 1) // limit if total > 0 else 0
     start = (page - 1) * limit

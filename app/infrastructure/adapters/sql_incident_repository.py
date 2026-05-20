@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.sql import and_
 
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.core.config import settings
@@ -99,10 +100,33 @@ class SqlIncidentRepository(IncidentRepositoryPort):
         finally:
             db.close()
 
-    def list_all(self) -> list[Incident]:
+    def list_all(
+        self,
+        *,
+        status: str | None = None,
+        category_id: UUID | None = None,
+        priority: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list[Incident]:
         db = _get_session()
         try:
-            stmt = select(IncidentModel).order_by(IncidentModel.created_at.desc())
+            conditions = []
+            if status is not None:
+                conditions.append(IncidentModel.status == status)
+            if category_id is not None:
+                conditions.append(IncidentModel.category_id == category_id)
+            if priority is not None:
+                conditions.append(IncidentModel.priority == priority)
+            if date_from is not None:
+                conditions.append(IncidentModel.created_at >= date_from)
+            if date_to is not None:
+                conditions.append(IncidentModel.created_at <= date_to)
+
+            stmt = select(IncidentModel)
+            if conditions:
+                stmt = stmt.where(and_(*conditions))
+            stmt = stmt.order_by(IncidentModel.created_at.desc())
             rows = db.scalars(stmt).all()
             return [_model_to_entity(m) for m in rows]
         finally:
