@@ -210,9 +210,7 @@ def list_incidents(
     categoria_id: UUID | None = Query(
         default=None, description="Filtrar por ID de categoría"
     ),
-    prioridad: str | None = Query(
-        default=None, description="Filtrar por prioridad"
-    ),
+    prioridad: str | None = Query(default=None, description="Filtrar por prioridad"),
     fecha_inicio: datetime | None = Query(
         default=None, description="Filtrar desde esta fecha (ISO 8601)"
     ),
