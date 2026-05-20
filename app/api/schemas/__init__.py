@@ -37,6 +37,7 @@ from app.api.schemas.suggestion import (
     SuggestionResponse,
     SuggestionUpdate,
 )
+from app.api.schemas.vote import VoteResponse
 
 __all__ = [
     "AdminIncidentSummary",
@@ -70,6 +71,7 @@ __all__ = [
     "IncidentCategoryResponse",
     "IncidentCategoryUpdate",
     "DashboardResponse",
+    "VoteResponse",
     "CriticalZoneResponse",
     "InstitutionalCommentRequest",
 ]

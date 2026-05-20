@@ -1,5 +1,6 @@
 """Rutas HTTP para incidentes."""
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -202,10 +203,30 @@ def get_critical_zones() -> list[CriticalZoneResponse]:
 def list_incidents(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
+    estado: str | None = Query(
+        default=None,
+        description="Filtrar por estado: Nuevo, En_proceso, Resuelto",
+    ),
+    categoria_id: UUID | None = Query(
+        default=None, description="Filtrar por ID de categoría"
+    ),
+    prioridad: str | None = Query(default=None, description="Filtrar por prioridad"),
+    fecha_inicio: datetime | None = Query(
+        default=None, description="Filtrar desde esta fecha (ISO 8601)"
+    ),
+    fecha_fin: datetime | None = Query(
+        default=None, description="Filtrar hasta esta fecha (ISO 8601)"
+    ),
     order_by: str | None = Query(default=None, pattern="^(status|priority)$"),
 ) -> PaginatedIncidentsResponse:
     service = get_incident_service()
-    incidents = service.list_incidents()
+    incidents = service.list_incidents(
+        status=estado,
+        category_id=categoria_id,
+        priority=prioridad,
+        date_from=fecha_inicio,
+        date_to=fecha_fin,
+    )
     if order_by == "status":
         incidents = sorted(incidents, key=lambda i: i.status)
     elif order_by == "priority":
