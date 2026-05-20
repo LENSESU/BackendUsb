@@ -2,11 +2,10 @@
 
 from uuid import UUID
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.application.ports.vote_repository import VoteRepositoryPort
-from app.core.config import settings
 from app.domain.entities.vote import Vote
 from app.infrastructure.database.models import VoteModel
 from app.infrastructure.db import SyncSessionLocal
