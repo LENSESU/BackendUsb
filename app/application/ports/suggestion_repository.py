@@ -61,3 +61,8 @@ class SuggestionRepositoryPort(ABC):
     def delete(self, suggestion_id: UUID) -> bool:
         """Elimina una sugerencia por ID. Retorna True si existía."""
         ...
+
+    @abstractmethod
+    def increment_votes(self, suggestion_id: UUID) -> None:
+        """Incrementa atómicamente el contador de votos de una sugerencia."""
+        ...

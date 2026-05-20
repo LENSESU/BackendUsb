@@ -6,7 +6,6 @@ from fastapi import HTTPException, status
 
 from app.application.ports.suggestion_repository import SuggestionRepositoryPort
 from app.application.ports.vote_repository import VoteRepositoryPort
-from app.domain.entities.suggestion import Suggestion
 from app.domain.entities.vote import Vote
 
 
@@ -51,16 +50,6 @@ class VoteService:
         vote = Vote(id=uuid4(), student_id=student_id, suggestion_id=suggestion_id)
         saved_vote = self._votes.save(vote)
 
-        updated_suggestion = Suggestion(
-            id=suggestion.id,
-            student_id=suggestion.student_id,
-            title=suggestion.title,
-            content=suggestion.content,
-            photo_id=suggestion.photo_id,
-            total_votes=suggestion.total_votes + 1,
-            institutional_comment=suggestion.institutional_comment,
-            created_at=suggestion.created_at,
-        )
-        self._suggestions.save(updated_suggestion)
+        self._suggestions.increment_votes(suggestion_id)
 
         return saved_vote

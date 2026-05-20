@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.application.ports.suggestion_repository import SuggestionRepositoryPort
@@ -89,10 +89,19 @@ class SqlSuggestionRepository(SuggestionRepositoryPort):
         try:
             stmt = select(SuggestionModel).order_by(SuggestionModel.created_at.desc())
             rows = db.scalars(stmt).all()
-            return [
-                _model_to_entity(m, _get_tag_names_for_suggestion(db, m.id))
-                for m in rows
-            ]
+            ids = [m.id for m in rows]
+
+            # Una sola query para todos los tags
+            tag_stmt = (
+                select(SuggestionTagModel.suggestion_id, TagModel.name)
+                .join(TagModel, TagModel.id == SuggestionTagModel.tag_id)
+                .where(SuggestionTagModel.suggestion_id.in_(ids))
+            )
+            tag_map: dict = {}
+            for suggestion_id, tag_name in db.execute(tag_stmt).all():
+                tag_map.setdefault(suggestion_id, []).append(tag_name)
+
+            return [_model_to_entity(m, tag_map.get(m.id, [])) for m in rows]
         finally:
             db.close()
 
@@ -258,5 +267,18 @@ class SqlSuggestionRepository(SuggestionRepositoryPort):
             db.delete(model)
             db.commit()
             return True
+        finally:
+            db.close()
+
+    def increment_votes(self, suggestion_id: UUID) -> None:
+        db = _get_session()
+        try:
+            stmt = (
+                update(SuggestionModel)
+                .where(SuggestionModel.id == suggestion_id)
+                .values(total_votes=SuggestionModel.total_votes + 1)
+            )
+            db.execute(stmt)
+            db.commit()
         finally:
             db.close()
