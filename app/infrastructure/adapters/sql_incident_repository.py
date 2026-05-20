@@ -3,23 +3,25 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import select
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql import and_
 
 from app.application.ports.incident_repository import IncidentRepositoryPort
-from app.core.config import settings
 from app.domain.entities.incident import Incident, IncidentLocation
-from app.infrastructure.database.models import IncidentModel
+from app.infrastructure.database.models import IncidentModel, UserModel
+from app.infrastructure.db import SyncSessionLocal
 
 
 def _get_session() -> Session:
-    engine = create_engine(settings.database_url_sync)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    return SyncSessionLocal()
 
 
-def _model_to_entity(model: IncidentModel) -> Incident:
+def _model_to_entity(
+    model: IncidentModel,
+    reporter_email: str | None = None,
+    assigned_by_admin_name: str | None = None,
+) -> Incident:
     """Convierte IncidentModel a entidad de dominio Incident."""
     location = None
     if (
@@ -45,6 +47,9 @@ def _model_to_entity(model: IncidentModel) -> Incident:
         created_at=model.created_at,
         updated_at=model.updated_at,
         location=location,
+        reporter_email=reporter_email,
+        assigned_by_admin_id=model.assigned_by_admin_id,
+        assigned_by_admin_name=assigned_by_admin_name,
     )
 
 
@@ -60,6 +65,7 @@ def _entity_to_model(
     if existing is not None:
         existing.student_id = incident.student_id
         existing.technician_id = incident.technician_id
+        existing.assigned_by_admin_id = incident.assigned_by_admin_id
         existing.category_id = incident.category_id
         existing.description = incident.description
         existing.campus_place = campus_place
@@ -76,6 +82,7 @@ def _entity_to_model(
         id=incident.id,
         student_id=incident.student_id,
         technician_id=incident.technician_id,
+        assigned_by_admin_id=incident.assigned_by_admin_id,
         category_id=incident.category_id,
         description=incident.description,
         campus_place=campus_place,
@@ -111,6 +118,21 @@ class SqlIncidentRepository(IncidentRepositoryPort):
     ) -> list[Incident]:
         db = _get_session()
         try:
+            reporter_user = aliased(UserModel)
+            assigner_user = aliased(UserModel)
+            stmt = (
+                select(
+                    IncidentModel,
+                    reporter_user.email,
+                    assigner_user.first_name,
+                    assigner_user.last_name,
+                )
+                .outerjoin(reporter_user, IncidentModel.student_id == reporter_user.id)
+                .outerjoin(
+                    assigner_user,
+                    IncidentModel.assigned_by_admin_id == assigner_user.id,
+                )
+            )
             conditions = []
             if status is not None:
                 conditions.append(IncidentModel.status == status)
@@ -122,13 +144,25 @@ class SqlIncidentRepository(IncidentRepositoryPort):
                 conditions.append(IncidentModel.created_at >= date_from)
             if date_to is not None:
                 conditions.append(IncidentModel.created_at <= date_to)
-
-            stmt = select(IncidentModel)
             if conditions:
                 stmt = stmt.where(and_(*conditions))
             stmt = stmt.order_by(IncidentModel.created_at.desc())
-            rows = db.scalars(stmt).all()
-            return [_model_to_entity(m) for m in rows]
+            rows = db.execute(stmt).all()
+            incidents: list[Incident] = []
+            for incident_model, reporter_email, assigner_first, assigner_last in rows:
+                assigner_name = None
+                if assigner_first or assigner_last:
+                    assigner_name = " ".join(
+                        p for p in (assigner_first, assigner_last) if p
+                    )
+                incidents.append(
+                    _model_to_entity(
+                        incident_model,
+                        reporter_email,
+                        assigner_name,
+                    )
+                )
+            return incidents
         finally:
             db.close()
 

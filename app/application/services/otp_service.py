@@ -41,6 +41,8 @@ class OtpService:
             minutes=settings.otp_expire_minutes
         )
         if datetime.now(UTC) > expiry:
+            if otp.id is not None:
+                self._repository.soft_delete(otp.id)
             return False
 
         if otp.code != code:

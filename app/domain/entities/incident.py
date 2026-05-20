@@ -27,6 +27,48 @@ class IncidentStatus(StrEnum):
     RESUELTO = "Resuelto"
 
 
+class IncidentPriority(StrEnum):
+    """Niveles de prioridad de un incidente."""
+
+    ALTA = "Alta"
+    MEDIA = "Media"
+    BAJA = "Baja"
+
+
+class EvidencePhotoType(StrEnum):
+    """Tipo de foto de evidencia asociada a un incidente."""
+
+    BEFORE = "before"
+    AFTER = "after"
+
+
+# Mapeo de nombre de categoría
+_CATEGORY_PRIORITY_MAP: dict[str, str] = {
+    "seguridad": IncidentPriority.ALTA,
+    "eléctrico": IncidentPriority.ALTA,
+    "electrico": IncidentPriority.ALTA,
+    "infraestructura": IncidentPriority.MEDIA,
+    "aseo": IncidentPriority.BAJA,
+    "otro": IncidentPriority.BAJA,
+}
+
+PRIORITY_SORT_WEIGHT: dict[str | None, int] = {
+    IncidentPriority.ALTA: 0,
+    IncidentPriority.MEDIA: 1,
+    IncidentPriority.BAJA: 2,
+}
+
+
+def calculate_priority_from_category(category_name: str) -> str:
+    """Retorna la prioridad correspondiente al nombre de la categoría.
+
+    Si el nombre no está en el mapa de reglas de negocio se devuelve
+    ``IncidentPriority.MEDIA`` como valor seguro por defecto.
+    """
+    key = category_name.strip().lower()
+    return _CATEGORY_PRIORITY_MAP.get(key, IncidentPriority.MEDIA)
+
+
 def incident_status_as_str(value: str | IncidentStatus) -> str:
     """Normaliza un estado recibido (enum o cadena) al valor almacenado."""
     return value.value if isinstance(value, IncidentStatus) else value
@@ -96,6 +138,7 @@ class Incident:
     technician_id: UUID | None
     category_id: UUID
     description: str
+    assigned_by_admin_id: UUID | None = None
     before_photo_id: UUID | None = None
     status: str = IncidentStatus.NUEVO.value
     priority: str | None = None
@@ -103,6 +146,8 @@ class Incident:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     location: IncidentLocation | None = None
+    reporter_email: str | None = None
+    assigned_by_admin_name: str | None = None
 
     def __post_init__(self) -> None:
         if not self.description or not self.description.strip():

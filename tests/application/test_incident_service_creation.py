@@ -86,3 +86,59 @@ def test_create_incident_minimal_fields() -> None:
     assert stored is not None
     assert stored.id == incident.id
 
+
+def test_create_incident_persists_default_priority() -> None:
+    """#193 — Sin category_repository, la prioridad por defecto es Media."""
+    repo = InMemoryIncidentRepository()
+    service = IncidentService(repository=repo)
+
+    incident = service.create_incident(
+        student_id=uuid4(),
+        category_id=uuid4(),
+        description="Incidente sin prioridad explícita",
+    )
+    assert incident.priority == "Media"
+    stored = repo.get_by_id(incident.id)
+    assert stored.priority == "Media"
+
+
+def test_create_incident_persists_explicit_priority() -> None:
+    """#193 — Una prioridad explícita queda almacenada."""
+    repo = InMemoryIncidentRepository()
+    service = IncidentService(repository=repo)
+
+    incident = service.create_incident(
+        student_id=uuid4(),
+        category_id=uuid4(),
+        description="Incidente con prioridad Alta",
+        priority="Alta",
+    )
+    assert incident.priority == "Alta"
+    stored = repo.get_by_id(incident.id)
+    assert stored.priority == "Alta"
+
+
+def test_create_incident_auto_priority_from_category() -> None:
+    """#193 — La prioridad se calcula automáticamente según la categoría."""
+    from unittest.mock import MagicMock
+
+    repo = InMemoryIncidentRepository()
+    category_repo = MagicMock()
+    mock_category = MagicMock()
+    mock_category.name = "seguridad"
+    category_repo.find_by_id.return_value = mock_category
+
+    service = IncidentService(
+        repository=repo,
+        category_repository=category_repo,
+    )
+    cat_id = uuid4()
+    incident = service.create_incident(
+        student_id=uuid4(),
+        category_id=cat_id,
+        description="Robo en el estacionamiento",
+    )
+    assert incident.priority == "Alta"
+    stored = repo.get_by_id(incident.id)
+    assert stored.priority == "Alta"
+

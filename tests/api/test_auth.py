@@ -1,8 +1,12 @@
 """Tests para autenticación: login, logout y validación de tokens."""
 
+from unittest.mock import MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.auth import get_auth_service
+from app.application.services.auth_service import AuthService
 from app.core.token_blacklist import clear_blacklist
 from app.main import app
 
@@ -65,25 +69,31 @@ def test_login_logout_flow():
 def test_logout_without_token():
     """Test de logout sin token (debe fallar)."""
     response = client.post("/api/v1/auth/logout")
-    assert response.status_code == 403  # Forbidden por falta de credenciales
+    assert response.status_code == 401
 
 
 def test_me_endpoint_without_token():
     """Test de acceso a /me sin token (debe fallar)."""
     response = client.get("/api/v1/auth/me")
-    assert response.status_code == 403  # Forbidden por falta de credenciales
+    assert response.status_code == 401
 
 
 def test_login_with_invalid_credentials():
-    """Test de login con credenciales inválidas."""
-    login_data = {
-        "email": "nonexistent@example.com",
-        "password": "wrongpassword"
-    }
-    response = client.post("/api/v1/auth/login", json=login_data)
-    # Puede ser 401 si la lógica encuentra que no existe
-    # o error de conexión a BD si no está configurada
-    assert response.status_code in [401, 500]
+    """Login con credenciales inválidas retorna 401 sin depender de PostgreSQL."""
+    mock_repo = MagicMock()
+    mock_repo.get_by_email_sync.return_value = None
+
+    app.dependency_overrides[get_auth_service] = lambda: AuthService(mock_repo)
+    try:
+        login_data = {
+            "email": "nonexistent@example.com",
+            "password": "wrongpassword",
+        }
+        response = client.post("/api/v1/auth/login", json=login_data)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 401
 
 
 def test_refresh_token_flow():
@@ -125,7 +135,10 @@ def test_refresh_with_invalid_token():
     # Verificar estructura de error
     if isinstance(data["detail"], dict):
         assert "error_code" in data["detail"]
-        assert data["detail"]["error_code"] in ["REFRESH_TOKEN_INVALID", "REFRESH_TOKEN_EXPIRED"]
+        assert data["detail"]["error_code"] in (
+            "REFRESH_TOKEN_INVALID",
+            "REFRESH_TOKEN_EXPIRED",
+        )
 
 
 def test_token_expiration_response_structure():
@@ -135,7 +148,7 @@ def test_token_expiration_response_structure():
     """
     # Endpoint protegido sin token
     response = client.get("/api/v1/auth/me")
-    assert response.status_code == 403
+    assert response.status_code == 401
     
     # Con token inválido
     headers = {"Authorization": "Bearer invalid_token"}

@@ -3,10 +3,10 @@
 import asyncio
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
-from app.api.dependencies.auth import require_role
+from app.api.dependencies.auth import get_current_role_name, require_role
 from app.api.dependencies.incident_category import get_incident_category_service
 from app.api.dependencies.suggestion import get_suggestion_service
 from app.api.routes.auth import get_current_user_info
@@ -16,11 +16,66 @@ from app.api.schemas.dashboard import (
     DashboardResponse,
     DashboardSuggestion,
     DashboardUser,
+    TechnicianAssignmentIncident,
 )
 from app.application.services.incident_category_service import IncidentCategoryService
 from app.application.services.suggestion_service import SuggestionService
 
 router = APIRouter()
+
+
+@router.get(
+    "/technician/assignments",
+    response_model=list[TechnicianAssignmentIncident],
+    dependencies=[Depends(require_role("Technician"))],
+)
+async def get_technician_assignments_dashboard(
+    current_user: dict = Depends(get_current_user_info),
+    incident_category_service: IncidentCategoryService = Depends(
+        get_incident_category_service
+    ),
+) -> list[TechnicianAssignmentIncident]:
+    """Retorna todos los incidentes asignados al técnico autenticado."""
+    technician_id = UUID(str(current_user.get("user_id")))
+    incident_service = get_incident_service()
+    incidents = await asyncio.to_thread(incident_service.list_incidents)
+    technician_incidents = [
+        i
+        for i in incidents
+        if i.technician_id == technician_id
+        and i.id is not None
+        and i.created_at is not None
+    ]
+
+    category_tasks = [
+        asyncio.to_thread(
+            incident_category_service.get_by_id,
+            str(i.category_id),
+        )
+        for i in technician_incidents
+    ]
+    categories_raw = (
+        await asyncio.gather(*category_tasks, return_exceptions=True)
+        if category_tasks
+        else []
+    )
+    categories = [c if not isinstance(c, Exception) else None for c in categories_raw]
+
+    return [
+        TechnicianAssignmentIncident(
+            id=incident.id,
+            categoria=(categories[idx].name if categories[idx] else None),
+            location=(
+                incident.location.campus_place
+                if incident.location is not None
+                else None
+            ),
+            status=incident.status,
+            created_at=incident.created_at,
+            assigned_by_admin=incident.assigned_by_admin_name,
+        )
+        for idx, incident in enumerate(technician_incidents)
+    ]
 
 
 @router.get(
@@ -30,10 +85,12 @@ router = APIRouter()
 )
 async def get_dashboard(
     current_user: dict = Depends(get_current_user_info),
+    current_role_name: str = Depends(get_current_role_name),
     suggestion_service: SuggestionService = Depends(get_suggestion_service),
     incident_category_service: IncidentCategoryService = Depends(
         get_incident_category_service
     ),
+    order_by: str | None = Query(default=None, pattern="^status$"),
 ) -> DashboardResponse:
     """Retorna información consolidada para el dashboard."""
     try:
@@ -42,7 +99,10 @@ async def get_dashboard(
 
         user_task = asyncio.to_thread(DashboardUser.model_validate, current_user)
         incidents_task = asyncio.to_thread(
-            incident_service.get_recent_incidents, user_id, 5
+            incident_service.get_recent_incidents,
+            user_id,
+            5,
+            current_role_name,
         )
         suggestions_task = asyncio.to_thread(suggestion_service.get_top_suggestions, 5)
 
@@ -55,11 +115,22 @@ async def get_dashboard(
         filtered_incidents = [
             i for i in incidents if i.created_at is not None and i.id is not None
         ]
+        if order_by == "status":
+            filtered_incidents = sorted(filtered_incidents, key=lambda i: i.status)
+
         category_tasks = [
             asyncio.to_thread(incident_category_service.get_by_id, str(i.category_id))
             for i in filtered_incidents
         ]
-        categories = await asyncio.gather(*category_tasks) if category_tasks else []
+        if category_tasks:
+            categories_raw = await asyncio.gather(
+                *category_tasks, return_exceptions=True
+            )
+            categories = [
+                c if not isinstance(c, Exception) else None for c in categories_raw
+            ]
+        else:
+            categories = []
 
         return DashboardResponse(
             user=user,
@@ -68,6 +139,7 @@ async def get_dashboard(
                     id=i.id,
                     category_id=i.category_id,
                     categoria=(categories[idx].name if categories[idx] else None),
+                    technician_id=i.technician_id,
                     description=i.description,
                     status=i.status,
                     priority=i.priority,

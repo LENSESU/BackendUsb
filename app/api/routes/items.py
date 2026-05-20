@@ -6,7 +6,7 @@ Modificaciones para #61 y #63:
   Los 4 endpoints (GET list, GET by id, POST create, DELETE) ahora
   requieren un JWT válido con un rol autorizado.  Se aplica mediante
   ``dependencies=[Depends(require_role("Administrator", "Student", "Technician"))]``
-  en cada ruta.  Sin token → 403; token inválido/expirado → 401.
+  en cada ruta.  Sin token → 401; token inválido/expirado → 401.
 
 - **#63 – Validar accesos cruzados (ownership):**
   * ``POST /``:  el ``owner_id`` del item se asigna automáticamente con el
@@ -57,7 +57,7 @@ def get_item_service() -> ItemService:
 
 # ---------------------------------------------------------------------------
 # [#61] Todos los endpoints llevan dependencies=[Depends(require_role(...))]
-# para exigir JWT válido + rol autorizado.  Sin token → 403, token malo → 401.
+# para exigir JWT válido + rol autorizado.  Sin token → 401, token malo → 401.
 # ---------------------------------------------------------------------------
 
 

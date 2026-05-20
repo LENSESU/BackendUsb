@@ -33,8 +33,10 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.application.services.auth_service import AuthService
 from app.core.security import TokenExpiredError, TokenInvalidError, decode_access_token
 from app.core.token_blacklist import is_token_blacklisted
+from app.infrastructure.adapters.sql_user_repository import SqlUserRepository
 
 # Esquema de seguridad Bearer (JWT en header Authorization)
 # auto_error=False permite manejar credenciales ausentes y retornar 401 en lugar de 403
@@ -324,3 +326,18 @@ def require_role(*allowed_role_names: str) -> Callable:
         return role_name
 
     return _check_role
+
+
+# ---------------------------------------------------------------------------
+# Dependencia de servicio de autenticación
+# ---------------------------------------------------------------------------
+
+
+def get_auth_service() -> AuthService:
+    """
+    Construye AuthService con el repositorio SQL de usuarios.
+
+    Equivalente a get_incident_service() — sin estado compartido
+    porque AuthService no lo necesita.
+    """
+    return AuthService(user_repository=SqlUserRepository())

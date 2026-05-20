@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from app.application.ports.file_repository import FileRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.core.config import settings
 from app.infrastructure.adapters.gcs_file_storage import GoogleCloudStorageAdapter
@@ -8,6 +9,12 @@ from app.infrastructure.adapters.in_memory_file_storage import (
 )
 from app.infrastructure.adapters.sql_file_repository import SqlFileRepository
 from app.infrastructure.adapters.sql_incident_repository import SqlIncidentRepository
+
+
+@lru_cache
+def get_file_repository() -> FileRepositoryPort:
+    """Retorna el repositorio de archivos (singleton cacheado)."""
+    return SqlFileRepository()
 
 
 @lru_cache
@@ -28,7 +35,7 @@ def get_incident_evidence_service() -> IncidentEvidenceService:
         storage_adapter = InMemoryFileStorageAdapter()
 
     incident_repository = SqlIncidentRepository()
-    file_repository = SqlFileRepository()
+    file_repository = get_file_repository()
 
     return IncidentEvidenceService(
         storage=storage_adapter,

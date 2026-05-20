@@ -2,19 +2,15 @@
 
 from uuid import UUID
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from app.application.ports.file_repository import FileRepositoryPort
-from app.core.config import settings
 from app.infrastructure.database.models import FileModel
+from app.infrastructure.db import SyncSessionLocal
 
 
 def _get_session() -> Session:
-    """Crea una sesión síncrona nueva para cada operación."""
-    engine = create_engine(settings.database_url_sync)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    return SyncSessionLocal()
 
 
 class SqlFileRepository(FileRepositoryPort):
@@ -38,5 +34,13 @@ class SqlFileRepository(FileRepositoryPort):
             db.commit()
             db.refresh(file_model)
             return file_model.id
+        finally:
+            db.close()
+
+    def get_by_id(self, file_id: UUID) -> str | None:
+        db = _get_session()
+        try:
+            file_model = db.query(FileModel).filter(FileModel.id == file_id).first()
+            return file_model.url if file_model else None
         finally:
             db.close()

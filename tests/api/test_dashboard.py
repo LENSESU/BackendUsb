@@ -22,6 +22,7 @@ client = TestClient(app)
 
 STUDENT_USER_ID = uuid4()
 OTHER_USER_ID = uuid4()
+TECHNICIAN_USER_ID = uuid4()
 
 
 def _make_token(user_id: UUID, role_name: str) -> str:
@@ -49,6 +50,13 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
     def list_all(self) -> list[Suggestion]:
         return list(self._by_id.values())
 
+    def list_by_student(self, student_id: UUID) -> list[Suggestion]:
+        return sorted(
+            [s for s in self._by_id.values() if s.student_id == student_id],
+            key=lambda s: s.created_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
+        )
+
     def list_popular(self, limit: int) -> list[Suggestion]:
         ordered = sorted(
             self._by_id.values(),
@@ -57,7 +65,39 @@ class InMemorySuggestionRepository(SuggestionRepositoryPort):
         )
         return ordered[:limit]
 
+    def list_filtered(
+        self,
+        order_by: str = "fecha",
+        tags: list[str] | None = None,
+    ) -> list[Suggestion]:
+        result = list(self._by_id.values())
+        if tags:
+            tag_set = {t.strip().lower() for t in tags if t.strip()}
+            result = [
+                s for s in result
+                if s.tags and any(t.lower() in tag_set for t in s.tags)
+            ]
+        if order_by == "popularidad":
+            result.sort(
+                key=lambda s: (s.total_votes, s.created_at or datetime.min.replace(tzinfo=UTC)),
+                reverse=True,
+            )
+        else:
+            result.sort(
+                key=lambda s: s.created_at or datetime.min.replace(tzinfo=UTC),
+                reverse=True,
+            )
+        return result
+
     def save(self, suggestion: Suggestion) -> Suggestion:
+        self._by_id[suggestion.id] = suggestion
+        return suggestion
+
+    def save_with_tags(
+        self, suggestion: Suggestion, tag_names: list[str] | None = None
+    ) -> Suggestion:
+        """Mock implementation with tags."""
+        suggestion.tags = tag_names or []
         self._by_id[suggestion.id] = suggestion
         return suggestion
 
@@ -76,9 +116,10 @@ def _clean() -> None:
 
     app.dependency_overrides[get_suggestion_service] = _override_suggestion_service
 
-    import app.api.routes.incidents as incidents_mod
+    import app.api.dependencies.incident as incident_deps
 
-    incidents_mod._repository = incident_repo
+    incident_deps._repository = incident_repo
+    incident_deps._category_repository = None
 
     now = datetime.now(UTC)
     # 6 incidentes del usuario actual (el dashboard debe devolver solo 5)
@@ -133,7 +174,8 @@ def _clean() -> None:
     yield
 
     app.dependency_overrides.pop(get_suggestion_service, None)
-    incidents_mod._repository = None
+    incident_deps._repository = None
+    incident_deps._category_repository = None
     clear_blacklist()
 
 
@@ -147,6 +189,7 @@ def test_dashboard_returns_user_incidents_and_top_suggestions() -> None:
     assert len(body["recentIncidents"]) == 5
     assert all(i["description"].startswith("Incidente") for i in body["recentIncidents"])
     assert "categoria" in body["recentIncidents"][0]
+    assert "technician_id" in body["recentIncidents"][0]
 
     assert len(body["suggestions"]) == 5
     assert body["suggestions"][0]["total_votos"] == 10
@@ -155,3 +198,125 @@ def test_dashboard_returns_user_incidents_and_top_suggestions() -> None:
 def test_dashboard_requires_authentication() -> None:
     response = client.get("/api/v1/dashboard/")
     assert response.status_code == 401
+
+
+def test_dashboard_for_technician_returns_assigned_incidents_only() -> None:
+    import app.api.dependencies.incident as incident_deps
+
+    incident_repo = incident_deps._repository
+    now = datetime.now(UTC)
+
+    incident_repo.save(
+        Incident(
+            id=uuid4(),
+            student_id=STUDENT_USER_ID,
+            technician_id=TECHNICIAN_USER_ID,
+            category_id=uuid4(),
+            description="Incidente asignado al tecnico autenticado",
+            status="En_proceso",
+            priority="Alta",
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=now + timedelta(minutes=1),
+            updated_at=None,
+            location=None,
+        )
+    )
+    incident_repo.save(
+        Incident(
+            id=uuid4(),
+            student_id=STUDENT_USER_ID,
+            technician_id=uuid4(),
+            category_id=uuid4(),
+            description="Incidente asignado a otro tecnico",
+            status="En_proceso",
+            priority="Media",
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=now + timedelta(minutes=2),
+            updated_at=None,
+            location=None,
+        )
+    )
+
+    token = _make_token(TECHNICIAN_USER_ID, "Technician")
+    response = client.get("/api/v1/dashboard/", headers=_auth(token))
+    assert response.status_code == 200
+    body = response.json()
+
+    assert len(body["recentIncidents"]) == 1
+    assert (
+        body["recentIncidents"][0]["description"]
+        == "Incidente asignado al tecnico autenticado"
+    )
+    assert body["recentIncidents"][0]["technician_id"] == str(TECHNICIAN_USER_ID)
+
+
+def test_technician_assignments_dashboard_returns_required_fields() -> None:
+    import app.api.dependencies.incident as incident_deps
+
+    incident_repo = incident_deps._repository
+    now = datetime.now(UTC)
+    incident_repo.save(
+        Incident(
+            id=uuid4(),
+            student_id=STUDENT_USER_ID,
+            technician_id=TECHNICIAN_USER_ID,
+            category_id=uuid4(),
+            description="Incidente para dashboard técnico",
+            status="En_proceso",
+            priority="Alta",
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=now,
+            updated_at=None,
+            location=None,
+            assigned_by_admin_id=uuid4(),
+            assigned_by_admin_name="Admin Prueba",
+        )
+    )
+    incident_repo.save(
+        Incident(
+            id=uuid4(),
+            student_id=STUDENT_USER_ID,
+            technician_id=uuid4(),
+            category_id=uuid4(),
+            description="Incidente de otro técnico",
+            status="En_proceso",
+            priority="Media",
+            before_photo_id=None,
+            after_photo_id=None,
+            created_at=now + timedelta(minutes=1),
+            updated_at=None,
+            location=None,
+        )
+    )
+
+    token = _make_token(TECHNICIAN_USER_ID, "Technician")
+    response = client.get(
+        "/api/v1/dashboard/technician/assignments",
+        headers=_auth(token),
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    item = payload[0]
+    assert set(item.keys()) == {
+        "id",
+        "categoria",
+        "location",
+        "status",
+        "created_at",
+        "assigned_by_admin",
+    }
+    assert item["status"] == "En_proceso"
+    assert item["assigned_by_admin"] == "Admin Prueba"
+
+
+def test_technician_assignments_dashboard_forbidden_for_student() -> None:
+    token = _make_token(STUDENT_USER_ID, "Student")
+    response = client.get(
+        "/api/v1/dashboard/technician/assignments",
+        headers=_auth(token),
+    )
+    assert response.status_code == 403

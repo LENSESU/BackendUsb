@@ -9,6 +9,7 @@ from app.application.ports.file_repository import FileRepositoryPort
 from app.application.ports.file_storage import FileStoragePort, StoredFileResult
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.services.file_validation_service import FileValidationService
+from app.domain.entities.incident import EvidencePhotoType, IncidentStatus
 
 
 class IncidentEvidenceService:
@@ -30,7 +31,36 @@ class IncidentEvidenceService:
         *,
         incident_id: UUID,
         file: UploadFile,
+        photo_type: EvidencePhotoType = EvidencePhotoType.BEFORE,
     ) -> StoredFileResult:
+        # Validaciones previas al cargue cuando se trata de la foto final (HU-E5-028)
+        if photo_type == EvidencePhotoType.AFTER:
+            existing = self._incident_repository.get_by_id(incident_id)
+            if existing is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail={
+                        "message": (
+                            "No se encontró el incidente para asociar la evidencia."
+                        ),
+                        "error_code": "INCIDENT_NOT_FOUND",
+                    },
+                )
+            if existing.status not in (
+                IncidentStatus.EN_PROCESO.value,
+                IncidentStatus.RESUELTO.value,
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "message": (
+                            "Solo se puede subir la foto de evidencia final cuando el "
+                            "incidente está en proceso o resuelto."
+                        ),
+                        "error_code": "INCIDENT_AFTER_PHOTO_INVALID_STATE",
+                    },
+                )
+
         await FileValidationService.validate_incident_evidence_image(file)
         file_content = await file.read()
 
@@ -68,7 +98,7 @@ class IncidentEvidenceService:
             uploaded_by_user_id=None,  # Enlazar al usuario autenticado en el futuro.
         )
 
-        # Asociar el archivo como foto "antes" del incidente.
+        # Asociar el archivo al campo correspondiente según el tipo.
         incident = self._incident_repository.get_by_id(incident_id)
         if incident is None:
             raise HTTPException(
@@ -76,7 +106,62 @@ class IncidentEvidenceService:
                 detail="No se encontró el incidente para asociar la evidencia.",
             )
 
-        incident.before_photo_id = file_id
+        if photo_type == EvidencePhotoType.AFTER:
+            incident.after_photo_id = file_id
+        else:
+            incident.before_photo_id = file_id
         self._incident_repository.save(incident)
 
         return stored_file
+
+    async def upload_file_with_validation(
+        self,
+        *,
+        prefix: str,
+        file: UploadFile,
+    ) -> tuple[UUID, str]:
+        """
+        Carga un archivo genérico (sugerencias, perfiles, etc) con validación de imagen.
+
+        Retorna:
+            (file_id, file_url) - IDs y URL del archivo almacenado
+        """
+        # Reutilizar validación de imagen (es la misma para todos los contextos)
+        await FileValidationService.validate_incident_evidence_image(file)
+        file_content = await file.read()
+
+        try:
+            stored_file = await self._storage.upload_file(
+                prefix=prefix,
+                filename=file.filename or "file.jpg",
+                content_type=(file.content_type or "application/octet-stream").lower(),
+                data=file_content,
+            )
+        except GoogleAPIError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(
+                    "No se pudo subir el archivo al almacenamiento de Google Cloud. "
+                    "Intente nuevamente más tarde."
+                ),
+            ) from exc
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Ocurrió un error inesperado al subir el archivo.",
+            ) from exc
+
+        if stored_file.file_url is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="El proveedor de almacenamiento no devolvió URL válida.",
+            )
+
+        # Crear registro en tabla files
+        file_id = self._file_repository.create_file(
+            url=stored_file.file_url,
+            file_type=(file.content_type or "").lower(),
+            uploaded_by_user_id=None,
+        )
+
+        return file_id, stored_file.file_url

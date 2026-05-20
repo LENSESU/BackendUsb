@@ -10,6 +10,7 @@ Columna opcional para análisis de sentimiento futuro (-1..1 típico).
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "006"

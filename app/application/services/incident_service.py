@@ -1,5 +1,6 @@
 """Caso de uso: operaciones sobre Incidentes."""
 
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -12,11 +13,26 @@ from app.application.ports.incident_category_repository import (
 from app.domain.entities.incident import (
     Incident,
     IncidentLocation,
+    IncidentPriority,
     IncidentStatus,
+    calculate_priority_from_category,
     incident_status_as_str,
     is_known_incident_status,
     validate_incident_status_transition,
 )
+
+
+@dataclass
+class IncidentWithDetails:
+    """Incidente con información detallada de relaciones."""
+
+    incident: Incident
+    student_first_name: str | None = None
+    student_last_name: str | None = None
+    student_email: str | None = None
+    technician_first_name: str | None = None
+    technician_last_name: str | None = None
+    technician_email: str | None = None
 
 
 class IncidentService:
@@ -26,12 +42,53 @@ class IncidentService:
         self,
         repository: IncidentRepositoryPort,
         category_repository: IncidentCategoryRepositoryPort | None = None,
+        user_repository=None,
     ) -> None:
         self._repository = repository
         self._category_repository = category_repository
+        self._user_repository = user_repository
 
     def get_incident(self, incident_id: UUID) -> Incident | None:
         return self._repository.get_by_id(incident_id)
+
+    def get_incident_with_details(
+        self,
+        incident_id: UUID,
+    ) -> IncidentWithDetails | None:
+        """Obtiene un incidente con información detallada de sus relaciones."""
+        incident = self._repository.get_by_id(incident_id)
+        if incident is None:
+            return None
+
+        student_first_name = None
+        student_last_name = None
+        student_email = None
+        if self._user_repository:
+            student = self._user_repository.get_by_id(incident.student_id)
+            if student:
+                student_first_name = student.first_name
+                student_last_name = student.last_name
+                student_email = student.email
+
+        technician_first_name = None
+        technician_last_name = None
+        technician_email = None
+        if incident.technician_id and self._user_repository:
+            tech = self._user_repository.get_by_id(incident.technician_id)
+            if tech:
+                technician_first_name = tech.first_name
+                technician_last_name = tech.last_name
+                technician_email = tech.email
+
+        return IncidentWithDetails(
+            incident=incident,
+            student_first_name=student_first_name,
+            student_last_name=student_last_name,
+            student_email=student_email,
+            technician_first_name=technician_first_name,
+            technician_last_name=technician_last_name,
+            technician_email=technician_email,
+        )
 
     def list_incidents(
         self,
@@ -50,11 +107,21 @@ class IncidentService:
             date_to=date_to,
         )
 
-    def get_recent_incidents(self, student_id: UUID, limit: int = 5) -> list[Incident]:
-        """Retorna incidentes recientes del estudiante autenticado."""
+    def get_recent_incidents(
+        self,
+        user_id: UUID,
+        limit: int = 5,
+        role_name: str = "Student",
+    ) -> list[Incident]:
+        """Retorna incidentes recientes visibles para el usuario autenticado."""
         incidents = self._repository.list_all()
-        student_incidents = [i for i in incidents if i.student_id == student_id]
-        return student_incidents[:limit]
+        if role_name == "Administrator":
+            visible_incidents = incidents
+        elif role_name == "Technician":
+            visible_incidents = [i for i in incidents if i.technician_id == user_id]
+        else:
+            visible_incidents = [i for i in incidents if i.student_id == user_id]
+        return visible_incidents[:limit]
 
     def create_incident(
         self,
@@ -70,6 +137,7 @@ class IncidentService:
         status: str | None = None,
     ) -> Incident:
 
+        category = None
         if self._category_repository is not None:
             category = self._category_repository.find_by_id(str(category_id))
             if category is None:
@@ -77,6 +145,28 @@ class IncidentService:
                     status_code=422,
                     detail=f"La categoría con id '{category_id}' no existe.",
                 )
+
+        # Resolución automática de prioridad
+        if priority is not None:
+            try:
+                IncidentPriority(priority)
+                resolved_priority = priority
+            except ValueError:
+                allowed = ", ".join(p.value for p in IncidentPriority)
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "message": (
+                            f"Prioridad no válida: {priority!r}. "
+                            f"Valores permitidos: {allowed}."
+                        ),
+                        "error_code": "INCIDENT_PRIORITY_INVALID",
+                    },
+                )
+        elif category is not None:
+            resolved_priority = calculate_priority_from_category(category.name)
+        else:
+            resolved_priority = IncidentPriority.MEDIA
 
         location = None
         if campus_place is not None or latitude is not None or longitude is not None:
@@ -122,7 +212,7 @@ class IncidentService:
             category_id=category_id,
             description=description.strip(),
             status=resolved_status,
-            priority=priority,
+            priority=resolved_priority,
             before_photo_id=before_photo_id,
             after_photo_id=None,
             created_at=None,
@@ -218,3 +308,53 @@ class IncidentService:
 
     def delete_incident(self, incident_id: UUID) -> bool:
         return self._repository.delete(incident_id)
+
+    def get_critical_zones(self) -> list[dict]:
+        """Agrupa incidentes por zona y calcula criticidad según prioridad."""
+        incidents = self._repository.list_all()
+
+        priority_score: dict[str | None, int] = {
+            IncidentPriority.ALTA: 3,
+            IncidentPriority.MEDIA: 2,
+            IncidentPriority.BAJA: 1,
+        }
+
+        zones: dict[str, dict] = {}
+        for incident in incidents:
+            loc = incident.location
+            if loc is None:
+                continue
+            if loc.campus_place:
+                zone_key = loc.campus_place.strip().lower()
+                zone_name = loc.campus_place.strip()
+            elif loc.latitude is not None and loc.longitude is not None:
+                zone_key = f"{round(loc.latitude, 3)},{round(loc.longitude, 3)}"
+                zone_name = zone_key
+            else:
+                continue
+
+            if zone_key not in zones:
+                zones[zone_key] = {
+                    "zone": zone_name,
+                    "latitude": loc.latitude,
+                    "longitude": loc.longitude,
+                    "incident_count": 0,
+                    "score": 0,
+                }
+
+            zones[zone_key]["incident_count"] += 1
+            zones[zone_key]["score"] += priority_score.get(incident.priority, 1)
+
+        result = []
+        for zone_data in zones.values():
+            score = zone_data["score"]
+            if score >= 9:
+                criticality = IncidentPriority.ALTA
+            elif score >= 4:
+                criticality = IncidentPriority.MEDIA
+            else:
+                criticality = IncidentPriority.BAJA
+            result.append({**zone_data, "criticality": criticality.value})
+
+        result.sort(key=lambda z: z["score"], reverse=True)
+        return result

@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     mail_host: str = "localhost"
     mail_port: int = 1025
     mail_from: str = "noreply@app.local"
+    mail_start_tls: bool = False
     mail_username: str = ""
     mail_password: str = ""
     otp_expire_minutes: int = 2

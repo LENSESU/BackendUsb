@@ -3,22 +3,20 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import create_engine, exists, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import exists, select
+from sqlalchemy.orm import Session
 
 from app.application.ports.technician_repository import TechnicianRepositoryPort
-from app.core.config import settings
 from app.domain.entities.incident import IncidentStatus
 from app.domain.entities.user import User
 from app.infrastructure.database.models import IncidentModel, RoleModel, UserModel
+from app.infrastructure.db import SyncSessionLocal
 
 TECHNICIAN_ROLE_NAME = "Technician"
 
 
 def _get_session() -> Session:
-    engine = create_engine(settings.database_url_sync)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    return SyncSessionLocal()
 
 
 def _user_model_to_entity(row: UserModel) -> User:
@@ -69,15 +67,21 @@ class SqlTechnicianRepository(TechnicianRepositoryPort):
             db.close()
 
     def assign_technician_to_incident(
-        self, technician_id: str, incident_id: str
+        self,
+        technician_id: str,
+        incident_id: str,
+        assigned_by_admin_id: str | None = None,
     ) -> User | None:
         """Asigna técnico al incidente si ambos existen y el usuario es
-        técnico activo."""
+        técnico activo. Opcionalmente registra quién realizó la asignación."""
         db = _get_session()
         try:
             try:
                 tech_uuid = UUID(technician_id)
                 inc_uuid = UUID(incident_id)
+                admin_uuid = (
+                    UUID(assigned_by_admin_id) if assigned_by_admin_id else None
+                )
             except ValueError:
                 return None
 
@@ -97,6 +101,7 @@ class SqlTechnicianRepository(TechnicianRepositoryPort):
                 return None
 
             incident.technician_id = tech_uuid
+            incident.assigned_by_admin_id = admin_uuid
             incident.updated_at = datetime.now(UTC)
             db.commit()
             db.refresh(tech)

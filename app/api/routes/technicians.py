@@ -1,5 +1,7 @@
 """Rutas HTTP para consulta de técnicos."""
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
 
 from app.api.dependencies.auth import require_role
@@ -26,7 +28,7 @@ def _user_to_available_response(user: User) -> AvailableTechnicianResponse:
     "/available",
     response_model=list[AvailableTechnicianResponse],
     dependencies=[
-        Depends(require_role("Administrator", "Student", "Technician")),
+        Depends(require_role("Administrator", "Technician")),
     ],
 )
 def list_available_technicians(
@@ -35,3 +37,19 @@ def list_available_technicians(
     """Lista técnicos activos disponibles (sin incidentes abiertos asignados)."""
     users = technician_service.list_available_technicians()
     return [_user_to_available_response(u) for u in users]
+
+
+@router.get(
+    "/{technician_id}",
+    response_model=AvailableTechnicianResponse,
+    dependencies=[
+        Depends(require_role("Administrator", "Technician")),
+    ],
+)
+def get_technician_by_id(
+    technician_id: UUID,
+    technician_service: TechnicianService = Depends(get_technician_service),
+) -> AvailableTechnicianResponse:
+    """Retorna los datos públicos de un técnico por su ID."""
+    user = technician_service.get_technician_by_id(technician_id)
+    return _user_to_available_response(user)

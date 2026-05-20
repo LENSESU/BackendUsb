@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.entities.incident import IncidentStatus
+from app.domain.entities.incident import IncidentPriority, IncidentStatus
 
 
 class Campus(StrEnum):
@@ -65,7 +65,7 @@ class IncidentCreate(BaseModel):
     latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
     longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
     estado: IncidentStatus | None = Field(default=None, alias="status")
-    prioridad: str | None = Field(default=None, max_length=20, alias="priority")
+    prioridad: IncidentPriority | None = Field(default=None, alias="priority")
     foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
 
 
@@ -82,7 +82,7 @@ class AssignTechnicianRequest(BaseModel):
 
 
 class IncidentUpdate(BaseModel):
-    """Payload para actualizar un incidente."""
+    """Payload para actualizar campos de un incidente (excluye estado)."""
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -92,10 +92,17 @@ class IncidentUpdate(BaseModel):
     lugar_campus: Campus | None = Field(default=None, alias="campus_place")
     latitud: float | None = Field(default=None, ge=-90, le=90, alias="latitude")
     longitud: float | None = Field(default=None, ge=-180, le=180, alias="longitude")
-    estado: IncidentStatus | None = Field(default=None, alias="status")
-    prioridad: str | None = Field(default=None, max_length=20, alias="priority")
+    prioridad: IncidentPriority | None = Field(default=None, alias="priority")
     foto_antes_id: UUID | None = Field(default=None, alias="before_photo_id")
     foto_despues_id: UUID | None = Field(default=None, alias="after_photo_id")
+
+
+class IncidentStatusUpdate(BaseModel):
+    """Payload para la transición de estado de un incidente."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    estado: IncidentStatus = Field(..., alias="status")
 
 
 class IncidentResponse(BaseModel):
@@ -118,8 +125,21 @@ class IncidentResponse(BaseModel):
     priority: str | None
     before_photo_id: UUID | None
     after_photo_id: UUID | None
+    before_photo_url: str | None = None
+    after_photo_url: str | None = None
     created_at: datetime
     updated_at: datetime | None
+
+
+class IncidentDetailResponse(IncidentResponse):
+    """Respuesta detallada de un incidente con información de estudiante y técnico."""
+
+    student_first_name: str | None = None
+    student_last_name: str | None = None
+    student_email: str | None = None
+    technician_first_name: str | None = None
+    technician_last_name: str | None = None
+    technician_email: str | None = None
 
 
 class PaginatedIncidentsResponse(BaseModel):
@@ -141,3 +161,97 @@ class IncidentEvidenceUploadResponse(BaseModel):
     storage_object_name: str | None = None
     file_url: str | None = None
     message: str
+
+
+class AdminIncidentSummary(BaseModel):
+    """Resumen de un incidente para la bandeja del administrador.
+
+    Expone solo los campos necesarios para la vista de lista:
+    identificador, categoría, id del técnico, estado, prioridad, fecha, ubicación y
+    usuario reportante.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    category_id: UUID
+    technician_id: UUID | None
+    status: str
+    priority: str | None
+    created_at: datetime
+    location: str | None
+    reported_by: UUID
+    reporter_email: str | None
+
+
+class PaginatedAdminIncidentsResponse(BaseModel):
+    """Respuesta paginada para la bandeja del administrador."""
+
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+    items: list[AdminIncidentSummary]
+
+
+class IncidentGeoMarker(BaseModel):
+    """Marcador geográfico optimizado para visualización en mapa interactivo.
+
+    Contiene solo los campos necesarios para cargar eficientemente marcadores
+    de incidentes en un mapa.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "category_name": "Infraestructura",
+                "status": "Nuevo",
+                "priority": "Alta",
+                "latitude": 3.3958,
+                "longitude": -76.5317,
+                "campus_place": "Central",
+                "created_at": "2026-04-16T10:30:00Z",
+            }
+        },
+    )
+
+    id: UUID = Field(..., description="ID único del incidente")
+    category_name: str = Field(..., description="Nombre de la categoría del incidente")
+    status: str = Field(..., description="Estado actual del incidente")
+    priority: str | None = Field(None, description="Nivel de prioridad del incidente")
+    latitude: float = Field(..., description="Coordenada de latitud", ge=-90, le=90)
+    longitude: float = Field(..., description="Coordenada de longitud", ge=-180, le=180)
+    campus_place: str | None = Field(
+        None, description="Lugar específico dentro del campus"
+    )
+    created_at: datetime = Field(..., description="Fecha de creación del incidente")
+
+
+class PaginatedIncidentsGeoResponse(BaseModel):
+    """Respuesta paginada para consulta geográfica de incidentes.
+
+    Optimizada para carga eficiente de marcadores en mapas interactivos.
+    """
+
+    page: int = Field(..., ge=1, description="Número de página actual")
+    limit: int = Field(
+        ..., ge=1, le=100, description="Cantidad de elementos por página"
+    )
+    total: int = Field(..., ge=0, description="Total de incidentes con coordenadas")
+    total_pages: int = Field(..., ge=0, description="Total de páginas")
+    items: list[IncidentGeoMarker] = Field(
+        ..., description="Lista de marcadores geográficos de incidentes"
+    )
+
+
+class CriticalZoneResponse(BaseModel):
+    """Respuesta de una zona crítica del campus."""
+
+    zone: str = Field(..., description="Nombre o identificador de la zona")
+    latitude: float | None = Field(None, description="Latitud del centro de la zona")
+    longitude: float | None = Field(None, description="Longitud del centro de la zona")
+    incident_count: int = Field(..., description="Total de incidentes en la zona")
+    score: int = Field(..., description="Puntaje ponderado por prioridad")
+    criticality: str = Field(..., description="Nivel de criticidad: Alta, Media o Baja")

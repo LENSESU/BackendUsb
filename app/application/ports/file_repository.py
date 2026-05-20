@@ -17,3 +17,8 @@ class FileRepositoryPort(ABC):
     ) -> UUID:
         """Crea un registro de archivo y retorna su ID."""
         ...
+
+    @abstractmethod
+    def get_by_id(self, file_id: UUID) -> str | None:
+        """Obtiene la URL de un archivo por su ID. Retorna None si no existe."""
+        ...
