@@ -81,6 +81,19 @@ class FakeStorage(FileStoragePort):
         object_name = f"incidents/{incident_id}/{filename}"
         return StoredFileResult(object_name=object_name, file_url=url)
 
+    async def upload_file(
+        self,
+        *,
+        prefix: str,
+        filename: str,
+        content_type: str,
+        data: bytes,
+    ) -> StoredFileResult:
+        """Implementación genérica de carga de archivos para pruebas."""
+        url = f"https://storage.test/{prefix}/{filename}"
+        object_name = f"{prefix}/{filename}"
+        return StoredFileResult(object_name=object_name, file_url=url)
+
 
 def test_upload_evidence_persists_file_and_links_incident(
     monkeypatch: pytest.MonkeyPatch,

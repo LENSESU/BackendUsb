@@ -1,6 +1,7 @@
 """Puerto (interfaz) para persistencia de Incidentes."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from app.domain.entities.incident import Incident
@@ -15,8 +16,17 @@ class IncidentRepositoryPort(ABC):
         ...
 
     @abstractmethod
-    def list_all(self) -> list[Incident]:
-        """Lista todos los incidentes."""
+    def list_all(
+        self,
+        *,
+        status: str | None = None,
+        category_id: UUID | None = None,
+        priority: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list[Incident]:
+        """Lista incidentes con filtros opcionales por estado, categoría,
+        prioridad y rango de fechas."""
         ...
 
     @abstractmethod

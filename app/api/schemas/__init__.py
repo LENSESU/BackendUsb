@@ -11,13 +11,16 @@ from app.api.schemas.dashboard import DashboardResponse
 from app.api.schemas.incident import (
     AdminIncidentSummary,
     AssignTechnicianRequest,
+    CriticalZoneResponse,
     IncidentCreate,
     IncidentDetailResponse,
     IncidentEvidenceUploadResponse,
+    IncidentGeoMarker,
     IncidentResponse,
     IncidentStatusUpdate,
     IncidentUpdate,
     PaginatedAdminIncidentsResponse,
+    PaginatedIncidentsGeoResponse,
     PaginatedIncidentsResponse,
 )
 from app.api.schemas.incident_category import (
@@ -27,12 +30,14 @@ from app.api.schemas.incident_category import (
 )
 from app.api.schemas.item import ItemCreate, ItemResponse, PaginatedItemsResponse
 from app.api.schemas.suggestion import (
+    InstitutionalCommentRequest,
     PaginatedPopularSuggestionsResponse,
     PaginatedSuggestionsResponse,
     SuggestionCreate,
     SuggestionResponse,
     SuggestionUpdate,
 )
+from app.api.schemas.vote import VoteResponse
 
 __all__ = [
     "AdminIncidentSummary",
@@ -44,6 +49,8 @@ __all__ = [
     "IncidentStatusUpdate",
     "IncidentUpdate",
     "PaginatedIncidentsResponse",
+    "IncidentGeoMarker",
+    "PaginatedIncidentsGeoResponse",
     "ItemCreate",
     "ItemResponse",
     "PaginatedItemsResponse",
@@ -64,4 +71,7 @@ __all__ = [
     "IncidentCategoryResponse",
     "IncidentCategoryUpdate",
     "DashboardResponse",
+    "VoteResponse",
+    "CriticalZoneResponse",
+    "InstitutionalCommentRequest",
 ]

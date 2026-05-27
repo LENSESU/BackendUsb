@@ -25,3 +25,15 @@ class FileStoragePort(ABC):
     ) -> StoredFileResult:
         """Guarda una evidencia y retorna metadatos del archivo persistido."""
         ...
+
+    @abstractmethod
+    async def upload_file(
+        self,
+        *,
+        prefix: str,
+        filename: str,
+        content_type: str,
+        data: bytes,
+    ) -> StoredFileResult:
+        """Guarda un archivo genérico con prefijo customizable (ej: 'suggestions/')"""
+        ...

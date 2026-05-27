@@ -1,5 +1,6 @@
 """Rutas HTTP para incidentes."""
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -10,6 +11,7 @@ from app.api.dependencies.auth import (
     require_role,
 )
 from app.api.dependencies.incident import get_incident_service
+from app.api.dependencies.incident_category import get_incident_category_service
 from app.api.dependencies.storage import (
     get_file_repository,
     get_incident_evidence_service,
@@ -18,13 +20,16 @@ from app.api.dependencies.technician import get_technician_service
 from app.api.schemas import (
     AdminIncidentSummary,
     AssignTechnicianRequest,
+    CriticalZoneResponse,
     IncidentCreate,
     IncidentDetailResponse,
     IncidentEvidenceUploadResponse,
+    IncidentGeoMarker,
     IncidentResponse,
     IncidentStatusUpdate,
     IncidentUpdate,
     PaginatedAdminIncidentsResponse,
+    PaginatedIncidentsGeoResponse,
     PaginatedIncidentsResponse,
 )
 from app.application.services.incident_evidence_service import IncidentEvidenceService
@@ -118,6 +123,29 @@ def _incident_to_admin_summary(incident: Incident) -> AdminIncidentSummary:
     )
 
 
+def _incident_to_geo_marker(
+    incident: Incident, category_name: str | None = None
+) -> IncidentGeoMarker | None:
+    """Convierte un incidente a un marcador geográfico.
+
+    Retorna None si el incidente no tiene coordenadas válidas.
+    """
+    location = incident.location
+    if location is None or location.latitude is None or location.longitude is None:
+        return None
+
+    return IncidentGeoMarker(
+        id=incident.id,
+        category_name=category_name or "Sin categoría",
+        status=incident.status,
+        priority=incident.priority,
+        latitude=location.latitude,
+        longitude=location.longitude,
+        campus_place=location.campus_place,
+        created_at=incident.created_at,
+    )
+
+
 @router.get(
     "/admin-inbox",
     response_model=PaginatedAdminIncidentsResponse,
@@ -155,6 +183,19 @@ def list_incidents_admin_inbox(
 
 
 @router.get(
+    "/critical-zones",
+    response_model=list[CriticalZoneResponse],
+    dependencies=[Depends(require_role("Administrator"))],
+)
+def get_critical_zones() -> list[CriticalZoneResponse]:
+    """Retorna zonas del campus agrupadas por concentración de incidentes,
+    ponderadas por prioridad y ordenadas de más a menos crítica."""
+    service = get_incident_service()
+    zones = service.get_critical_zones()
+    return [CriticalZoneResponse(**z) for z in zones]
+
+
+@router.get(
     "/",
     response_model=PaginatedIncidentsResponse,
     dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
@@ -162,10 +203,30 @@ def list_incidents_admin_inbox(
 def list_incidents(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
+    estado: str | None = Query(
+        default=None,
+        description="Filtrar por estado: Nuevo, En_proceso, Resuelto",
+    ),
+    categoria_id: UUID | None = Query(
+        default=None, description="Filtrar por ID de categoría"
+    ),
+    prioridad: str | None = Query(default=None, description="Filtrar por prioridad"),
+    fecha_inicio: datetime | None = Query(
+        default=None, description="Filtrar desde esta fecha (ISO 8601)"
+    ),
+    fecha_fin: datetime | None = Query(
+        default=None, description="Filtrar hasta esta fecha (ISO 8601)"
+    ),
     order_by: str | None = Query(default=None, pattern="^(status|priority)$"),
 ) -> PaginatedIncidentsResponse:
     service = get_incident_service()
-    incidents = service.list_incidents()
+    incidents = service.list_incidents(
+        status=estado,
+        category_id=categoria_id,
+        priority=prioridad,
+        date_from=fecha_inicio,
+        date_to=fecha_fin,
+    )
     if order_by == "status":
         incidents = sorted(incidents, key=lambda i: i.status)
     elif order_by == "priority":
@@ -186,6 +247,109 @@ def list_incidents(
         total_pages=total_pages,
         items=[_incident_to_response(i) for i in incidents[start:end]],
     )
+
+
+@router.get(
+    "/geo",
+    response_model=PaginatedIncidentsGeoResponse,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def list_incidents_geo(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+) -> PaginatedIncidentsGeoResponse:
+    """Consulta geográfica de incidentes para visualización en mapas.
+
+    Retorna solo los incidentes que poseen coordenadas geográficas válidas.
+    Cada marcador incluye información optimizada para carga eficiente:
+    - Identificador del incidente
+    - Nombre de categoría
+    - Estado y prioridad
+    - Coordenadas (latitud, longitud)
+    - Ubicación en campus
+    - Fecha de creación
+    """
+    service = get_incident_service()
+    category_service = get_incident_category_service()
+
+    # Obtener todos los incidentes
+    all_incidents = service.list_incidents()
+
+    # Filtrar solo incidentes con coordenadas válidas y convertir a marcadores
+    geo_markers = []
+    for incident in all_incidents:
+        marker = _incident_to_geo_marker(incident)
+        if marker is not None:
+            # Enriquecer con nombre de la categoría
+            category = category_service.get_by_id(str(incident.category_id))
+            if category:
+                marker.category_name = category.name
+            geo_markers.append(marker)
+
+    # Aplicar paginación
+    total = len(geo_markers)
+    total_pages = (total + limit - 1) // limit if total > 0 else 0
+    start = (page - 1) * limit
+    end = start + limit
+
+    return PaginatedIncidentsGeoResponse(
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
+        items=geo_markers[start:end],
+    )
+
+
+@router.get(
+    "/{incident_id}/geo",
+    response_model=IncidentGeoMarker,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def get_incident_geo(incident_id: UUID) -> IncidentGeoMarker:
+    """Consulta geográfica de un incidente específico.
+
+    Retorna los datos geográficos de un incidente para su visualización
+    en mapas. Solo disponible si el incidente posee coordenadas válidas.
+
+    Campos incluidos:
+    - ID del incidente
+    - Nombre de categoría
+    - Estado y prioridad
+    - Coordenadas (latitud, longitud)
+    - Ubicación en campus
+    - Fecha de creación
+    """
+    service = get_incident_service()
+    incident = service.get_incident(incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Incidente no encontrado",
+                "error_code": "INCIDENT_NOT_FOUND",
+            },
+        )
+
+    # Convertir a marcador geográfico
+    marker = _incident_to_geo_marker(incident)
+    if marker is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": ("El incidente no posee coordenadas geográficas válidas"),
+                "error_code": "INCIDENT_NO_GEO_DATA",
+            },
+        )
+
+    # Enriquecer con nombre de la categoría
+    category_service = get_incident_category_service()
+    category = category_service.get_by_id(str(incident.category_id))
+    if category:
+        marker.category_name = category.name
+
+    return marker
 
 
 @router.get(

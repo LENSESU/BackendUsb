@@ -75,6 +75,19 @@ class FakeStorage(FileStoragePort):
         url = f"https://storage.googleapis.com/test-bucket/{object_name}"
         return StoredFileResult(object_name=object_name, file_url=url)
 
+    async def upload_file(
+        self,
+        *,
+        prefix: str,
+        filename: str,
+        content_type: str,
+        data: bytes,
+    ) -> StoredFileResult:
+        """Implementación genérica de carga de archivos para pruebas."""
+        object_name = f"{prefix}/{filename}"
+        url = f"https://storage.googleapis.com/test-bucket/{object_name}"
+        return StoredFileResult(object_name=object_name, file_url=url)
+
 
 @pytest.fixture(autouse=True)
 def override_evidence_dependencies() -> None:

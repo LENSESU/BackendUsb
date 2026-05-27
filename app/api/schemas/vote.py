@@ -22,3 +22,7 @@ class VoteResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class VoteStatusResponse(BaseModel):
+    has_voted: bool

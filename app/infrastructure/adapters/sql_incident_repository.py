@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, aliased
+from sqlalchemy.sql import and_
 
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.domain.entities.incident import Incident, IncidentLocation
@@ -106,7 +107,15 @@ class SqlIncidentRepository(IncidentRepositoryPort):
         finally:
             db.close()
 
-    def list_all(self) -> list[Incident]:
+    def list_all(
+        self,
+        *,
+        status: str | None = None,
+        category_id: UUID | None = None,
+        priority: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list[Incident]:
         db = _get_session()
         try:
             reporter_user = aliased(UserModel)
@@ -123,8 +132,21 @@ class SqlIncidentRepository(IncidentRepositoryPort):
                     assigner_user,
                     IncidentModel.assigned_by_admin_id == assigner_user.id,
                 )
-                .order_by(IncidentModel.created_at.desc())
             )
+            conditions = []
+            if status is not None:
+                conditions.append(IncidentModel.status == status)
+            if category_id is not None:
+                conditions.append(IncidentModel.category_id == category_id)
+            if priority is not None:
+                conditions.append(IncidentModel.priority == priority)
+            if date_from is not None:
+                conditions.append(IncidentModel.created_at >= date_from)
+            if date_to is not None:
+                conditions.append(IncidentModel.created_at <= date_to)
+            if conditions:
+                stmt = stmt.where(and_(*conditions))
+            stmt = stmt.order_by(IncidentModel.created_at.desc())
             rows = db.execute(stmt).all()
             incidents: list[Incident] = []
             for incident_model, reporter_email, assigner_first, assigner_last in rows:

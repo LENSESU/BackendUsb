@@ -18,3 +18,16 @@ class InMemoryFileStorageAdapter(FileStoragePort):
         extension = Path(filename).suffix.lower() or ".jpg"
         object_name = f"incidents/{incident_id}/{uuid4().hex}{extension}"
         return StoredFileResult(object_name=object_name, file_url=None)
+
+    async def upload_file(
+        self,
+        *,
+        prefix: str,
+        filename: str,
+        content_type: str,
+        data: bytes,
+    ) -> StoredFileResult:
+        extension = Path(filename).suffix.lower() or ".jpg"
+        object_name = f"{prefix}/{uuid4().hex}{extension}"
+        fake_url = f"http://localhost/mock-storage/{object_name}"
+        return StoredFileResult(object_name=object_name, file_url=fake_url)
