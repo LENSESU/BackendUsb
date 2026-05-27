@@ -18,7 +18,9 @@ class AreaInhabilitadaCreate(BaseModel):
     fecha_fin: datetime | None = Field(
         default=None, description="Fecha estimada de rehabilitación"
     )
-    lugar_campus: str | None = Field(default=None, description="Lugar del campus")
+    lugar_campus: str | None = Field(
+        default=None, max_length=200, description="Lugar del campus"
+    )
     latitud: float | None = Field(default=None, ge=-90, le=90, description="Latitud")
     longitud: float | None = Field(
         default=None, ge=-180, le=180, description="Longitud"
@@ -32,7 +34,7 @@ class AreaInhabilitadaUpdate(BaseModel):
     fecha_inicio: datetime | None = None
     fecha_fin: datetime | None = None
     activa: bool | None = None
-    lugar_campus: str | None = None
+    lugar_campus: str | None = Field(default=None, max_length=200)
     latitud: float | None = Field(default=None, ge=-90, le=90)
     longitud: float | None = Field(default=None, ge=-180, le=180)
 

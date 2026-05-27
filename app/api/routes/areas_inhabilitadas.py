@@ -131,15 +131,7 @@ def actualizar_area(
     try:
         area = service.actualizar(
             area_id=str(area_id),
-            nombre=payload.nombre,
-            motivo=payload.motivo,
-            descripcion=payload.descripcion,
-            fecha_inicio=payload.fecha_inicio,
-            fecha_fin=payload.fecha_fin,
-            activa=payload.activa,
-            lugar_campus=payload.lugar_campus,
-            latitud=payload.latitud,
-            longitud=payload.longitud,
+            **payload.model_dump(exclude_unset=True),
         )
     except ValueError as e:
         raise HTTPException(
