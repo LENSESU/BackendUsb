@@ -31,7 +31,7 @@ from app.api.schemas.suggestion import (
     SuggestionResponse,
     SuggestionUpdate,
 )
-from app.api.schemas.vote import VoteResponse
+from app.api.schemas.vote import VoteResponse, VoteStatusResponse
 from app.application.ports.file_repository import FileRepositoryPort
 from app.application.services.incident_evidence_service import IncidentEvidenceService
 from app.application.services.suggestion_service import SuggestionService
@@ -83,6 +83,11 @@ def _to_popular_response(s: Suggestion) -> SuggestionPopularResponse:
     )
 
 
+# ---------------------------------------------------------------------------
+# Collection-level routes  (no {suggestion_id} prefix)
+# ---------------------------------------------------------------------------
+
+
 @router.get(
     "/",
     response_model=PaginatedSuggestionsResponse,
@@ -114,7 +119,6 @@ def list_suggestions(
     start = (page - 1) * limit
     end = start + limit
 
-    # Convertir sugerencias a respuestas con URLs
     items = []
     for s in suggestions[start:end]:
         photo_url = None
@@ -181,32 +185,6 @@ def list_popular_suggestions(
     )
 
 
-@router.get(
-    "/{suggestion_id}",
-    response_model=SuggestionResponse,
-    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
-)
-def get_suggestion(
-    suggestion_id: UUID,
-    service: SuggestionService = Depends(get_suggestion_service),
-    file_repository: FileRepositoryPort = Depends(get_file_repository),
-) -> SuggestionResponse:
-    suggestion = service.get_by_id(suggestion_id)
-    if suggestion is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "message": "Sugerencia no encontrada",
-                "error_code": "SUGGESTION_NOT_FOUND",
-            },
-        )
-    # Obtener URL de la foto si existe
-    photo_url = None
-    if suggestion.photo_id:
-        photo_url = file_repository.get_by_id(suggestion.photo_id)
-    return _to_response(suggestion, photo_url=photo_url)
-
-
 @router.post(
     "/",
     response_model=SuggestionResponse,
@@ -254,12 +232,10 @@ async def create_suggestion(
     **Respuesta:**
     - Retorna la sugerencia creada con todos sus datos incluidas etiquetas asociadas
     """
-    # Procesar etiquetas
     tag_list = []
     if etiquetas:
         tag_list = [t.strip() for t in etiquetas.split(",") if t.strip()]
 
-    # Crear sugerencia SIN foto primero (necesitamos el ID para la carpeta en GCS)
     try:
         suggestion = service.create(
             student_id=current_user_id,
@@ -280,24 +256,19 @@ async def create_suggestion(
     if suggestion.id is None:
         raise RuntimeError("La sugerencia creada debe tener un ID")
 
-    # Si hay foto, cargarla ahora usando el ID de la sugerencia
     if photo:
         try:
             file_id, file_url = await evidence_service.upload_file_with_validation(
                 prefix=f"suggestions/{suggestion.id}",
                 file=photo,
             )
-
-            # Actualizar la sugerencia con el photo_id
             suggestion = service.update(
                 suggestion_id=suggestion.id,
                 partial={"foto_id": file_id},
             )
             if suggestion is None:
                 raise RuntimeError("No se pudo actualizar la sugerencia con la foto")
-
         except HTTPException:
-            # Re-lanzar errores HTTP del servicio de almacenamiento
             raise
         except Exception as e:
             raise HTTPException(
@@ -308,11 +279,189 @@ async def create_suggestion(
                 },
             ) from e
 
-    # Obtener URL de la foto si existe
     photo_url = None
     if suggestion.photo_id:
         photo_url = file_repository.get_by_id(suggestion.photo_id)
 
+    return _to_response(suggestion, photo_url=photo_url)
+
+
+# ---------------------------------------------------------------------------
+# Sub-resource routes on /{suggestion_id}  — static paths BEFORE the generic.
+# Order within this block: GET before POST/PATCH/DELETE on the same path.
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{suggestion_id}/vote",
+    response_model=VoteStatusResponse,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def get_vote_status(
+    suggestion_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id),
+    vote_service: VoteService = Depends(_get_vote_service),
+) -> VoteStatusResponse:
+    """Retorna si el usuario autenticado ya votó esta sugerencia.
+
+    Útil para que el frontend deshabilite o marque el botón de voto
+    sin tener que esperar el error 409 de POST /{suggestion_id}/vote.
+    """
+    return VoteStatusResponse(
+        has_voted=vote_service.has_voted(
+            student_id=current_user_id,
+            suggestion_id=suggestion_id,
+        )
+    )
+
+
+@router.post(
+    "/{suggestion_id}/vote",
+    response_model=VoteResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def vote_suggestion(
+    suggestion_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id),
+    vote_service: VoteService = Depends(_get_vote_service),
+) -> VoteResponse:
+    """Registra el voto del usuario autenticado. Un voto por usuario por sugerencia."""
+    vote = vote_service.cast_vote(
+        student_id=current_user_id,
+        suggestion_id=suggestion_id,
+    )
+    return VoteResponse(
+        id=vote.id,
+        student_id=vote.student_id,
+        suggestion_id=vote.suggestion_id,
+        created_at=vote.created_at,
+    )
+
+
+@router.post(
+    "/{suggestion_id}/comment",
+    response_model=SuggestionResponse,
+    dependencies=[Depends(require_role("Administrator"))],
+)
+def add_institutional_comment(
+    suggestion_id: UUID,
+    payload: InstitutionalCommentRequest,
+    service: SuggestionService = Depends(get_suggestion_service),
+    file_repository: FileRepositoryPort = Depends(get_file_repository),
+) -> SuggestionResponse:
+    """Agrega o reemplaza el comentario institucional de una sugerencia.
+    Solo accesible para Administradores."""
+    suggestion = service.add_institutional_comment(
+        suggestion_id=suggestion_id,
+        comment=payload.comentario,
+    )
+    if suggestion is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Sugerencia no encontrada",
+                "error_code": "SUGGESTION_NOT_FOUND",
+            },
+        )
+    photo_url = None
+    if suggestion.photo_id:
+        photo_url = file_repository.get_by_id(suggestion.photo_id)
+    return _to_response(suggestion, photo_url=photo_url)
+
+
+@router.patch(
+    "/{suggestion_id}/photo",
+    response_model=SuggestionResponse,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+async def update_suggestion_photo(
+    suggestion_id: UUID,
+    photo: UploadFile = File(
+        ..., description="Imagen a reemplazar - Formatos: JPEG, PNG. Máximo 5MB"
+    ),
+    service: SuggestionService = Depends(get_suggestion_service),
+    evidence_service: IncidentEvidenceService = Depends(get_incident_evidence_service),
+    file_repository: FileRepositoryPort = Depends(get_file_repository),
+) -> SuggestionResponse:
+    """Actualiza SOLO la foto de una sugerencia existente.
+
+    **Parámetros (multipart/form-data):**
+    - `photo`: Archivo JPEG o PNG (máximo 5MB)
+
+    **Flujo:**
+    1. Valida que la sugerencia exista
+    2. Valida la nueva foto (JPEG/PNG, max 5MB)
+    3. Carga la foto a Google Cloud Storage
+    4. Reemplaza la foto anterior con la nueva
+    5. Retorna la sugerencia actualizada con nueva `foto_url`
+
+    **Nota:** Para actualizar campos de texto, usa:
+    `PATCH /api/v1/suggestions/{suggestion_id}`
+    """
+    suggestion = service.get_by_id(suggestion_id)
+    if suggestion is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Sugerencia no encontrada",
+                "error_code": "SUGGESTION_NOT_FOUND",
+            },
+        )
+
+    try:
+        file_id, file_url = await evidence_service.upload_file_with_validation(
+            prefix=f"suggestions/{suggestion_id}",
+            file=photo,
+        )
+        suggestion = service.update(
+            suggestion_id=suggestion_id,
+            partial={"foto_id": file_id},
+        )
+        if suggestion is None:
+            raise RuntimeError("No se pudo actualizar la sugerencia con la foto")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": f"Error al procesar la foto: {str(e)}",
+                "error_code": "SUGGESTION_PHOTO_ERROR",
+            },
+        ) from e
+
+    photo_url = file_repository.get_by_id(file_id) if file_id else None
+    return _to_response(suggestion, photo_url=photo_url)
+
+
+# ---------------------------------------------------------------------------
+# Generic /{suggestion_id} routes — MUST come after all static sub-paths above
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{suggestion_id}",
+    response_model=SuggestionResponse,
+    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
+)
+def get_suggestion(
+    suggestion_id: UUID,
+    service: SuggestionService = Depends(get_suggestion_service),
+    file_repository: FileRepositoryPort = Depends(get_file_repository),
+) -> SuggestionResponse:
+    suggestion = service.get_by_id(suggestion_id)
+    if suggestion is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": "Sugerencia no encontrada",
+                "error_code": "SUGGESTION_NOT_FOUND",
+            },
+        )
+    photo_url = None
+    if suggestion.photo_id:
+        photo_url = file_repository.get_by_id(suggestion.photo_id)
     return _to_response(suggestion, photo_url=photo_url)
 
 
@@ -357,139 +506,10 @@ def update_suggestion(
                 "error_code": "SUGGESTION_NOT_FOUND",
             },
         )
-    # Obtener URL de la foto si existe
     photo_url = None
     if suggestion.photo_id:
         photo_url = file_repository.get_by_id(suggestion.photo_id)
     return _to_response(suggestion, photo_url=photo_url)
-
-
-@router.patch(
-    "/{suggestion_id}/photo",
-    response_model=SuggestionResponse,
-    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
-)
-async def update_suggestion_photo(
-    suggestion_id: UUID,
-    photo: UploadFile = File(
-        ..., description="Imagen a reemplazar - Formatos: JPEG, PNG. Máximo 5MB"
-    ),
-    service: SuggestionService = Depends(get_suggestion_service),
-    evidence_service: IncidentEvidenceService = Depends(get_incident_evidence_service),
-    file_repository: FileRepositoryPort = Depends(get_file_repository),
-) -> SuggestionResponse:
-    """Actualiza SOLO la foto de una sugerencia existente.
-
-    **Parámetros (multipart/form-data):**
-    - `photo`: Archivo JPEG o PNG (máximo 5MB)
-
-    **Flujo:**
-    1. Valida que la sugerencia exista
-    2. Valida la nueva foto (JPEG/PNG, max 5MB)
-    3. Carga la foto a Google Cloud Storage
-    4. Reemplaza la foto anterior con la nueva
-    5. Retorna la sugerencia actualizada con nueva `foto_url`
-
-    **Nota:** Para actualizar campos de texto, usa:
-    `PATCH /api/v1/suggestions/{suggestion_id}`
-    """
-    # Verificar que la sugerencia existe
-    suggestion = service.get_by_id(suggestion_id)
-    if suggestion is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "message": "Sugerencia no encontrada",
-                "error_code": "SUGGESTION_NOT_FOUND",
-            },
-        )
-
-    # Cargar la nueva foto
-    try:
-        file_id, file_url = await evidence_service.upload_file_with_validation(
-            prefix=f"suggestions/{suggestion_id}",
-            file=photo,
-        )
-
-        # Actualizar la sugerencia con el nuevo photo_id
-        suggestion = service.update(
-            suggestion_id=suggestion_id,
-            partial={"foto_id": file_id},
-        )
-        if suggestion is None:
-            raise RuntimeError("No se pudo actualizar la sugerencia con la foto")
-
-    except HTTPException:
-        # Re-lanzar errores HTTP del servicio de almacenamiento
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": f"Error al procesar la foto: {str(e)}",
-                "error_code": "SUGGESTION_PHOTO_ERROR",
-            },
-        ) from e
-
-    # Obtener URL de la foto actualizada
-    photo_url = file_repository.get_by_id(file_id) if file_id else None
-
-    return _to_response(suggestion, photo_url=photo_url)
-
-
-@router.post(
-    "/{suggestion_id}/comment",
-    response_model=SuggestionResponse,
-    dependencies=[Depends(require_role("Administrator"))],
-)
-def add_institutional_comment(
-    suggestion_id: UUID,
-    payload: InstitutionalCommentRequest,
-    service: SuggestionService = Depends(get_suggestion_service),
-    file_repository: FileRepositoryPort = Depends(get_file_repository),
-) -> SuggestionResponse:
-    """Agrega o reemplaza el comentario institucional de una sugerencia.
-    Solo accesible para Administradores."""
-    suggestion = service.add_institutional_comment(
-        suggestion_id=suggestion_id,
-        comment=payload.comentario,
-    )
-    if suggestion is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "message": "Sugerencia no encontrada",
-                "error_code": "SUGGESTION_NOT_FOUND",
-            },
-        )
-    photo_url = None
-    if suggestion.photo_id:
-        photo_url = file_repository.get_by_id(suggestion.photo_id)
-    return _to_response(suggestion, photo_url=photo_url)
-
-
-@router.post(
-    "/{suggestion_id}/vote",
-    response_model=VoteResponse,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role("Administrator", "Student", "Technician"))],
-)
-def vote_suggestion(
-    suggestion_id: UUID,
-    current_user_id: UUID = Depends(get_current_user_id),
-    vote_service: VoteService = Depends(_get_vote_service),
-) -> VoteResponse:
-    """Registra el voto del usuario autenticado. Un voto por usuario por sugerencia."""
-    vote = vote_service.cast_vote(
-        student_id=current_user_id,
-        suggestion_id=suggestion_id,
-    )
-    return VoteResponse(
-        id=vote.id,
-        student_id=vote.student_id,
-        suggestion_id=vote.suggestion_id,
-        created_at=vote.created_at,
-    )
 
 
 @router.delete(

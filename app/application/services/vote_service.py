@@ -53,3 +53,10 @@ class VoteService:
         self._suggestions.increment_votes(suggestion_id)
 
         return saved_vote
+
+    def has_voted(self, student_id: UUID, suggestion_id: UUID) -> bool:
+        """Retorna True si el estudiante ya votó esta sugerencia."""
+        return (
+            self._votes.get_by_student_and_suggestion(student_id, suggestion_id)
+            is not None
+        )
