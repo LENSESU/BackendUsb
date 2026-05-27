@@ -1,7 +1,9 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from app.application.ports.area_inhabilitada_repository import AreaInhabilitadaRepositoryPort
+from app.application.ports.area_inhabilitada_repository import (
+    AreaInhabilitadaRepositoryPort,
+)
 from app.domain.entities.area_inhabilitada import AreaInhabilitada
 
 
@@ -58,18 +60,24 @@ class AreaInhabilitadaService:
         if existing is None:
             return None
 
-        nueva_fecha_inicio = fecha_inicio if fecha_inicio is not None else existing.fecha_inicio
+        nueva_fecha_inicio = (
+            fecha_inicio if fecha_inicio is not None else existing.fecha_inicio
+        )
         nueva_fecha_fin = fecha_fin if fecha_fin is not None else existing.fecha_fin
 
         updated = AreaInhabilitada(
             id=existing.id,
             nombre=(nombre.strip() if nombre is not None else existing.nombre),
             motivo=(motivo.strip() if motivo is not None else existing.motivo),
-            descripcion=(descripcion if descripcion is not None else existing.descripcion),
+            descripcion=(
+                descripcion if descripcion is not None else existing.descripcion
+            ),
             fecha_inicio=nueva_fecha_inicio,
             fecha_fin=nueva_fecha_fin,
             activa=(activa if activa is not None else existing.activa),
-            lugar_campus=(lugar_campus if lugar_campus is not None else existing.lugar_campus),
+            lugar_campus=(
+                lugar_campus if lugar_campus is not None else existing.lugar_campus
+            ),
             latitud=(latitud if latitud is not None else existing.latitud),
             longitud=(longitud if longitud is not None else existing.longitud),
             registrada_por_id=existing.registrada_por_id,

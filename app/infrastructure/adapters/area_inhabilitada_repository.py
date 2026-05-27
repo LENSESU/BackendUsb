@@ -3,7 +3,9 @@ from uuid import UUID
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.application.ports.area_inhabilitada_repository import AreaInhabilitadaRepositoryPort
+from app.application.ports.area_inhabilitada_repository import (
+    AreaInhabilitadaRepositoryPort,
+)
 from app.core.config import settings
 from app.domain.entities.area_inhabilitada import AreaInhabilitada
 from app.infrastructure.database.models import AreaInhabilitadaModel
@@ -86,7 +88,9 @@ class SqlAlchemyAreaInhabilitadaRepository(AreaInhabilitadaRepositoryPort):
         try:
             if area.id is None:
                 return None
-            stmt = select(AreaInhabilitadaModel).where(AreaInhabilitadaModel.id == area.id)
+            stmt = select(AreaInhabilitadaModel).where(
+                AreaInhabilitadaModel.id == area.id
+            )
             row = db.scalar(stmt)
             if row is None:
                 return None
@@ -100,6 +104,7 @@ class SqlAlchemyAreaInhabilitadaRepository(AreaInhabilitadaRepositoryPort):
             row.latitude = area.latitud
             row.longitude = area.longitud
             from datetime import datetime as dt
+
             row.updated_at = dt.utcnow()
             db.commit()
             db.refresh(row)

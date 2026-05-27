@@ -1,6 +1,8 @@
 from uuid import UUID
 
-from app.application.ports.area_inhabilitada_repository import AreaInhabilitadaRepositoryPort
+from app.application.ports.area_inhabilitada_repository import (
+    AreaInhabilitadaRepositoryPort,
+)
 from app.application.ports.incident_repository import IncidentRepositoryPort
 from app.application.ports.incidente_area_repository import IncidenteAreaRepositoryPort
 from app.domain.entities.area_inhabilitada import AreaInhabilitada

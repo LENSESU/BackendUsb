@@ -5,14 +5,24 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AreaInhabilitadaCreate(BaseModel):
-    nombre: str = Field(..., min_length=1, max_length=150, description="Nombre del área")
+    nombre: str = Field(
+        ..., min_length=1, max_length=150, description="Nombre del área"
+    )
     motivo: str = Field(..., min_length=1, description="Motivo de inhabilitación")
-    fecha_inicio: datetime = Field(..., description="Fecha y hora de inicio de la inhabilitación")
-    descripcion: str | None = Field(default=None, max_length=300, description="Descripción adicional")
-    fecha_fin: datetime | None = Field(default=None, description="Fecha estimada de rehabilitación")
+    fecha_inicio: datetime = Field(
+        ..., description="Fecha y hora de inicio de la inhabilitación"
+    )
+    descripcion: str | None = Field(
+        default=None, max_length=300, description="Descripción adicional"
+    )
+    fecha_fin: datetime | None = Field(
+        default=None, description="Fecha estimada de rehabilitación"
+    )
     lugar_campus: str | None = Field(default=None, description="Lugar del campus")
     latitud: float | None = Field(default=None, ge=-90, le=90, description="Latitud")
-    longitud: float | None = Field(default=None, ge=-180, le=180, description="Longitud")
+    longitud: float | None = Field(
+        default=None, ge=-180, le=180, description="Longitud"
+    )
 
 
 class AreaInhabilitadaUpdate(BaseModel):

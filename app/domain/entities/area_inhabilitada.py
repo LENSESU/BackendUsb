@@ -25,4 +25,6 @@ class AreaInhabilitada:
         if not self.motivo or not self.motivo.strip():
             raise ValueError("El motivo de inhabilitación no puede estar vacío.")
         if self.fecha_fin is not None and self.fecha_fin < self.fecha_inicio:
-            raise ValueError("La fecha de fin no puede ser anterior a la fecha de inicio.")
+            raise ValueError(
+                "La fecha de fin no puede ser anterior a la fecha de inicio."
+            )

@@ -47,7 +47,9 @@ def _to_response(area) -> AreaInhabilitadaResponse:
 def listar_areas(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
-    solo_activas: bool = Query(default=False, description="Filtrar solo áreas actualmente inhabilitadas"),
+    solo_activas: bool = Query(
+        default=False, description="Filtrar solo áreas actualmente inhabilitadas"
+    ),
     service: AreaInhabilitadaService = Depends(get_area_inhabilitada_service),
 ) -> AreaInhabilitadaListResponse:
     items = [_to_response(a) for a in service.listar(solo_activas=solo_activas)]
@@ -107,7 +109,10 @@ def obtener_area(
     if area is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"message": f"Área inhabilitada con id {area_id} no encontrada.", "error_code": "AREA_INHABILITADA_NOT_FOUND"},
+            detail={
+                "message": f"Área inhabilitada con id {area_id} no encontrada.",
+                "error_code": "AREA_INHABILITADA_NOT_FOUND",
+            },
         )
     return _to_response(area)
 
@@ -144,7 +149,10 @@ def actualizar_area(
     if area is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"message": f"Área inhabilitada con id {area_id} no encontrada.", "error_code": "AREA_INHABILITADA_NOT_FOUND"},
+            detail={
+                "message": f"Área inhabilitada con id {area_id} no encontrada.",
+                "error_code": "AREA_INHABILITADA_NOT_FOUND",
+            },
         )
     return _to_response(area)
 
@@ -162,7 +170,10 @@ def eliminar_area(
     if not service.eliminar(str(area_id)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"message": f"Área inhabilitada con id {area_id} no encontrada.", "error_code": "AREA_INHABILITADA_NOT_FOUND"},
+            detail={
+                "message": f"Área inhabilitada con id {area_id} no encontrada.",
+                "error_code": "AREA_INHABILITADA_NOT_FOUND",
+            },
         )
 
 
@@ -192,9 +203,13 @@ def asociar_incidente(
             else "AREA_O_INCIDENTE_NOT_FOUND"
         )
         http_status = (
-            status.HTTP_409_CONFLICT if "ya está asociado" in msg else status.HTTP_404_NOT_FOUND
+            status.HTTP_409_CONFLICT
+            if "ya está asociado" in msg
+            else status.HTTP_404_NOT_FOUND
         )
-        raise HTTPException(status_code=http_status, detail={"message": msg, "error_code": code}) from e
+        raise HTTPException(
+            status_code=http_status, detail={"message": msg, "error_code": code}
+        ) from e
     return {"message": "Incidente asociado al área inhabilitada correctamente."}
 
 
@@ -212,7 +227,10 @@ def desasociar_incidente(
     if not service.desasociar(incidente_id=incidente_id, area_id=area_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"message": "Asociación no encontrada.", "error_code": "ASOCIACION_NOT_FOUND"},
+            detail={
+                "message": "Asociación no encontrada.",
+                "error_code": "ASOCIACION_NOT_FOUND",
+            },
         )
 
 
