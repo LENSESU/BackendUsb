@@ -308,6 +308,69 @@ class NotificationModel(Base):
 
 
 # ---------------------------------------------------------------------------
+# areas_inhabilitadas (depende de users)
+# ---------------------------------------------------------------------------
+
+
+class AreaInhabilitadaModel(Base):
+    """ORM: área del campus temporalmente fuera de servicio."""
+
+    __tablename__ = "areas_inhabilitadas"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    nombre: Mapped[str] = mapped_column(String(150), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    motivo: Mapped[str] = mapped_column(Text, nullable=False)
+    fecha_inicio: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    fecha_fin: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    lugar_campus: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    registrada_por_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# incidente_area_inhabilitada (tabla de asociación M2M)
+# ---------------------------------------------------------------------------
+
+
+class IncidenteAreaInhabilitadaModel(Base):
+    """ORM: asociación muchos-a-muchos entre incidente y área inhabilitada."""
+
+    __tablename__ = "incidente_area_inhabilitada"
+
+    incidente_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("incidents.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False,
+    )
+    area_inhabilitada_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("areas_inhabilitadas.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+
+# ---------------------------------------------------------------------------
 # otps (depende de users)
 # ---------------------------------------------------------------------------
 

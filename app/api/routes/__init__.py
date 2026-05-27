@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.routes import (
+    areas_inhabilitadas,
     auth,
     dashboard,
     incident_category,
@@ -24,3 +25,8 @@ api_router.include_router(
     suggestions.router, prefix="/suggestions", tags=["suggestions"]
 )
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
+api_router.include_router(
+    areas_inhabilitadas.router,
+    prefix="/areas-inhabilitadas",
+    tags=["areas-inhabilitadas"],
+)
