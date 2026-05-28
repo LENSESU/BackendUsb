@@ -1,4 +1,4 @@
-"""Servicio de asignación y consulta de técnicos."""
+"""Servicio de asignación, consulta y gestión de técnicos."""
 
 from uuid import UUID
 
@@ -24,6 +24,24 @@ class TechnicianService:
     def list_available_technicians(self) -> list[User]:
         """Retorna técnicos activos sin carga en incidentes Nuevo o En_proceso."""
         return self._technicians.technician_available_list_all()
+
+    def get_technician_by_id(self, technician_id: UUID) -> User:
+        """
+        Retorna un técnico por su ID.
+
+        Raises:
+            HTTPException 404: Si el técnico no existe o no tiene rol de técnico.
+        """
+        technician = self._technicians.find_by_id(str(technician_id))
+        if technician is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": "Técnico no encontrado",
+                    "error_code": "TECHNICIAN_NOT_FOUND",
+                },
+            )
+        return technician
 
     def assign_technician_to_incident(
         self,
@@ -72,12 +90,90 @@ class TechnicianService:
             },
         )
 
-    def get_technician_by_id(self, technician_id: UUID) -> User:
+    # ------------------------------------------------------------------
+    # Nuevos métodos — gestión admin
+    # ------------------------------------------------------------------
+
+    def list_all_technicians(self) -> list[User]:
+        """Retorna todos los técnicos (activos e inactivos)."""
+        return self._technicians.find_all()
+
+    def register_technician(
+        self,
+        first_name: str,
+        last_name: str,
+        email: str,
+        password_hash: str,
+    ) -> User:
         """
-        Retorna un técnico por su ID.
+        Registra un nuevo técnico en el sistema.
 
         Raises:
-            HTTPException 404: Si el técnico no existe o no tiene rol de técnico.
+            HTTPException 409: Si el email ya está registrado.
+        """
+        try:
+            return self._technicians.create_technician(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                password_hash=password_hash,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": str(exc),
+                    "error_code": "EMAIL_ALREADY_EXISTS",
+                },
+            ) from exc
+
+    def update_technician(
+        self,
+        technician_id: UUID,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        email: str | None = None,
+    ) -> User:
+        """
+        Actualiza datos de un técnico (PATCH semántico).
+
+        Raises:
+            HTTPException 404: Si el técnico no existe.
+            HTTPException 409: Si el nuevo email ya pertenece a otro usuario.
+        """
+        try:
+            updated = self._technicians.update_technician(
+                user_id=str(technician_id),
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": str(exc),
+                    "error_code": "EMAIL_ALREADY_EXISTS",
+                },
+            ) from exc
+
+        if updated is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": "Técnico no encontrado",
+                    "error_code": "TECHNICIAN_NOT_FOUND",
+                },
+            )
+        return updated
+
+    def deactivate_technician(self, technician_id: UUID) -> User:
+        """
+        Desactiva un técnico.
+
+        Raises:
+            HTTPException 404: Si el técnico no existe.
+            HTTPException 409: Si el técnico ya está inactivo.
         """
         technician = self._technicians.find_by_id(str(technician_id))
         if technician is None:
@@ -88,4 +184,64 @@ class TechnicianService:
                     "error_code": "TECHNICIAN_NOT_FOUND",
                 },
             )
-        return technician
+        if not technician.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "El técnico ya se encuentra inactivo",
+                    "error_code": "TECHNICIAN_ALREADY_INACTIVE",
+                },
+            )
+        result = self._technicians.set_active_status(str(technician_id), False)
+        assert result is not None  # Garantizado: acaba de existir
+        return result
+
+    def activate_technician(self, technician_id: UUID) -> User:
+        """
+        Reactiva un técnico previamente desactivado.
+
+        Raises:
+            HTTPException 404: Si el técnico no existe.
+            HTTPException 409: Si el técnico ya está activo.
+        """
+        technician = self._technicians.find_by_id(str(technician_id))
+        if technician is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": "Técnico no encontrado",
+                    "error_code": "TECHNICIAN_NOT_FOUND",
+                },
+            )
+        if technician.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "El técnico ya se encuentra activo",
+                    "error_code": "TECHNICIAN_ALREADY_ACTIVE",
+                },
+            )
+        result = self._technicians.set_active_status(str(technician_id), True)
+        assert result is not None
+        return result
+
+    def get_technician_incidents(
+        self, technician_id: UUID
+    ) -> tuple[User, list[Incident]]:
+        """
+        Retorna el técnico y la lista de todos sus incidentes asignados.
+
+        Raises:
+            HTTPException 404: Si el técnico no existe.
+        """
+        technician = self._technicians.find_by_id(str(technician_id))
+        if technician is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "message": "Técnico no encontrado",
+                    "error_code": "TECHNICIAN_NOT_FOUND",
+                },
+            )
+        incidents = self._technicians.find_incidents_by_technician(str(technician_id))
+        return technician, incidents
