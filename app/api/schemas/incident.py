@@ -22,6 +22,9 @@ class Campus(StrEnum):
     NARANJOS = "Naranjos"
     HIGUERONES = "Higuerones"
     CANCHA = "Cancha"
+    CEREZOS = "Cerezos"
+    HORIZONTES = "Horizontes"
+    PALMAS = "Palmas"
     OTROS = "Otros"
 
 
