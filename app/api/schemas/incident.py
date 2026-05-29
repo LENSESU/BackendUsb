@@ -11,7 +11,7 @@ from app.domain.entities.incident import IncidentPriority, IncidentStatus
 
 class Campus(StrEnum):
     """Campus disponibles (enum para Swagger)."""
-
+ 
     BIBLIOTECA = "Biblioteca"
     LAGO = "Lago"
     CEDRO = "Cedro"
@@ -22,6 +22,9 @@ class Campus(StrEnum):
     NARANJOS = "Naranjos"
     HIGUERONES = "Higuerones"
     CANCHA = "Cancha"
+    CEREZOS = "Cerezos"
+    HORIZONTES = "Horizontes"
+    PALMAS = "Palmas"
     OTROS = "Otros"
 
 
