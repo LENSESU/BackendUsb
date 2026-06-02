@@ -52,12 +52,18 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.dependencies.auth import get_auth_service, get_current_token
+from app.api.dependencies.auth import (
+    get_auth_service,
+    get_current_token,
+    get_current_user_id,
+)
 from app.api.dependencies.otp import get_otp_service
 from app.api.schemas.auth import (
     LoginRequest,
     LogoutResponse,
     RefreshTokenRequest,
+    ThemePreferenceRequest,
+    ThemePreferenceResponse,
     TokenResponse,
     TokenValidationRequest,
     TokenValidationResponse,
@@ -254,6 +260,49 @@ def get_current_user_info(token: str = Depends(get_current_token)) -> dict:
         "email": payload.get("email"),
         "role_id": payload.get("role_id"),
     }
+
+
+@router.get("/me/theme", response_model=ThemePreferenceResponse)
+def get_my_theme_preference(
+    current_user_id=Depends(get_current_user_id),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> ThemePreferenceResponse:
+    """Obtiene la preferencia de tema del usuario autenticado."""
+    try:
+        theme = auth_service.get_theme_preference(current_user_id)
+    except ValueError as e:
+        if str(e) == "USER_NOT_FOUND":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado",
+            )
+        raise
+    return ThemePreferenceResponse(theme=theme)
+
+
+@router.put("/me/theme", response_model=ThemePreferenceResponse)
+def set_my_theme_preference(
+    request: ThemePreferenceRequest,
+    current_user_id=Depends(get_current_user_id),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> ThemePreferenceResponse:
+    """Actualiza la preferencia de tema del usuario autenticado."""
+    try:
+        theme = auth_service.set_theme_preference(current_user_id, request.theme)
+    except ValueError as e:
+        code = str(e)
+        if code == "THEME_INVALID":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Tema inválido. Valores permitidos: light, dark",
+            )
+        if code == "USER_NOT_FOUND":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado",
+            )
+        raise
+    return ThemePreferenceResponse(theme=theme)
 
 
 @router.post("/refresh", response_model=TokenResponse)

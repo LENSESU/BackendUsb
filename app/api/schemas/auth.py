@@ -70,3 +70,15 @@ class ResendCodeResponse(BaseModel):
     """Respuesta al reenviar código de verificación."""
 
     message: str = "Si el correo está registrado, recibirás un nuevo código en breve."
+
+
+class ThemePreferenceRequest(BaseModel):
+    """Petición para actualizar la preferencia de tema."""
+
+    theme: str = Field(..., description="Tema visual del usuario: light o dark")
+
+
+class ThemePreferenceResponse(BaseModel):
+    """Respuesta de preferencia de tema del usuario autenticado."""
+
+    theme: str

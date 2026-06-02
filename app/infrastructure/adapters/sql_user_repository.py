@@ -20,6 +20,7 @@ def _model_to_entity(row: UserModel) -> User:
         last_name=row.last_name,
         role_id=row.role_id,
         is_active=row.is_active,
+        theme_preference=row.theme_preference,
         created_at=row.created_at,
     )
 
@@ -49,6 +50,8 @@ class SqlUserRepository(UserRepositoryPort):
                     first_name=user.first_name,
                     last_name=user.last_name,
                     role_id=user.role_id,
+                    is_active=user.is_active,
+                    theme_preference=user.theme_preference,
                 )
                 session.add(instance)
                 await session.flush()
@@ -59,6 +62,8 @@ class SqlUserRepository(UserRepositoryPort):
                 instance.first_name = user.first_name
                 instance.last_name = user.last_name
                 instance.role_id = user.role_id
+                instance.is_active = user.is_active
+                instance.theme_preference = user.theme_preference
             await session.commit()
             return user
 
@@ -89,6 +94,29 @@ class SqlUserRepository(UserRepositoryPort):
         finally:
             db.close()
 
+    def get_theme_preference(self, user_id: UUID) -> str | None:
+        db = SyncSessionLocal()
+        try:
+            model = db.scalar(select(UserModel).where(UserModel.id == user_id))
+            if model is None:
+                return None
+            return model.theme_preference
+        finally:
+            db.close()
+
+    def set_theme_preference(self, user_id: UUID, theme: str) -> str | None:
+        db = SyncSessionLocal()
+        try:
+            model = db.scalar(select(UserModel).where(UserModel.id == user_id))
+            if model is None:
+                return None
+            model.theme_preference = theme
+            db.commit()
+            db.refresh(model)
+            return model.theme_preference
+        finally:
+            db.close()
+
     def get_role_name_by_id(self, role_id: UUID) -> str | None:
         db = SyncSessionLocal()
         try:
@@ -111,6 +139,7 @@ class SqlUserRepository(UserRepositoryPort):
                     last_name=user.last_name,
                     role_id=user.role_id,
                     is_active=user.is_active,
+                    theme_preference=user.theme_preference,
                 )
                 db.add(instance)
                 db.flush()
@@ -122,6 +151,7 @@ class SqlUserRepository(UserRepositoryPort):
                 instance.last_name = user.last_name
                 instance.role_id = user.role_id
                 instance.is_active = user.is_active
+                instance.theme_preference = user.theme_preference
             db.commit()
             db.refresh(instance)
             return user

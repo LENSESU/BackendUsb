@@ -187,3 +187,21 @@ class AuthService:
     def delete_user(self, user: User) -> None:
         """Elimina un usuario. Usado para rollback post-fallo de OTP."""
         self._users.delete_sync(user)
+
+    def get_theme_preference(self, user_id: UUID) -> str:
+        """Obtiene la preferencia de tema de un usuario autenticado."""
+        theme = self._users.get_theme_preference(user_id)
+        if theme is None:
+            raise ValueError("USER_NOT_FOUND")
+        return theme
+
+    def set_theme_preference(self, user_id: UUID, theme: str) -> str:
+        """Actualiza y retorna la preferencia de tema de un usuario autenticado."""
+        normalized = theme.strip().lower()
+        if normalized not in {"light", "dark"}:
+            raise ValueError("THEME_INVALID")
+
+        updated = self._users.set_theme_preference(user_id, normalized)
+        if updated is None:
+            raise ValueError("USER_NOT_FOUND")
+        return updated

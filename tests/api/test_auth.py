@@ -1,5 +1,6 @@
 """Tests para autenticación: login, logout y validación de tokens."""
 
+from uuid import uuid4
 from unittest.mock import MagicMock
 
 import pytest
@@ -7,10 +8,26 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies.auth import get_auth_service
 from app.application.services.auth_service import AuthService
+from app.core.security import create_access_token
 from app.core.token_blacklist import clear_blacklist
 from app.main import app
 
 client = TestClient(app)
+
+
+def _make_token(user_id, role_name: str = "Student") -> str:
+    return create_access_token(
+        data={
+            "sub": str(user_id),
+            "email": f"user-{user_id}@usb.ve",
+            "role_id": str(uuid4()),
+            "role_name": role_name,
+        }
+    )
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture(autouse=True)
@@ -162,4 +179,63 @@ def test_token_expiration_response_structure():
         assert "message" in detail
         assert "error_code" in detail
         assert "redirect_to_login" in detail
+
+
+def test_get_my_theme_returns_current_preference() -> None:
+    user_id = uuid4()
+    token = _make_token(user_id)
+
+    mock_repo = MagicMock()
+    mock_repo.get_theme_preference.return_value = "dark"
+    app.dependency_overrides[get_auth_service] = lambda: AuthService(mock_repo)
+    try:
+        response = client.get("/api/v1/auth/me/theme", headers=_auth(token))
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["theme"] == "dark"
+
+
+def test_update_my_theme_persists_preference() -> None:
+    user_id = uuid4()
+    token = _make_token(user_id)
+
+    mock_repo = MagicMock()
+    mock_repo.set_theme_preference.return_value = "dark"
+    app.dependency_overrides[get_auth_service] = lambda: AuthService(mock_repo)
+    try:
+        response = client.put(
+            "/api/v1/auth/me/theme",
+            json={"theme": "dark"},
+            headers=_auth(token),
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["theme"] == "dark"
+
+
+def test_update_my_theme_rejects_invalid_value() -> None:
+    user_id = uuid4()
+    token = _make_token(user_id)
+
+    mock_repo = MagicMock()
+    app.dependency_overrides[get_auth_service] = lambda: AuthService(mock_repo)
+    try:
+        response = client.put(
+            "/api/v1/auth/me/theme",
+            json={"theme": "blue"},
+            headers=_auth(token),
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+def test_my_theme_requires_authentication() -> None:
+    response = client.get("/api/v1/auth/me/theme")
+    assert response.status_code == 401
 

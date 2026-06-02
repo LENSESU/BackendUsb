@@ -79,6 +79,11 @@ class UserModel(Base):
         nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    theme_preference: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        server_default=text("'light'"),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

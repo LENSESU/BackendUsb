@@ -14,6 +14,7 @@ class User:
     password_hash: str
     role_id: UUID
     is_active: bool = True
+    theme_preference: str = "light"
     created_at: datetime | None = None
 
     def __post_init__(self) -> None:
