@@ -42,7 +42,10 @@ class UserRepositoryPort(ABC):
 
     @abstractmethod
     def set_theme_preference(self, user_id: UUID, theme: str) -> str | None:
-        """Actualiza la preferencia de tema del usuario y retorna el valor persistido."""
+        """Actualiza la preferencia de tema del usuario.
+
+        Retorna el valor persistido.
+        """
         ...
 
     @abstractmethod
