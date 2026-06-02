@@ -36,6 +36,19 @@ class UserRepositoryPort(ABC):
         ...
 
     @abstractmethod
+    def get_theme_preference(self, user_id: UUID) -> str | None:
+        """Obtiene la preferencia de tema del usuario por su ID."""
+        ...
+
+    @abstractmethod
+    def set_theme_preference(self, user_id: UUID, theme: str) -> str | None:
+        """Actualiza la preferencia de tema del usuario.
+
+        Retorna el valor persistido.
+        """
+        ...
+
+    @abstractmethod
     def get_role_name_by_id(self, role_id: UUID) -> str | None:
         """Resuelve el nombre del rol dado su UUID. Retorna None si no existe."""
         ...
