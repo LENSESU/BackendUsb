@@ -53,7 +53,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "usblens.vercel.app",
+        " https://backend-usblens.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
