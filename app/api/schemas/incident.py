@@ -16,7 +16,7 @@ class Campus(StrEnum):
     LAGO = "Lago"
     CEDRO = "Cedro"
     CENTRAL = "Central"
-    FARRALLONES = "Farrallones"
+    FARRALLONES = "Farallones"
     PARQUEADERO_ESTUDIANTES = "Parqueadero_estudiantes"
     PARQUE_TECNOLOGICO = "Parque tecnologico"
     NARANJOS = "Naranjos"
