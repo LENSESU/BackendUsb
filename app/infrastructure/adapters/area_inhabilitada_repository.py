@@ -126,3 +126,17 @@ class SqlAlchemyAreaInhabilitadaRepository(AreaInhabilitadaRepositoryPort):
             return True
         finally:
             db.close()
+
+    def find_by_lugar_campus(self, lugar_campus: str) -> list[AreaInhabilitada]:
+        """Retorna áreas activas para un lugar del campus (para sugerir al técnico)."""
+        db = _get_session()
+        try:
+            stmt = (
+                select(AreaInhabilitadaModel)
+                .where(AreaInhabilitadaModel.activa.is_(True))
+                .where(AreaInhabilitadaModel.lugar_campus == lugar_campus)
+            )
+            rows = db.scalars(stmt).all()
+            return [_to_entity(r) for r in rows]
+        finally:
+            db.close()

@@ -1,3 +1,4 @@
+# app/application/services/area_inhabilitada_service.py
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -35,12 +36,16 @@ class AreaInhabilitadaService:
             lugar_campus=lugar_campus,
             latitud=latitud,
             longitud=longitud,
-            registrada_por_id=registrada_por_id,
+            registrada_por_id=registrada_por_id,  # ← persiste el autor
         )
         return self._repository.save(area)
 
     def listar(self, solo_activas: bool = False) -> list[AreaInhabilitada]:
         return self._repository.find_all(solo_activas=solo_activas)
+
+    def listar_por_lugar(self, lugar_campus: str) -> list[AreaInhabilitada]:
+        """Retorna áreas activas filtradas por lugar del campus."""
+        return self._repository.find_by_lugar_campus(lugar_campus)
 
     def obtener_por_id(self, area_id: str) -> AreaInhabilitada | None:
         return self._repository.find_by_id(area_id)
@@ -48,6 +53,8 @@ class AreaInhabilitadaService:
     def actualizar(
         self,
         area_id: str,
+        solicitante_id: UUID | None = None,  # ← NUEVO: para validar ownership
+        es_admin: bool = False,  # ← NUEVO: admin bypasea la validación
         nombre: str | None = _UNSET,  # type: ignore[assignment]
         motivo: str | None = _UNSET,  # type: ignore[assignment]
         descripcion: str | None = _UNSET,  # type: ignore[assignment]
@@ -61,6 +68,13 @@ class AreaInhabilitadaService:
         existing = self._repository.find_by_id(area_id)
         if existing is None:
             return None
+
+        # Técnico solo puede editar áreas que él registró
+        if not es_admin and solicitante_id is not None:
+            if existing.registrada_por_id != solicitante_id:
+                raise PermissionError(
+                    "Solo el técnico que registró el área puede modificarla."
+                )
 
         updated = AreaInhabilitada(
             id=existing.id,

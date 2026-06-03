@@ -18,3 +18,6 @@ class AreaInhabilitadaRepositoryPort(ABC):
 
     @abstractmethod
     def delete(self, area_id: str) -> bool: ...
+
+    @abstractmethod
+    def find_by_lugar_campus(self, lugar_campus: str) -> list[AreaInhabilitada]: ...

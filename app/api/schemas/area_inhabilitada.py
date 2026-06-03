@@ -1,29 +1,29 @@
+# app/api/schemas/area_inhabilitada.py
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.schemas.incident import Campus  # ← importar el enum existente
+
 
 class AreaInhabilitadaCreate(BaseModel):
-    nombre: str = Field(
-        ..., min_length=1, max_length=150, description="Nombre del área"
+    nombre: str = Field(..., min_length=1, max_length=150)
+    motivo: str = Field(..., min_length=1)
+    fecha_inicio: datetime
+    descripcion: str | None = Field(default=None, max_length=300)
+    fecha_fin: datetime | None = None
+    lugar_campus: Campus | None = Field(  # ← era str, ahora enum validado
+        default=None, max_length=200
     )
-    motivo: str = Field(..., min_length=1, description="Motivo de inhabilitación")
-    fecha_inicio: datetime = Field(
-        ..., description="Fecha y hora de inicio de la inhabilitación"
-    )
-    descripcion: str | None = Field(
-        default=None, max_length=300, description="Descripción adicional"
-    )
-    fecha_fin: datetime | None = Field(
-        default=None, description="Fecha estimada de rehabilitación"
-    )
-    lugar_campus: str | None = Field(
-        default=None, max_length=200, description="Lugar del campus"
-    )
-    latitud: float | None = Field(default=None, ge=-90, le=90, description="Latitud")
-    longitud: float | None = Field(
-        default=None, ge=-180, le=180, description="Longitud"
+    latitud: float | None = Field(default=None, ge=-90, le=90)
+    longitud: float | None = Field(default=None, ge=-180, le=180)
+    incidente_id: UUID | None = Field(  # ← NUEVO: incidente a asociar al crear
+        default=None,
+        description=(
+            "ID del incidente a asociar al registrar el área. "
+            "Requerido si el solicitante es Técnico."
+        ),
     )
 
 
@@ -34,7 +34,7 @@ class AreaInhabilitadaUpdate(BaseModel):
     fecha_inicio: datetime | None = None
     fecha_fin: datetime | None = None
     activa: bool | None = None
-    lugar_campus: str | None = Field(default=None, max_length=200)
+    lugar_campus: Campus | None = None  # ← era str, ahora enum
     latitud: float | None = Field(default=None, ge=-90, le=90)
     longitud: float | None = Field(default=None, ge=-180, le=180)
 
@@ -52,7 +52,7 @@ class AreaInhabilitadaResponse(BaseModel):
     lugar_campus: str | None
     latitud: float | None
     longitud: float | None
-    registrada_por_id: UUID | None
+    registrada_por_id: UUID | None  # ya existe en el modelo ORM
     created_at: datetime | None
     updated_at: datetime | None
 
@@ -70,8 +70,6 @@ class AsociarIncidenteRequest(BaseModel):
 
 
 class IncidenteAsociadoResponse(BaseModel):
-    """Resumen de un incidente asociado a un área inhabilitada."""
-
     id: UUID
     descripcion: str
     status: str
@@ -81,8 +79,6 @@ class IncidenteAsociadoResponse(BaseModel):
 
 
 class AreaAsociadaResponse(BaseModel):
-    """Resumen de un área inhabilitada asociada a un incidente."""
-
     id: UUID
     nombre: str
     motivo: str
